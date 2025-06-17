@@ -24,6 +24,9 @@
 .DS_Store
 *.pem
 
+# temporary files and docs (now organized in folders)
+# learnX.md (moved to docs/)
+
 # debug
 npm-debug.log*
 yarn-debug.log*
@@ -39,3 +42,63 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# IDEs and editors
+/.idea
+.project
+.classpath
+.c9/
+*.launch
+.settings/
+*.sublime-workspace
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+
+# Cursor AI IDE
+.cursor/
+
+# Test files (临时测试文件)
+test-*.js
+test-*.ts
+debug-*.js
+debug-*.ts
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Runtime data
+pids
+*.pid
+*.seed
+*.pid.lock
+
+# Temporary directories
+.temp/
+.tmp/
+
+# Logs
+logs/
+*.log
+
+# Local uploads/assets (如果有本地上传的文件)
+/uploads/
+/temp/
+
+# Cache directories
+.cache/
+.parcel-cache/
+
+# Optional npm cache directory
+.npm
+
+# Optional REPL history
+.node_repl_history
