@@ -1,16 +1,96 @@
+'use client';
+
+import React, { useEffect, useState } from 'react';
 import { VideoGrid } from './components/VideoGrid'
 import { SearchBar } from './components/SearchBar'
 import { CategoryTabs } from './components/CategoryTabs'
 import { getVideos, getVideosByCategory } from '@/lib/video'
+import { VideoUploadButton } from '@/components/VideoUploadButton'
+import { useSearchParams } from 'next/navigation';
+import { VideoItem } from '@/types/video';
 
-export default async function VideosPage({
-  searchParams
-}: {
-  searchParams: { category?: string }
-}) {
-  // 在使用 searchParams 之前先 await
-  const category = (await searchParams).category || 'all'
-  const videos = await getVideosByCategory(category)
+// 模拟标签数据
+const mockTags = [
+  { id: '1', name: '教程' },
+  { id: '2', name: '娱乐' },
+  { id: '3', name: '游戏' },
+  { id: '4', name: '音乐' },
+];
+
+// 模拟分类数据
+const mockCategories = [
+  { id: '1', name: '游戏' },
+  { id: '2', name: '音乐' },
+  { id: '3', name: '教育' },
+  { id: '4', name: '生活' },
+];
+
+export default function VideosPage() {
+  const searchParams = useSearchParams();
+  const [videos, setVideos] = useState<VideoItem[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchVideos = async () => {
+      try {
+        const category = searchParams.get('category') || 'all';
+        const data = await getVideosByCategory(category);
+        setVideos(data);
+      } catch (error) {
+        console.error('获取视频列表失败:', error);
+      } finally {
+        // setLoading(false);
+      }
+    };
+
+    fetchVideos();
+  }, [searchParams]);
+
+  const handleUpload = async (data: {
+    name: string;
+    description: string;
+    tags: { id: string; name: string }[];
+    category?: { id: string; name: string };
+    file: File;
+  }) => {
+    try {
+      // TODO: 实现视频上传逻辑
+      console.log('上传视频:', data);
+      
+      // 这里可以调用您的上传 API
+      // const formData = new FormData();
+      // formData.append('file', data.file);
+      // formData.append('name', data.name);
+      // formData.append('description', data.description);
+      // formData.append('tags', JSON.stringify(data.tags));
+      // if (data.category) {
+      //   formData.append('category', JSON.stringify(data.category));
+      // }
+      
+      // const response = await fetch('/api/videos/upload', {
+      //   method: 'POST',
+      //   body: formData,
+      // });
+      
+      // if (!response.ok) {
+      //   throw new Error('上传失败');
+      // }
+      
+      // const result = await response.json();
+      // console.log('上传成功:', result);
+    } catch (error) {
+      console.error('上传出错:', error);
+      // TODO: 显示错误提示
+    }
+  };
+
+  // if (loading) {
+  //   return (
+  //     <div className="flex items-center justify-center min-h-screen">
+  //       <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
+  //     </div>
+  //   );
+  // }
 
   return (
     <div className="max-w-7xl mx-auto space-y-6 p-4">
@@ -28,6 +108,14 @@ export default async function VideosPage({
         ]} 
       />
       
+      <div className="flex justify-end">
+        <VideoUploadButton
+          onUpload={handleUpload}
+          existingTags={mockTags}
+          categories={mockCategories}
+        />
+      </div>
+      
       {videos.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-16 text-gray-500">
           <svg xmlns="http://www.w3.org/2000/svg" className="h-16 w-16 mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -39,5 +127,5 @@ export default async function VideosPage({
         <VideoGrid videos={videos} />
       )}
     </div>
-  )
+  );
 } 

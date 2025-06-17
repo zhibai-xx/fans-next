@@ -4,6 +4,9 @@ import "./globals.css";
 import Link from "next/link";
 import { IconRenderer } from "@/components/icons/IconRenderer";
 import Head from 'next/head';
+import { AuthProvider } from "@/components/providers/auth-provider";
+import { AuthNavButtons } from "@/components/auth-nav-buttons";
+import { Toaster } from "@/components/ui/toaster";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -39,41 +42,37 @@ export default function RootLayout({
         />
       </Head>
       <body className={`${geistSans.variable} ${geistMono.variable}`}>
-        <div className="flex min-h-screen bg-white dark:bg-black text-black dark:text-white">
-          {/* 左侧导航栏 */}
-          <nav className="w-[164px] bg-black text-white p-4 flex flex-col fixed h-full">
-            <div className="my-[53px]">
-              <Link href="/" className="flex items-center justify-center">
-                <span className="text-xl font-bold">ZJY</span>
-              </Link>
-            </div>
+        <AuthProvider>
+          <div className="flex min-h-screen bg-white dark:bg-black text-black dark:text-white">
+            {/* 左侧导航栏 */}
+            <nav className="w-[164px] bg-black text-white p-4 flex flex-col fixed h-full">
+              <div className="my-[53px]">
+                <Link href="/" className="flex items-center justify-center">
+                  <span className="text-xl font-bold">ZJY</span>
+                </Link>
+              </div>
 
-            <div className="space-y-3">
-              <NavItem href="/" icon="/icons/fire.svg" label="动态" />
-              <NavItem href="/images" icon="/icons/images.svg" label="图片" />
-              <NavItem href="/videos" icon="/icons/video.svg" label="视频" />
-              <NavItem href="/community" icon="/icons/community.svg" label="社区" />
-              <NavItem href="/profile" icon="/icons/profile.svg" label="个人" />
-            </div>
-            <div className="mt-[50px]">
-              <NavItem href="/shop" icon="/icons/shop.svg" label="商店" />
-            </div>
+              <div className="space-y-3">
+                <NavItem href="/" icon="/icons/fire.svg" label="动态" />
+                <NavItem href="/images" icon="/icons/images.svg" label="图片" />
+                <NavItem href="/videos" icon="/icons/video.svg" label="视频" />
+                <NavItem href="/community" icon="/icons/community.svg" label="社区" />
+                <NavItem href="/profile" icon="/icons/profile.svg" label="个人" />
+              </div>
+              <div className="mt-[50px]">
+                <NavItem href="/shop" icon="/icons/shop.svg" label="商店" />
+              </div>
 
-            <div className="mt-auto mb-4">
-              <Link href="/login" className="w-full py-2 px-4 bg-white text-black rounded-full text-center text-sm block hover:bg-gray-200 transition">
-                登录
-              </Link>
-              <Link href="/signup" className="w-full py-2 px-4 border border-white rounded-full text-center text-sm block mt-2 hover:bg-gray-900 transition">
-                注册
-              </Link>
-            </div>
-          </nav>
+              <AuthNavButtons />
+            </nav>
 
-          {/* 右侧内容区 */}
-          <main className="flex-1 ml-[166px] p-8">
-            {children}
-          </main>
-        </div>
+            {/* 右侧内容区 */}
+            <main className="flex-1 ml-[166px] p-8">
+              {children}
+            </main>
+          </div>
+          <Toaster />
+        </AuthProvider>
       </body>
     </html>
   );

@@ -2,6 +2,8 @@
 
 import { useState, useEffect } from 'react'
 import Image from 'next/image'
+import { Button } from '@/components/ui/button'
+import { Textarea } from '@/components/ui/textarea'
 
 interface Comment {
     id: string
@@ -100,14 +102,14 @@ export function VideoComments({ videoId, commentsCount }: VideoCommentsProps) {
             setComments(mockComments)
             setIsLoading(false)
         }, 800)
-        
+
         return () => clearTimeout(timer)
     }, [videoId])
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault()
         if (!comment.trim()) return
-        
+
         // 实际项目中这里应该调用API发布评论
         const newComment: Comment = {
             id: `new-${Date.now()}`,
@@ -123,7 +125,7 @@ export function VideoComments({ videoId, commentsCount }: VideoCommentsProps) {
             isLiked: false,
             isDisliked: false
         }
-        
+
         setComments([newComment, ...comments])
         setComment('')
     }
@@ -140,7 +142,7 @@ export function VideoComments({ videoId, commentsCount }: VideoCommentsProps) {
 
     const submitReply = (commentId: string) => {
         if (!replyContent.trim()) return
-        
+
         // 实际项目中这里应该调用API发布回复
         const newReply: Comment = {
             id: `reply-${Date.now()}`,
@@ -156,7 +158,7 @@ export function VideoComments({ videoId, commentsCount }: VideoCommentsProps) {
             isLiked: false,
             isDisliked: false
         }
-        
+
         setComments(comments.map(c => {
             if (c.id === commentId) {
                 return {
@@ -166,7 +168,7 @@ export function VideoComments({ videoId, commentsCount }: VideoCommentsProps) {
             }
             return c
         }))
-        
+
         setReplyTo(null)
         setReplyContent('')
     }
@@ -279,27 +281,38 @@ export function VideoComments({ videoId, commentsCount }: VideoCommentsProps) {
                     <span className="ml-2 text-sm text-gray-500">{comment.timestamp}</span>
                 </div>
                 <p className="mt-1">{comment.content}</p>
-                <div className="flex items-center mt-2 space-x-4 text-sm text-gray-500">
-                    <button 
-                        className={`flex items-center space-x-1 ${comment.isLiked ? 'text-blue-500' : ''}`}
+                <div className="flex items-center mt-2 space-x-4 text-sm text-muted-foreground">
+                    <Button
+                        variant="ghost"
+                        size="sm"
+                        className={`flex items-center space-x-1 h-auto p-0 ${comment.isLiked ? 'text-blue-500 hover:text-blue-600' : 'text-muted-foreground'}`}
                         onClick={() => toggleLike(comment.id, isReply, parentId)}
                     >
                         <svg className="w-4 h-4" fill={comment.isLiked ? "currentColor" : "none"} viewBox="0 0 24 24" stroke="currentColor">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 10h4.764a2 2 0 011.789 2.894l-3.5 7A2 2 0 0115.263 21h-4.017c-.163 0-.326-.02-.485-.06L7 20m7-10V5a2 2 0 00-2-2h-.095c-.5 0-.905.405-.905.905 0 .714-.211 1.412-.608 2.006L7 11v9m7-10h-2M7 20H5a2 2 0 01-2-2v-6a2 2 0 012-2h2.5" />
                         </svg>
                         <span>{comment.likes}</span>
-                    </button>
-                    <button 
-                        className={`flex items-center space-x-1 ${comment.isDisliked ? 'text-red-500' : ''}`}
+                    </Button>
+                    <Button
+                        variant="ghost"
+                        size="sm"
+                        className={`flex items-center space-x-1 h-auto p-0 ${comment.isDisliked ? 'text-red-500 hover:text-red-600' : 'text-muted-foreground'}`}
                         onClick={() => toggleDislike(comment.id, isReply, parentId)}
                     >
                         <svg className="w-4 h-4" fill={comment.isDisliked ? "currentColor" : "none"} viewBox="0 0 24 24" stroke="currentColor">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 14H5.236a2 2 0 01-1.789-2.894l3.5-7A2 2 0 018.736 3h4.018a2 2 0 01.485.06l3.76.94m-7 10v5a2 2 0 002 2h.096c.5 0 .905-.405.905-.904 0-.715.211-1.413.608-2.008L17 13V4m-7 10h2" />
                         </svg>
                         <span>{comment.dislikes}</span>
-                    </button>
+                    </Button>
                     {!isReply && (
-                        <button onClick={() => handleReply(comment.id)}>回复</button>
+                        <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-auto p-0 text-muted-foreground"
+                            onClick={() => handleReply(comment.id)}
+                        >
+                            回复
+                        </Button>
                     )}
                 </div>
 
@@ -314,27 +327,28 @@ export function VideoComments({ videoId, commentsCount }: VideoCommentsProps) {
                             className="rounded-full mr-2 flex-shrink-0"
                         />
                         <div className="flex-1">
-                            <textarea
+                            <Textarea
                                 value={replyContent}
                                 onChange={(e) => setReplyContent(e.target.value)}
                                 placeholder={`回复 ${comment.author.name}...`}
-                                className="w-full p-2 border border-gray-300 dark:border-gray-700 rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-500 dark:bg-gray-800 text-sm"
+                                className="text-sm"
                                 rows={2}
-                            ></textarea>
-                            <div className="flex justify-end mt-2">
-                                <button
-                                    className="px-3 py-1 text-sm text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 mr-2"
+                            />
+                            <div className="flex justify-end mt-2 space-x-2">
+                                <Button
+                                    variant="ghost"
+                                    size="sm"
                                     onClick={() => setReplyTo(null)}
                                 >
                                     取消
-                                </button>
-                                <button
+                                </Button>
+                                <Button
+                                    size="sm"
                                     onClick={() => submitReply(comment.id)}
                                     disabled={!replyContent.trim()}
-                                    className="px-3 py-1 bg-blue-500 text-white text-sm rounded disabled:opacity-50 disabled:cursor-not-allowed"
                                 >
                                     发布回复
-                                </button>
+                                </Button>
                             </div>
                         </div>
                     </div>
@@ -362,22 +376,24 @@ export function VideoComments({ videoId, commentsCount }: VideoCommentsProps) {
             <div className="flex items-center justify-between">
                 <h3 className="text-lg font-medium">评论 ({comments.length})</h3>
                 <div className="flex items-center space-x-2">
-                    <span className="text-sm text-gray-500">排序方式:</span>
-                    <button 
-                        className={`text-sm px-2 py-1 rounded ${sortBy === 'hot' ? 'bg-gray-200 dark:bg-gray-700' : ''}`}
+                    <span className="text-sm text-muted-foreground">排序方式:</span>
+                    <Button
+                        variant={sortBy === 'hot' ? 'secondary' : 'ghost'}
+                        size="sm"
                         onClick={() => setSortBy('hot')}
                     >
                         热门
-                    </button>
-                    <button 
-                        className={`text-sm px-2 py-1 rounded ${sortBy === 'newest' ? 'bg-gray-200 dark:bg-gray-700' : ''}`}
+                    </Button>
+                    <Button
+                        variant={sortBy === 'newest' ? 'secondary' : 'ghost'}
+                        size="sm"
                         onClick={() => setSortBy('newest')}
                     >
                         最新
-                    </button>
+                    </Button>
                 </div>
             </div>
-            
+
             {/* 评论输入框 */}
             <form onSubmit={handleSubmit} className="flex space-x-4">
                 <div className="flex-shrink-0">
@@ -390,21 +406,19 @@ export function VideoComments({ videoId, commentsCount }: VideoCommentsProps) {
                     />
                 </div>
                 <div className="flex-grow">
-                    <textarea
+                    <Textarea
                         value={comment}
                         onChange={(e) => setComment(e.target.value)}
                         placeholder="发一条友善的评论"
-                        className="w-full p-3 border border-gray-300 dark:border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-800"
                         rows={3}
-                    ></textarea>
+                    />
                     <div className="flex justify-end mt-2">
-                        <button
+                        <Button
                             type="submit"
                             disabled={!comment.trim()}
-                            className="px-4 py-2 bg-blue-500 text-white rounded-md disabled:opacity-50 disabled:cursor-not-allowed"
                         >
                             发布评论
-                        </button>
+                        </Button>
                     </div>
                 </div>
             </form>

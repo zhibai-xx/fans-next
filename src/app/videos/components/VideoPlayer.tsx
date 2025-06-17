@@ -2,6 +2,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { cn } from '@/lib/utils'
 import Image from 'next/image'
+import { Button } from '@/components/ui/button'
 import { KeyboardShortcuts } from './KeyboardShortcuts'
 
 interface VideoPlayerProps {
@@ -114,7 +115,7 @@ export const VideoPlayer = ({
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (!videoRef.current) return
-      
+
       // 只有当播放器处于聚焦状态或全屏状态时才处理键盘事件
       if (document.activeElement !== playerRef.current && !isFullscreen) return
 
@@ -198,11 +199,11 @@ export const VideoPlayer = ({
   // 静音控制
   const toggleMute = () => {
     if (!videoRef.current) return
-    
+
     const newMutedState = !isMuted
     videoRef.current.muted = newMutedState
     setIsMuted(newMutedState)
-    
+
     if (newMutedState) {
       // 保存当前音量并设置为0
       setVolume(0)
@@ -258,13 +259,13 @@ export const VideoPlayer = ({
   // 切换播放速度
   const changePlaybackRate = () => {
     if (!videoRef.current) return
-    
+
     // 循环切换播放速度：0.5, 1.0, 1.5, 2.0
     const rates = [0.5, 1.0, 1.5, 2.0]
     const currentIndex = rates.indexOf(playbackRate)
     const nextIndex = (currentIndex + 1) % rates.length
     const newRate = rates[nextIndex]
-    
+
     setPlaybackRate(newRate)
     videoRef.current.playbackRate = newRate
   }
@@ -286,7 +287,7 @@ export const VideoPlayer = ({
   }
 
   return (
-    <div 
+    <div
       ref={playerRef}
       className={cn(
         'relative aspect-video bg-black rounded-lg overflow-hidden group',
@@ -301,10 +302,10 @@ export const VideoPlayer = ({
       {isLightMode && (
         <div className="absolute inset-0 flex items-center justify-center bg-black">
           {thumbnail ? (
-            <Image 
-              src={thumbnail} 
-              alt="视频封面" 
-              fill 
+            <Image
+              src={thumbnail}
+              alt="视频封面"
+              fill
               className="object-contain"
               priority
             />
@@ -318,7 +319,7 @@ export const VideoPlayer = ({
       )}
 
       {/* 视频播放器 */}
-      <video 
+      <video
         ref={videoRef}
         src={url}
         className={cn("w-full h-full", isLightMode && "hidden")}
@@ -345,7 +346,7 @@ export const VideoPlayer = ({
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
             <p>{error}</p>
-            <button 
+            <button
               className="mt-4 px-4 py-2 bg-white text-red-900 rounded-md hover:bg-gray-200"
               onClick={retryLoading}
             >
@@ -373,7 +374,7 @@ export const VideoPlayer = ({
 
       {/* 10秒快进/快退指示器 - 需要在相应函数中添加显示控制 */}
       <div className="absolute inset-0 pointer-events-none flex items-center justify-between px-16 opacity-0 group-hover:opacity-100 transition-opacity">
-        <button 
+        <button
           onClick={(e) => {
             e.stopPropagation();
             seekBackward();
@@ -384,7 +385,7 @@ export const VideoPlayer = ({
             <path d="M11 18V6l-8.5 6 8.5 6zm.5-6l8.5 6V6l-8.5 6z" />
           </svg>
         </button>
-        <button 
+        <button
           onClick={(e) => {
             e.stopPropagation();
             seekForward();
@@ -399,7 +400,7 @@ export const VideoPlayer = ({
 
       {/* 控制条 */}
       {controls && !isLightMode && (
-        <div 
+        <div
           className={cn(
             "absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent px-4 py-3 transition-opacity duration-300",
             (showControls || !isPlaying) ? "opacity-100" : "opacity-0"
@@ -407,19 +408,19 @@ export const VideoPlayer = ({
         >
           {/* 进度条 */}
           <div className="relative w-full h-1 bg-gray-600 rounded-full mb-3 cursor-pointer group">
-            <input 
-              type="range" 
-              min="0" 
-              max="100" 
-              value={progress} 
+            <input
+              type="range"
+              min="0"
+              max="100"
+              value={progress}
               onChange={handleProgressChange}
               className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
             />
-            <div 
+            <div
               className="h-full bg-red-500 rounded-full"
               style={{ width: `${progress}%` }}
             ></div>
-            <div 
+            <div
               className="absolute top-1/2 -translate-y-1/2 w-3 h-3 bg-red-500 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
               style={{ left: `${progress}%` }}
             ></div>
@@ -509,13 +510,17 @@ export const VideoPlayer = ({
 
 // 自定义播放按钮
 const PlayButton = () => (
-  <button className="w-16 h-16 bg-white/20 rounded-full flex items-center justify-center backdrop-blur-sm transition-all hover:bg-white/30">
+  <Button
+    variant="ghost"
+    size="icon"
+    className="w-16 h-16 bg-white/20 rounded-full backdrop-blur-sm transition-all hover:bg-white/30 text-white"
+  >
     <svg
-      className="w-8 h-8 text-white"
+      className="w-8 h-8"
       fill="currentColor"
       viewBox="0 0 24 24"
     >
       <path d="M8 5v14l11-7z" />
     </svg>
-  </button>
+  </Button>
 )
