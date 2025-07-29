@@ -1,15 +1,67 @@
 // hooks/useIntersectionObserver.ts
-import { useEffect, RefObject } from 'react';
+import { useEffect, useState, RefObject } from 'react';
 
-// 修改类型定义，允许null并明确指定HTMLDivElement
-export const useIntersectionObserver = ({
+interface UseIntersectionObserverOptions {
+  root?: Element | null;
+  rootMargin?: string;
+  threshold?: number | number[];
+  once?: boolean;
+}
+
+interface UseIntersectionObserverResult {
+  isIntersecting: boolean;
+  entry?: IntersectionObserverEntry;
+}
+
+export const useIntersectionObserver = (
+  target: RefObject<Element | null>,
+  options: UseIntersectionObserverOptions = {}
+): UseIntersectionObserverResult => {
+  const [isIntersecting, setIsIntersecting] = useState(false);
+  const [entry, setEntry] = useState<IntersectionObserverEntry>();
+
+  const { root = null, rootMargin = '0px', threshold = 0, once = false } = options;
+
+  useEffect(() => {
+    if (!target.current) return;
+
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        setIsIntersecting(entry.isIntersecting);
+        setEntry(entry);
+
+        if (once && entry.isIntersecting) {
+          observer.unobserve(target.current!);
+        }
+      },
+      {
+        root,
+        rootMargin,
+        threshold,
+      }
+    );
+
+    observer.observe(target.current);
+
+    return () => {
+      if (target.current) {
+        observer.unobserve(target.current);
+      }
+    };
+  }, [target, root, rootMargin, threshold, once]);
+
+  return { isIntersecting, entry };
+};
+
+// 保持向后兼容的旧版本
+export const useIntersectionObserverLegacy = ({
   target,
   onIntersect,
   threshold = 0,
   rootMargin = '0px',
   once = false
 }: {
-  target: RefObject<HTMLDivElement | null>; // 修改为HTMLDivElement并允许null
+  target: RefObject<HTMLDivElement | null>;
   onIntersect: () => void;
   threshold?: number;
   rootMargin?: string;
@@ -18,7 +70,7 @@ export const useIntersectionObserver = ({
   useEffect(() => {
     const observer = new IntersectionObserver(
       ([entry]) => {
-        if (entry?.isIntersecting) { // 添加可选链操作符
+        if (entry?.isIntersecting) {
           onIntersect();
           if (once && target.current) {
             observer.unobserve(target.current);
@@ -32,12 +84,12 @@ export const useIntersectionObserver = ({
       }
     );
 
-    if (target.current) { // 添加null检查
+    if (target.current) {
       observer.observe(target.current);
     }
 
     return () => {
-      if (target.current) { // 添加null检查
+      if (target.current) {
         observer.unobserve(target.current);
       }
     };
