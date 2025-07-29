@@ -18,4 +18,13 @@ export interface VideoItem {
     commentsCount?: number
     isLiked?: boolean
     isBookmarked?: boolean
+    source?: 'USER_UPLOAD' | 'WEIBO_CRAWL' | 'API_IMPORT' | 'BATCH_IMPORT'
+    originalCreatedAt?: string
+    sourceMetadata?: {
+        weiboUserId?: string
+        originalPath?: string
+        crawlSource?: string
+        importedAt?: string
+        [key: string]: any
+    }
 }
