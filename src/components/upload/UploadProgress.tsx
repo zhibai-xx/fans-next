@@ -1,5 +1,6 @@
 import React from 'react';
 import { CheckCircle, AlertCircle, Loader2, Pause } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 import type { UploadTask } from '@/types/upload';
 
 interface UploadProgressProps {
@@ -121,20 +122,24 @@ export const UploadProgress: React.FC<UploadProgressProps> = ({
       {(canRetry || canCancel) && (
         <div className="flex gap-2 mt-2">
           {canRetry && onRetry && (
-            <button
+            <Button
               onClick={onRetry}
-              className="px-3 py-1 text-xs bg-blue-500 text-white rounded hover:bg-blue-600"
+              variant="default"
+              size="sm"
+              className="text-xs"
             >
               重试
-            </button>
+            </Button>
           )}
           {canCancel && onCancel && (
-            <button
+            <Button
               onClick={onCancel}
-              className="px-3 py-1 text-xs bg-gray-500 text-white rounded hover:bg-gray-600"
+              variant="secondary"
+              size="sm"
+              className="text-xs"
             >
               取消
-            </button>
+            </Button>
           )}
         </div>
       )}

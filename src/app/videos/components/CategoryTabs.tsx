@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
+import { Button } from '@/components/ui/button'
 
 interface Category {
   id: string
@@ -24,17 +25,15 @@ export function CategoryTabs({ categories }: CategoryTabsProps) {
   return (
     <div className="flex flex-wrap gap-2">
       {categories.map((category) => (
-        <button
+        <Button
           key={category.id}
+          variant={currentCategory === category.id ? 'default' : 'outline'}
+          size="sm"
           onClick={() => handleCategoryChange(category.id)}
-          className={`px-4 py-2 rounded-full text-sm transition-colors ${
-            currentCategory === category.id
-              ? 'bg-blue-500 text-white'
-              : 'bg-gray-100 hover:bg-gray-200 text-gray-800 dark:bg-gray-800 dark:hover:bg-gray-700 dark:text-gray-200'
-          }`}
+          className="rounded-full"
         >
           {category.name}
-        </button>
+        </Button>
       ))}
     </div>
   )

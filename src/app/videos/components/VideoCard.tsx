@@ -1,6 +1,7 @@
 import Image from 'next/image'
 import Link from 'next/link'
 import { VideoItem } from '@/types/video'
+import { Badge } from '@/components/ui/badge'
 
 interface VideoCardProps {
   video: VideoItem
@@ -21,12 +22,20 @@ export function VideoCard({ video, className }: VideoCardProps) {
         <div className="absolute bottom-2 right-2 bg-black/70 text-white text-xs px-1 py-0.5 rounded">
           {video.duration}
         </div>
+        {/* 来源标签 */}
+        {(video as any).source && (video as any).source === 'WEIBO_CRAWL' && (
+          <div className="absolute top-2 left-2">
+            <Badge variant="secondary" className="bg-blue-100 text-blue-800 text-xs">
+              微博
+            </Badge>
+          </div>
+        )}
       </div>
-      
+
       <h3 className="font-medium text-base line-clamp-2 group-hover:text-blue-500 transition-colors">
         {video.title}
       </h3>
-      
+
       <div className="flex items-center mt-2">
         <Image
           src={video.author.avatar}

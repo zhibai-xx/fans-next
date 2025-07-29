@@ -43,9 +43,9 @@ export default function RootLayout({
       </Head>
       <body className={`${geistSans.variable} ${geistMono.variable}`}>
         <AuthProvider>
-          <div className="flex min-h-screen bg-white dark:bg-black text-black dark:text-white">
-            {/* 左侧导航栏 */}
-            <nav className="w-[164px] bg-black text-white p-4 flex flex-col fixed h-full">
+          <div className="flex min-h-screen bg-white dark:bg-black text-black dark:text-white overflow-x-hidden">
+            {/* 左侧导航栏 - 增加高 z-index 和触摸保护 */}
+            <nav className="w-[164px] bg-black text-white p-4 flex flex-col fixed h-full z-50 left-0 top-0">
               <div className="my-[53px]">
                 <Link href="/" className="flex items-center justify-center">
                   <span className="text-xl font-bold">ZJY</span>
@@ -66,9 +66,11 @@ export default function RootLayout({
               <AuthNavButtons />
             </nav>
 
-            {/* 右侧内容区 */}
-            <main className="flex-1 ml-[166px] p-8">
-              {children}
+            {/* 右侧内容区 - 添加最小宽度和边界保护 */}
+            <main className="flex-1 ml-[166px] p-8 min-w-0 relative">
+              <div className="w-full h-full">
+                {children}
+              </div>
             </main>
           </div>
           <Toaster />

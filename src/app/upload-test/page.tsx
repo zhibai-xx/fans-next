@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import { ImageUploadButton } from '@/components/ImageUploadButton';
 import { VideoUploadButton } from '@/components/VideoUploadButton';
 import { AdvancedUploadModal } from '@/components/upload/AdvancedUploadModal';
+import { Button } from '@/components/ui/button';
 
 export default function UploadTestPage() {
   const [showImageModal, setShowImageModal] = useState(false);
@@ -34,24 +35,24 @@ export default function UploadTestPage() {
         <div className="bg-white rounded-lg p-6 mb-8">
           <h2 className="text-xl font-semibold mb-4">高级上传模态框测试</h2>
           <div className="flex gap-4">
-            <button
+            <Button
               onClick={() => setShowImageModal(true)}
-              className="px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600"
+              className="bg-green-500 hover:bg-green-600"
             >
               图片上传模态框
-            </button>
-            <button
+            </Button>
+            <Button
               onClick={() => setShowVideoModal(true)}
-              className="px-4 py-2 bg-purple-500 text-white rounded-lg hover:bg-purple-600"
+              className="bg-purple-500 hover:bg-purple-600"
             >
               视频上传模态框
-            </button>
-            <button
+            </Button>
+            <Button
               onClick={() => setShowMixedModal(true)}
-              className="px-4 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600"
+              className="bg-orange-500 hover:bg-orange-600"
             >
               混合上传模态框
-            </button>
+            </Button>
           </div>
         </div>
 
@@ -105,12 +106,13 @@ export default function UploadTestPage() {
                 </div>
               ))}
             </div>
-            <button
+            <Button
               onClick={() => setUploadResults([])}
-              className="mt-4 px-3 py-1 text-sm bg-gray-500 text-white rounded hover:bg-gray-600"
+              variant="secondary"
+              size="sm"
             >
               清空结果
-            </button>
+            </Button>
           </div>
         )}
 

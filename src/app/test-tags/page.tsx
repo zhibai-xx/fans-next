@@ -3,6 +3,10 @@
 import React, { useState, useEffect } from 'react';
 import { mediaService, type Tag } from '@/services/media.service';
 import { handleApiError } from '@/lib/utils/error-handler';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
 
 export default function TestTagsPage() {
   const [tags, setTags] = useState<Tag[]>([]);
@@ -77,97 +81,110 @@ export default function TestTagsPage() {
       )}
 
       {/* 创建新标签 */}
-      <div className="bg-white p-6 rounded-lg shadow mb-6">
-        <h2 className="text-xl font-semibold mb-4">创建新标签</h2>
-        <div className="flex gap-2">
-          <input
-            type="text"
-            value={newTagName}
-            onChange={(e) => setNewTagName(e.target.value)}
-            placeholder="输入标签名称"
-            className="flex-1 px-3 py-2 border rounded-lg"
-            onKeyPress={(e) => e.key === 'Enter' && createTag()}
-          />
-          <button
-            onClick={createTag}
-            disabled={!newTagName.trim()}
-            className="px-4 py-2 bg-blue-500 text-white rounded-lg disabled:bg-blue-300"
-          >
-            创建标签
-          </button>
-        </div>
-      </div>
+      <Card className="mb-6">
+        <CardHeader>
+          <CardTitle>创建新标签</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="flex gap-2">
+            <Input
+              type="text"
+              value={newTagName}
+              onChange={(e) => setNewTagName(e.target.value)}
+              placeholder="输入标签名称"
+              className="flex-1"
+              onKeyPress={(e) => e.key === 'Enter' && createTag()}
+            />
+            <Button
+              onClick={createTag}
+              disabled={!newTagName.trim()}
+            >
+              创建标签
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
 
       {/* 搜索标签 */}
-      <div className="bg-white p-6 rounded-lg shadow mb-6">
-        <h2 className="text-xl font-semibold mb-4">搜索标签</h2>
-        <input
-          type="text"
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          placeholder="输入搜索关键词"
-          className="w-full px-3 py-2 border rounded-lg mb-4"
-        />
-        {searchResults.length > 0 && (
-          <div>
-            <h3 className="font-medium mb-2">搜索结果:</h3>
-            <div className="flex flex-wrap gap-2">
-              {searchResults.map((tag) => (
-                <span
-                  key={tag.id}
-                  className="px-3 py-1 bg-green-100 text-green-800 rounded-full text-sm"
-                >
-                  {tag.name}
-                </span>
-              ))}
+      <Card className="mb-6">
+        <CardHeader>
+          <CardTitle>搜索标签</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <Input
+            type="text"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="输入搜索关键词"
+            className="mb-4"
+          />
+          {searchResults.length > 0 && (
+            <div>
+              <h3 className="font-medium mb-2">搜索结果:</h3>
+              <div className="flex flex-wrap gap-2">
+                {searchResults.map((tag) => (
+                  <Badge
+                    key={tag.id}
+                    variant="secondary"
+                    className="bg-green-100 text-green-800"
+                  >
+                    {tag.name}
+                  </Badge>
+                ))}
+              </div>
             </div>
-          </div>
-        )}
-      </div>
+          )}
+        </CardContent>
+      </Card>
 
       {/* 所有标签列表 */}
-      <div className="bg-white p-6 rounded-lg shadow">
-        <div className="flex justify-between items-center mb-4">
-          <h2 className="text-xl font-semibold">所有标签 ({tags.length})</h2>
-          <button
-            onClick={fetchTags}
-            disabled={loading}
-            className="px-4 py-2 bg-gray-500 text-white rounded-lg disabled:bg-gray-300"
-          >
-            {loading ? '加载中...' : '刷新'}
-          </button>
-        </div>
+      <Card>
+        <CardHeader>
+          <div className="flex justify-between items-center">
+            <CardTitle>所有标签 ({tags.length})</CardTitle>
+            <Button
+              onClick={fetchTags}
+              disabled={loading}
+              variant="secondary"
+            >
+              {loading ? '加载中...' : '刷新'}
+            </Button>
+          </div>
+        </CardHeader>
+        <CardContent>
+          {loading ? (
+            <div className="text-center py-8">
+              <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
+              <p className="mt-2 text-gray-600">加载中...</p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {tags.map((tag) => (
+                <Card key={tag.id}>
+                  <CardContent className="p-4">
+                    <h3 className="font-medium text-lg">{tag.name}</h3>
+                    <p className="text-sm text-gray-500">ID: {tag.id}</p>
+                    {tag.created_at && (
+                      <p className="text-sm text-gray-500">
+                        创建时间: {new Date(tag.created_at).toLocaleString()}
+                      </p>
+                    )}
+                    {tag.usage_count !== undefined && (
+                      <p className="text-sm text-gray-500">使用次数: {tag.usage_count}</p>
+                    )}
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          )}
 
-        {loading ? (
-          <div className="text-center py-8">
-            <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
-            <p className="mt-2 text-gray-600">加载中...</p>
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {tags.map((tag) => (
-              <div key={tag.id} className="border rounded-lg p-4">
-                <h3 className="font-medium text-lg">{tag.name}</h3>
-                <p className="text-sm text-gray-500">ID: {tag.id}</p>
-                {tag.created_at && (
-                  <p className="text-sm text-gray-500">
-                    创建时间: {new Date(tag.created_at).toLocaleString()}
-                  </p>
-                )}
-                {tag.usage_count !== undefined && (
-                  <p className="text-sm text-gray-500">使用次数: {tag.usage_count}</p>
-                )}
-              </div>
-            ))}
-          </div>
-        )}
-
-        {!loading && tags.length === 0 && (
-          <div className="text-center py-8 text-gray-500">
-            暂无标签数据
-          </div>
-        )}
-      </div>
+          {!loading && tags.length === 0 && (
+            <div className="text-center py-8 text-gray-500">
+              暂无标签数据
+            </div>
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 } 
