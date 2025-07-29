@@ -14,20 +14,82 @@ export interface ExtendedUploadOptions extends UploadOptions {
   concurrency?: number;
 }
 
+// 性能优化配置
+const PERFORMANCE_CONFIG = {
+  DEFAULT_CHUNK_SIZE: 2 * 1024 * 1024, // 减少到2MB提高响应性
+  MAX_CONCURRENT_UPLOADS: 2, // 减少并发数避免网络拥塞
+  MD5_CHUNK_SIZE: 1024 * 1024, // 1MB chunks for MD5 calculation
+  RETRY_COUNT: 3,
+  RETRY_DELAY: 1000, // 1秒
+  MEMORY_CLEANUP_INTERVAL: 30000, // 30秒清理一次内存
+};
+
 export class FileUploader {
   private tasks: Map<string, UploadTask> = new Map();
   private abortControllers: Map<string, AbortController> = new Map();
   private taskOptions: Map<string, ExtendedUploadOptions> = new Map();
-  private readonly defaultChunkSize = 5 * 1024 * 1024; // 5MB
-  private readonly maxConcurrent = 3;
+  private chunkCache: Map<string, Blob> = new Map(); // 分片缓存
+  private memoryCleanupTimer: NodeJS.Timeout | null = null;
+  private uploadQueue: string[] = []; // 上传队列
+  private activeUploads: Set<string> = new Set(); // 活跃上传
+
+  constructor() {
+    // 启动内存清理定时器
+    this.startMemoryCleanup();
+  }
 
   /**
-   * 计算文件MD5
+   * 启动内存清理
+   */
+  private startMemoryCleanup() {
+    if (this.memoryCleanupTimer) {
+      clearInterval(this.memoryCleanupTimer);
+    }
+
+    this.memoryCleanupTimer = setInterval(() => {
+      this.cleanupMemory();
+    }, PERFORMANCE_CONFIG.MEMORY_CLEANUP_INTERVAL);
+  }
+
+  /**
+   * 清理内存
+   */
+  private cleanupMemory() {
+    // 清理已完成任务的分片缓存
+    for (const [taskId, task] of this.tasks.entries()) {
+      if (task.status === 'completed' || task.status === 'failed' || task.status === 'cancelled') {
+        this.clearTaskCache(taskId);
+      }
+    }
+
+    // 清理超过大小限制的缓存
+    const cacheSize = this.chunkCache.size;
+    if (cacheSize > 100) { // 最多缓存100个分片
+      const keys = Array.from(this.chunkCache.keys());
+      const toDelete = keys.slice(0, cacheSize - 50); // 删除一半
+      toDelete.forEach(key => this.chunkCache.delete(key));
+    }
+  }
+
+  /**
+   * 清理任务缓存
+   */
+  private clearTaskCache(taskId: string) {
+    const keys = Array.from(this.chunkCache.keys());
+    keys.forEach(key => {
+      if (key.startsWith(taskId)) {
+        this.chunkCache.delete(key);
+      }
+    });
+  }
+
+  /**
+   * 计算文件MD5 - 优化版本
    */
   private async calculateFileMD5(file: File): Promise<string> {
     return new Promise((resolve, reject) => {
       const spark = new SparkMD5.ArrayBuffer();
-      const chunkSize = 2 * 1024 * 1024; // 2MB chunks for MD5
+      const chunkSize = PERFORMANCE_CONFIG.MD5_CHUNK_SIZE;
       const chunks = Math.ceil(file.size / chunkSize);
       let currentChunk = 0;
 
@@ -40,7 +102,8 @@ export class FileUploader {
         currentChunk++;
 
         if (currentChunk < chunks) {
-          loadNext();
+          // 使用 setTimeout 避免阻塞主线程
+          setTimeout(() => loadNext(), 0);
         } else {
           resolve(spark.end());
         }
@@ -61,32 +124,7 @@ export class FileUploader {
   }
 
   /**
-   * 计算分片MD5
-   */
-  private async calculateChunkMD5(chunk: Blob): Promise<string> {
-    return new Promise((resolve, reject) => {
-      const spark = new SparkMD5.ArrayBuffer();
-      const fileReader = new FileReader();
-
-      fileReader.onload = (e) => {
-        if (e.target?.result) {
-          spark.append(e.target.result as ArrayBuffer);
-          resolve(spark.end());
-        } else {
-          reject(new Error('分片读取失败'));
-        }
-      };
-
-      fileReader.onerror = () => {
-        reject(new Error('分片读取失败'));
-      };
-
-      fileReader.readAsArrayBuffer(chunk);
-    });
-  }
-
-  /**
-   * 创建上传任务
+   * 创建上传任务 - 优化版本
    */
   async createUploadTask(options: ExtendedUploadOptions): Promise<string> {
     const taskId = `upload-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
@@ -106,95 +144,136 @@ export class FileUploader {
     this.tasks.set(taskId, task);
     this.taskOptions.set(taskId, options);
 
-    // 开始上传流程
-    this.startUpload(taskId, options).catch((error) => {
-      console.error('上传失败:', error);
-      this.updateTaskStatus(taskId, 'failed', error.message);
-      options.onError?.(error.message);
-    });
+    // 添加到上传队列
+    this.uploadQueue.push(taskId);
+    this.processUploadQueue();
 
     return taskId;
   }
 
   /**
-   * 开始上传
+   * 处理上传队列
+   */
+  private async processUploadQueue() {
+    while (this.uploadQueue.length > 0 && this.activeUploads.size < PERFORMANCE_CONFIG.MAX_CONCURRENT_UPLOADS) {
+      const taskId = this.uploadQueue.shift();
+      if (!taskId) continue;
+
+      const options = this.taskOptions.get(taskId);
+      if (!options) continue;
+
+      this.activeUploads.add(taskId);
+
+      this.startUpload(taskId, options)
+        .catch((error) => {
+          console.error('上传失败:', error);
+          this.updateTaskStatus(taskId, 'failed', error.message);
+          options.onError?.(error.message);
+        })
+        .finally(() => {
+          this.activeUploads.delete(taskId);
+          // 继续处理队列
+          setTimeout(() => this.processUploadQueue(), 100);
+        });
+    }
+  }
+
+  /**
+   * 开始上传 - 优化版本
    */
   private async startUpload(taskId: string, options: ExtendedUploadOptions) {
     const task = this.tasks.get(taskId);
     if (!task) return;
 
-    try {
-      // 1. 计算文件MD5
-      this.updateTaskStatus(taskId, 'calculating');
-      const fileMd5 = await this.calculateFileMD5(options.file);
+    let retryCount = 0;
+    const maxRetries = PERFORMANCE_CONFIG.RETRY_COUNT;
 
-      // 2. 初始化上传
-      const fileType = options.file.type.startsWith('image/') ? FileType.IMAGE : FileType.VIDEO;
-      const initRequest: InitUploadRequest = {
-        filename: options.file.name,
-        fileSize: options.file.size,
-        fileType,
-        fileMd5,
-        chunkSize: options.chunkSize || this.defaultChunkSize,
-        title: options.title,
-        description: options.description,
-        tagIds: options.tags,
-        categoryId: options.category?.id,
-      };
+    while (retryCount <= maxRetries) {
+      try {
+        // 1. 计算文件MD5
+        this.updateTaskStatus(taskId, 'calculating');
+        const fileMd5 = await this.calculateFileMD5(options.file);
 
-      const initResponse = await uploadService.initUpload(initRequest);
+        // 2. 初始化上传
+        const fileType = options.file.type.startsWith('image/') ? FileType.IMAGE : FileType.VIDEO;
+        const chunkSize = options.chunkSize || PERFORMANCE_CONFIG.DEFAULT_CHUNK_SIZE;
 
-      // 3. 检查是否需要上传（秒传）
-      if (!initResponse.needUpload && initResponse.mediaId) {
-        this.updateTaskStatus(taskId, 'skipped');
-        task.mediaId = initResponse.mediaId;
+        const initRequest: InitUploadRequest = {
+          filename: options.file.name,
+          fileSize: options.file.size,
+          fileType,
+          fileMd5,
+          chunkSize,
+          title: options.title,
+          description: options.description,
+          tagIds: options.tags,
+          categoryId: options.category?.id,
+        };
+
+        const initResponse = await uploadService.initUpload(initRequest);
+
+        // 3. 检查是否需要上传（秒传）
+        if (!initResponse.needUpload && initResponse.mediaId) {
+          this.updateTaskStatus(taskId, 'skipped');
+          task.mediaId = initResponse.mediaId;
+          task.progress = 100;
+          options.onProgress?.(100);
+          options.onComplete?.(initResponse.mediaId);
+          return;
+        }
+
+        // 4. 准备分片上传
+        task.uploadId = initResponse.uploadId;
+        task.uploadedChunks = initResponse.uploadedChunks || [];
+        task.totalChunks = Math.ceil(options.file.size / chunkSize);
+
+        // 5. 开始上传分片
+        this.updateTaskStatus(taskId, 'uploading');
+        await this.uploadChunks(taskId, options, fileMd5);
+
+        // 6. 合并分片
+        this.updateTaskStatus(taskId, 'merging');
+        const mergeRequest: MergeChunksRequest = {
+          uploadId: task.uploadId!,
+          fileMd5,
+        };
+        const mergeResponse = await uploadService.mergeChunks(mergeRequest);
+
+        // 7. 完成上传
+        this.updateTaskStatus(taskId, 'completed');
+        task.mediaId = mergeResponse.mediaId;
         task.progress = 100;
         options.onProgress?.(100);
-        options.onComplete?.(initResponse.mediaId);
-        return;
+        options.onComplete?.(mergeResponse.mediaId);
+
+        return; // 成功完成，退出重试循环
+
+      } catch (error) {
+        retryCount++;
+        console.error(`上传失败 (重试 ${retryCount}/${maxRetries}):`, error);
+
+        if (retryCount <= maxRetries) {
+          // 等待后重试
+          await new Promise(resolve => setTimeout(resolve, PERFORMANCE_CONFIG.RETRY_DELAY * retryCount));
+          continue;
+        } else {
+          // 达到最大重试次数，抛出错误
+          throw error;
+        }
       }
-
-      // 4. 准备分片上传
-      task.uploadId = initResponse.uploadId;
-      task.uploadedChunks = initResponse.uploadedChunks || [];
-
-      const chunkSize = options.chunkSize || this.defaultChunkSize;
-      const totalChunks = Math.ceil(options.file.size / chunkSize);
-      task.totalChunks = totalChunks;
-
-      // 5. 开始上传分片
-      this.updateTaskStatus(taskId, 'uploading');
-      await this.uploadChunks(taskId, options, fileMd5);
-
-      // 6. 合并分片
-      this.updateTaskStatus(taskId, 'merging');
-      const mergeRequest: MergeChunksRequest = {
-        uploadId: task.uploadId!,
-        fileMd5,
-      };
-      const mergeResponse = await uploadService.mergeChunks(mergeRequest);
-
-      // 7. 完成上传
-      this.updateTaskStatus(taskId, 'completed');
-      task.mediaId = mergeResponse.mediaId;
-      task.progress = 100;
-      options.onProgress?.(100);
-      options.onComplete?.(mergeResponse.mediaId);
-
-    } catch (error) {
-      throw error;
     }
   }
 
   /**
-   * 上传分片
+   * 上传分片 - 优化版本
    */
   private async uploadChunks(taskId: string, options: ExtendedUploadOptions, _fileMd5: string) {
     const task = this.tasks.get(taskId);
     if (!task || !task.uploadId || !task.totalChunks) return;
 
-    const chunkSize = options.chunkSize || this.defaultChunkSize;
-    const maxConcurrent = options.concurrency || this.maxConcurrent;
+    const chunkSize = options.chunkSize || PERFORMANCE_CONFIG.DEFAULT_CHUNK_SIZE;
+    const maxConcurrent = Math.min(options.concurrency || 2, PERFORMANCE_CONFIG.MAX_CONCURRENT_UPLOADS);
+    const totalChunks = task.totalChunks; // 确保类型为number
 
     // 创建中止控制器
     const abortController = new AbortController();
@@ -202,41 +281,35 @@ export class FileUploader {
 
     // 需要上传的分片索引
     const chunksToUpload: number[] = [];
-    for (let i = 0; i < task.totalChunks; i++) {
+    for (let i = 0; i < totalChunks; i++) {
       if (!task.uploadedChunks.includes(i)) {
         chunksToUpload.push(i);
       }
     }
 
-    // 并发上传分片 - 使用更简单可靠的方法
-    const uploadPromises: Promise<void>[] = [];
-
-    for (const chunkIndex of chunksToUpload) {
-      const uploadPromise = this.uploadChunk(
-        taskId,
-        options.file,
-        chunkIndex,
-        chunkSize,
-        task.totalChunks,
-        abortController.signal
-      );
-      uploadPromises.push(uploadPromise);
-
-      // 控制并发数量
-      if (uploadPromises.length >= maxConcurrent) {
-        await Promise.all(uploadPromises);
-        uploadPromises.length = 0; // 清空数组
+    // 使用信号量控制并发
+    const semaphore = new Semaphore(maxConcurrent);
+    const uploadPromises = chunksToUpload.map(async (chunkIndex) => {
+      await semaphore.acquire();
+      try {
+        await this.uploadChunk(
+          taskId,
+          options.file,
+          chunkIndex,
+          chunkSize,
+          totalChunks,
+          abortController.signal
+        );
+      } finally {
+        semaphore.release();
       }
-    }
+    });
 
-    // 等待剩余的上传完成
-    if (uploadPromises.length > 0) {
-      await Promise.all(uploadPromises);
-    }
+    await Promise.all(uploadPromises);
   }
 
   /**
-   * 上传单个分片
+   * 上传单个分片 - 优化版本
    */
   private async uploadChunk(
     taskId: string,
@@ -244,14 +317,27 @@ export class FileUploader {
     chunkIndex: number,
     chunkSize: number,
     totalChunks: number,
-    _signal: AbortSignal
+    signal: AbortSignal
   ): Promise<void> {
     const task = this.tasks.get(taskId);
     if (!task || !task.uploadId) return;
 
+    // 检查是否已取消
+    if (signal.aborted) {
+      throw new Error('Upload cancelled');
+    }
+
     const start = chunkIndex * chunkSize;
     const end = Math.min(start + chunkSize, file.size);
-    const chunk = file.slice(start, end);
+
+    // 检查缓存
+    const cacheKey = `${taskId}-${chunkIndex}`;
+    let chunk = this.chunkCache.get(cacheKey);
+
+    if (!chunk) {
+      chunk = file.slice(start, end);
+      this.chunkCache.set(cacheKey, chunk);
+    }
 
     const chunkRequest: UploadChunkRequest = {
       uploadId: task.uploadId,
@@ -259,15 +345,34 @@ export class FileUploader {
       totalChunks,
     };
 
-    await uploadService.uploadChunk(chunkRequest, chunk);
+    // 重试机制
+    let retryCount = 0;
+    const maxRetries = 3;
+
+    while (retryCount <= maxRetries) {
+      try {
+        await uploadService.uploadChunk(chunkRequest, chunk);
+        break; // 成功，退出重试循环
+      } catch (error) {
+        retryCount++;
+        if (retryCount <= maxRetries) {
+          await new Promise(resolve => setTimeout(resolve, 1000 * retryCount));
+        } else {
+          throw error;
+        }
+      }
+    }
 
     // 更新进度
     task.uploadedChunks.push(chunkIndex);
-    task.progress = Math.round((task.uploadedChunks.length / totalChunks) * 90); // 90% for upload, 10% for merge
+    task.progress = Math.round((task.uploadedChunks.length / totalChunks) * 90);
 
     // 触发进度回调
     const options = this.getTaskOptions(taskId);
     options?.onProgress?.(task.progress);
+
+    // 清理已上传的分片缓存
+    this.chunkCache.delete(cacheKey);
   }
 
   /**
@@ -291,6 +396,12 @@ export class FileUploader {
     const task = this.tasks.get(taskId);
     if (!task) return;
 
+    // 从队列中移除
+    const queueIndex = this.uploadQueue.indexOf(taskId);
+    if (queueIndex !== -1) {
+      this.uploadQueue.splice(queueIndex, 1);
+    }
+
     // 中止网络请求
     const abortController = this.abortControllers.get(taskId);
     if (abortController) {
@@ -307,6 +418,9 @@ export class FileUploader {
       }
     }
 
+    // 清理缓存
+    this.clearTaskCache(taskId);
+    this.activeUploads.delete(taskId);
     this.updateTaskStatus(taskId, 'cancelled');
   }
 
@@ -323,8 +437,12 @@ export class FileUploader {
     task.error = undefined;
     task.uploadedChunks = [];
 
-    // 重新开始上传
-    await this.startUpload(taskId, options);
+    // 清理缓存
+    this.clearTaskCache(taskId);
+
+    // 重新添加到队列
+    this.uploadQueue.push(taskId);
+    this.processUploadQueue();
   }
 
   /**
@@ -334,6 +452,8 @@ export class FileUploader {
     this.tasks.delete(taskId);
     this.abortControllers.delete(taskId);
     this.taskOptions.delete(taskId);
+    this.clearTaskCache(taskId);
+    this.activeUploads.delete(taskId);
   }
 
   /**
@@ -370,7 +490,67 @@ export class FileUploader {
   private getTaskOptions(taskId: string): ExtendedUploadOptions | undefined {
     return this.taskOptions.get(taskId);
   }
+
+  /**
+   * 销毁实例
+   */
+  destroy() {
+    if (this.memoryCleanupTimer) {
+      clearInterval(this.memoryCleanupTimer);
+      this.memoryCleanupTimer = null;
+    }
+
+    // 取消所有活跃上传
+    for (const taskId of this.activeUploads) {
+      this.cancelUpload(taskId);
+    }
+
+    // 清理所有缓存
+    this.chunkCache.clear();
+    this.tasks.clear();
+    this.abortControllers.clear();
+    this.taskOptions.clear();
+  }
+}
+
+/**
+ * 信号量类 - 用于控制并发
+ */
+class Semaphore {
+  private permits: number;
+  private waitQueue: Array<() => void> = [];
+
+  constructor(permits: number) {
+    this.permits = permits;
+  }
+
+  async acquire(): Promise<void> {
+    if (this.permits > 0) {
+      this.permits--;
+      return;
+    }
+
+    return new Promise<void>((resolve) => {
+      this.waitQueue.push(resolve);
+    });
+  }
+
+  release(): void {
+    this.permits++;
+    const resolve = this.waitQueue.shift();
+    if (resolve) {
+      this.permits--;
+      resolve();
+    }
+  }
 }
 
 // 创建全局实例
-export const fileUploader = new FileUploader(); 
+export const fileUploader = new FileUploader();
+
+// 在页面卸载时清理
+if (typeof window !== 'undefined') {
+  window.addEventListener('beforeunload', () => {
+    fileUploader.destroy();
+  });
+} 

@@ -72,7 +72,6 @@ export class ApiClient {
     };
 
     // 如果不是FormData，则添加Content-Type
-    // 注意：FormData会通过data参数传递，不是customConfig.body
     if (!(data instanceof FormData)) {
       headers['Content-Type'] = 'application/json';
     }
@@ -80,11 +79,9 @@ export class ApiClient {
     // 添加认证信息
     if (options?.withAuth !== false) {
       const session = await getSession();
-      // console.log('当前会话:', session); // 添加调试日志
 
       if (session?.accessToken) {
         headers['Authorization'] = `Bearer ${session.accessToken}`;
-        // console.log('已添加认证头:', headers['Authorization']); // 添加调试日志
       } else {
         throw new Error('未授权访问');
       }
@@ -149,7 +146,6 @@ export class ApiClient {
     try {
       const url = this.buildUrl(endpoint, options?.params);
       const headers = await this.prepareHeaders(data, options);
-      console.log('准备发送的 headers:', headers);
 
       const config: RequestInit = {
         method,
@@ -163,7 +159,6 @@ export class ApiClient {
         // 如果是 FormData，直接使用 data
         body: data instanceof FormData ? data : data ? JSON.stringify(data) : undefined,
       };
-      console.log('最终请求配置:', config);
 
       const response = await fetch(url, config);
       return await this.handleResponse<T>(response);
