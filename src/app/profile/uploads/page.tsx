@@ -1,12 +1,13 @@
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useCallback, useMemo, useRef } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import LoadingSpinner from '@/components/LoadingSpinner';
 import {
   Dialog,
   DialogContent,
@@ -33,7 +34,6 @@ import {
   CheckCircle,
   AlertTriangle
 } from 'lucide-react';
-import { UploadRecordService } from '@/services/upload-record.service';
 import {
   UploadRecord,
   UploadStats,
@@ -41,54 +41,77 @@ import {
   UploadRecordResponse
 } from '@/types/upload-record';
 import { ResubmitModal } from './components/ResubmitModal';
+import { useIntersectionObserverLegacy } from '@/hooks/useIntersectionObserver';
+import { queryClient } from '@/lib/query-client';
+import {
+  useInfiniteUploadRecords,
+  useUploadStats,
+  useDeleteUploadRecordMutation,
+  useBatchDeleteUploadRecordsMutation,
+  useResubmitUploadRecordMutation,
+  useUpdateUploadRecordMutation,
+  uploadRecordQueryUtils
+} from '@/hooks/queries/useUploadRecords';
+import { UploadRecordService } from '@/services/upload-record.service';
 
 export default function UserUploadsPage() {
-  const [records, setRecords] = useState<UploadRecord[]>([]);
-  const [stats, setStats] = useState<UploadStats | null>(null);
+  // 本地UI状态
   const [filters, setFilters] = useState<UploadFilters>({
     page: 0,
     limit: 20,
     sortBy: 'created_at',
     sortOrder: 'desc'
   });
-  const [isLoading, setIsLoading] = useState(false);
-  const [hasMore, setHasMore] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [activeTab, setActiveTab] = useState('all');
   const [resubmitRecord, setResubmitRecord] = useState<UploadRecord | null>(null);
   const [deleteRecord, setDeleteRecord] = useState<UploadRecord | null>(null);
-  const [isDeleting, setIsDeleting] = useState(false);
 
-  // 加载数据
-  const loadRecords = useCallback(async (reset = false) => {
-    setIsLoading(true);
-    try {
-      const currentFilters = reset ? { ...filters, page: 0 } : filters;
-      const response = await UploadRecordService.getRecords(currentFilters);
+  // 无限滚动引用
+  const loadMoreRef = useRef<HTMLDivElement>(null);
 
-      if (reset) {
-        setRecords(response.records);
-      } else {
-        setRecords(prev => [...prev, ...response.records]);
+  // 构建查询筛选参数
+  const queryFilters = useMemo(() => ({
+    ...filters,
+    search: searchQuery.trim() || undefined,
+  }), [filters, searchQuery]);
+
+  // 使用TanStack Query获取数据
+  const {
+    data,
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage,
+    isLoading,
+    isError,
+    error,
+    refetch
+  } = useInfiniteUploadRecords(queryFilters, 20);
+
+  const { data: stats } = useUploadStats();
+
+  // Mutation hooks
+  const deleteRecordMutation = useDeleteUploadRecordMutation();
+  const batchDeleteMutation = useBatchDeleteUploadRecordsMutation();
+  const resubmitMutation = useResubmitUploadRecordMutation();
+  const updateRecordMutation = useUpdateUploadRecordMutation();
+
+  // 合并所有页面的记录数据
+  const records = useMemo(() => {
+    return data?.pages.flatMap(page => page.records || []) || [];
+  }, [data]);
+
+  // 无限滚动监听
+  useIntersectionObserverLegacy({
+    target: loadMoreRef,
+    onIntersect: () => {
+      if (hasNextPage && !isFetchingNextPage) {
+        fetchNextPage();
       }
-
-      setStats(response.stats);
-      setHasMore(response.hasMore);
-
-      if (reset) {
-        setFilters(prev => ({ ...prev, page: 0 }));
-      }
-    } catch (error) {
-      console.error('加载上传记录失败:', error);
-    } finally {
-      setIsLoading(false);
-    }
-  }, [filters]);
-
-  // 修复：添加 filters.search 到依赖数组
-  useEffect(() => {
-    loadRecords(true);
-  }, [filters.status, filters.media_type, filters.sortBy, filters.sortOrder, filters.search]);
+    },
+    threshold: 0.1,
+    rootMargin: '100px'
+  });
 
   // 搜索处理
   const handleSearch = useCallback(() => {
@@ -96,7 +119,7 @@ export default function UserUploadsPage() {
   }, [searchQuery]);
 
   // 状态标签点击
-  const handleTabChange = (value: string) => {
+  const handleTabChange = useCallback((value: string) => {
     setActiveTab(value);
     const statusFilter = value === 'all' ? undefined : value.toUpperCase();
     setFilters(prev => ({
@@ -104,32 +127,26 @@ export default function UserUploadsPage() {
       status: statusFilter as any,
       page: 0
     }));
-  };
-
-  // 加载更多
-  const loadMore = () => {
-    if (!isLoading && hasMore) {
-      setFilters(prev => ({ ...prev, page: prev.page! + 1 }));
-    }
-  };
+  }, []);
 
   // 确认删除
-  const handleConfirmDelete = async () => {
+  const handleConfirmDelete = useCallback(() => {
     if (!deleteRecord) return;
 
-    setIsDeleting(true);
-    try {
-      await UploadRecordService.deleteRecord(deleteRecord.id);
-      setRecords(prev => prev.filter(r => r.id !== deleteRecord.id));
-      setDeleteRecord(null);
-      // 重新加载统计
-      loadRecords(true);
-    } catch (error) {
-      console.error('删除失败:', error);
-    } finally {
-      setIsDeleting(false);
-    }
-  };
+    deleteRecordMutation.mutate(deleteRecord.id);
+    setDeleteRecord(null);
+  }, [deleteRecord, deleteRecordMutation]);
+
+  // 重新提交处理
+  const handleResubmit = useCallback((record: UploadRecord, metadata?: any) => {
+    resubmitMutation.mutate({ recordId: record.id, metadata });
+  }, [resubmitMutation]);
+
+  // 刷新数据
+  const handleRefresh = useCallback(() => {
+    refetch();
+    uploadRecordQueryUtils.invalidateAll(queryClient);
+  }, [refetch]);
 
   return (
     <div className="container mx-auto px-4 py-8 max-w-7xl">
@@ -270,22 +287,37 @@ export default function UserUploadsPage() {
               key={record.id}
               record={record}
               onDelete={(record) => setDeleteRecord(record)}
-              onResubmit={() => loadRecords(true)}
+              onResubmit={handleRefresh}
               onOpenResubmit={setResubmitRecord}
             />
           ))
         )}
 
-        {/* 加载更多 */}
-        {hasMore && (
+        {/* 无限滚动触发器 */}
+        {hasNextPage && (
+          <div ref={loadMoreRef} className="flex justify-center py-8">
+            {isFetchingNextPage && (
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+            )}
+          </div>
+        )}
+
+        {/* 手动加载更多按钮（备用） */}
+        {hasNextPage && !isFetchingNextPage && (
           <div className="text-center py-6">
             <Button
-              onClick={loadMore}
-              disabled={isLoading}
+              onClick={() => fetchNextPage()}
               variant="outline"
             >
-              {isLoading ? '加载中...' : '加载更多'}
+              加载更多
             </Button>
+          </div>
+        )}
+
+        {/* 没有更多内容提示 */}
+        {!hasNextPage && records.length > 0 && (
+          <div className="text-center py-8 text-gray-500">
+            已显示全部上传记录
           </div>
         )}
       </div>
@@ -297,7 +329,7 @@ export default function UserUploadsPage() {
         record={resubmitRecord}
         onSuccess={() => {
           setResubmitRecord(null);
-          loadRecords(true);
+          handleRefresh();
         }}
       />
 
@@ -349,7 +381,7 @@ export default function UserUploadsPage() {
             <Button
               variant="outline"
               onClick={() => setDeleteRecord(null)}
-              disabled={isDeleting}
+              disabled={deleteRecordMutation.isPending}
               className="w-full sm:w-auto"
             >
               取消
@@ -357,10 +389,10 @@ export default function UserUploadsPage() {
             <Button
               variant="destructive"
               onClick={handleConfirmDelete}
-              disabled={isDeleting}
+              disabled={deleteRecordMutation.isPending}
               className="w-full sm:w-auto"
             >
-              {isDeleting ? (
+              {deleteRecordMutation.isPending ? (
                 <>
                   <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2" />
                   删除中...

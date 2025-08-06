@@ -38,17 +38,17 @@ export const ImageSearchBar: React.FC<ImageSearchBarProps> = ({
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
 
   // 搜索防抖
-  const debouncedSearch = useCallback(
-    debounce((query: string) => {
-      onSearch(query);
-    }, 300),
-    [onSearch]
-  );
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      onSearch(searchQuery);
+    }, 300);
+
+    return () => clearTimeout(timer);
+  }, [searchQuery, onSearch]);
 
   const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
     setSearchQuery(value);
-    debouncedSearch(value);
   };
 
   const handleFilterChange = (key: keyof MediaFilters, value: any) => {

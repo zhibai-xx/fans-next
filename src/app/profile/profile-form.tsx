@@ -2,64 +2,32 @@
 
 import { useState, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
-import { userService, UserProfile, UpdateProfileRequest } from '@/services/user.service';
-import { handleApiError } from '@/lib/utils/error-handler';
+import { UpdateProfileRequest } from '@/services/user.service';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import LoadingSpinner from '@/components/LoadingSpinner';
+import { useProfileForm } from '@/hooks/queries/useProfile';
 
 export default function ProfileForm() {
-  const { data: session, status, update } = useSession();
-  const [isLoading, setIsLoading] = useState(false);
-  const [isFetching, setIsFetching] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const { update } = useSession();
+  const {
+    profile,
+    isLoading: isFetching,
+    error: profileError,
+    initialFormData,
+    updateProfile,
+    isUpdating,
+    updateError,
+  } = useProfileForm();
+
   const [success, setSuccess] = useState<string | null>(null);
-  const [profile, setProfile] = useState<UserProfile | null>(null);
-  const [formData, setFormData] = useState<UpdateProfileRequest>({
-    nickname: '',
-    email: '',
-    phoneNumber: '',
-    // bio: '',
-    avatar: '',
-  });
+  const [formData, setFormData] = useState<UpdateProfileRequest>(initialFormData);
 
-  // 获取用户资料
+  // 当profile数据加载完成后，更新表单数据
   useEffect(() => {
-    // 只有当会话加载完成且用户已认证时才获取资料
-    if (status === 'loading') {
-      return; // 会话正在加载中，不执行任何操作
-    }
-
-    const fetchProfile = async () => {
-      if (status !== 'authenticated' || !session?.accessToken) {
-        setIsFetching(false);
-        setError('用户未登录或登录已过期');
-        return;
-      }
-
-      try {
-        const response = await userService.getProfile();
-        setProfile(response);
-
-        // 填充表单
-        setFormData({
-          nickname: response.nickname || response.username || '',
-          email: response.email || '',
-          phoneNumber: response.phoneNumber || '',
-          avatar: response.avatar || response.avatar_url || '',
-          // bio: response.bio || '',
-        });
-
-      } catch (error) {
-        console.error('获取用户资料失败:', error);
-        setError(handleApiError(error, '获取用户资料失败，请刷新页面重试'));
-      } finally {
-        setIsFetching(false);
-      }
-    };
-
-    fetchProfile();
-  }, [session, status]); // 添加 status 作为依赖
+    setFormData(initialFormData);
+  }, [initialFormData]);
 
   const handleChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
@@ -70,79 +38,51 @@ export default function ProfileForm() {
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    setError(null);
     setSuccess(null);
-    setIsLoading(true);
 
-    if (status !== 'authenticated' || !session?.accessToken) {
-      setError('用户未登录或登录已过期');
-      setIsLoading(false);
-      return;
-    }
+    updateProfile(formData, {
+      onSuccess: async (updatedProfile) => {
+        setSuccess('个人资料更新成功');
 
-    try {
-      // 过滤掉空字符串字段
-      const filteredData = Object.entries(formData).reduce((acc, [key, value]) => {
-        // 只保留有值的字段
-        if (value && value.trim() !== '') {
-          acc[key as keyof UpdateProfileRequest] = value;
-        }
-        return acc;
-      }, {} as UpdateProfileRequest);
-
-      // 发送请求
-      const response = await userService.updateProfile(filteredData);
-      setSuccess('个人资料更新成功');
-
-      // 更新会话信息
-      if (session && session.user) {
+        // 更新NextAuth会话信息
         await update({
-          ...session,
           user: {
-            ...session.user,
-            name: formData.nickname || null,
-            email: formData.email || null,
-            image: formData.avatar || null,
+            name: updatedProfile.nickname || updatedProfile.username,
+            email: updatedProfile.email,
+            image: updatedProfile.avatar || updatedProfile.avatar_url,
           },
         });
-      }
 
-    } catch (error) {
-      console.error('更新资料错误:', error);
-      setError(handleApiError(error, '更新资料失败，请稍后重试'));
-    } finally {
-      setIsLoading(false);
-    }
+        console.log('更新成功:', updatedProfile);
+      },
+    });
   };
 
   // 显示加载状态
-  if (status === 'loading' || isFetching) {
-    return <div className="py-8 text-center">加载中...</div>;
-  }
-
-  // 显示未登录错误
-  if (status === 'unauthenticated') {
+  if (isFetching) {
     return (
-      <div className="py-8 text-center">
-        <div className="text-red-500 p-4 bg-red-50 rounded-md">用户未登录或登录已过期</div>
+      <div className="py-8">
+        <LoadingSpinner className="justify-center" />
       </div>
     );
   }
 
-  // 显示其他错误
-  if (error && !profile) {
+  // 显示错误
+  if (profileError && !profile) {
     return (
       <div className="py-8 text-center">
-        <div className="text-red-500 p-4 bg-red-50 rounded-md">{error}</div>
+        <div className="text-red-500 p-4 bg-red-50 rounded-md">
+          {profileError.message || '获取用户资料失败，请刷新页面重试'}
+        </div>
       </div>
     );
   }
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6 max-w-2xl mx-auto">
-      {error && (
+      {updateError && (
         <div className="bg-red-50 text-red-500 p-4 rounded-md mb-6">
-          {error}
+          {updateError.message || '更新资料失败，请稍后重试'}
         </div>
       )}
 
@@ -258,9 +198,9 @@ export default function ProfileForm() {
       <div className="flex justify-end">
         <Button
           type="submit"
-          disabled={isLoading}
+          disabled={isUpdating}
         >
-          {isLoading ? '保存中...' : '保存修改'}
+          {isUpdating ? '保存中...' : '保存修改'}
         </Button>
       </div>
     </form>

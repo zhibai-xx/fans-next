@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
 import { handleApiError } from '@/lib/utils/error-handler';
 import { Button } from '@/components/ui/button';
-import { Spinner } from '@/components/Spinner';
+import LoadingSpinner from '@/components/LoadingSpinner';
 import { formatDateTime } from '@/lib/utils/format';
 
 type Favorite = {
@@ -87,7 +87,11 @@ export default function FavoritesList() {
   };
 
   if (isLoading) {
-    return <div className="py-8 text-center">加载中...</div>;
+    return (
+      <div className="py-8">
+        <LoadingSpinner className="justify-center" />
+      </div>
+    );
   }
 
   if (error) {

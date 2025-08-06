@@ -4,6 +4,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import Image from 'next/image';
 import { Heart, Bookmark, Download, Eye, Calendar, User, Tag } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import LoadingSpinner from '@/components/LoadingSpinner';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
 import { MediaItem } from '@/services/media.service';
@@ -351,10 +352,7 @@ export const MasonryImageGrid: React.FC<MasonryImageGridProps> = ({
       <div ref={observerRef} className="w-full py-8">
         {isLoading && (
           <div className="flex justify-center">
-            <div className="flex items-center gap-3 text-gray-600">
-              <div className="w-6 h-6 border-4 border-blue-200 border-t-blue-500 rounded-full animate-spin" />
-              <span>加载中...</span>
-            </div>
+            <LoadingSpinner />
           </div>
         )}
 
