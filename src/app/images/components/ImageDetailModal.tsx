@@ -34,6 +34,9 @@ interface ImageDetailModalProps {
   onClose: () => void;
   onNext?: () => void;
   onPrevious?: () => void;
+  onLike?: (mediaId: string, isLiked: boolean) => void;
+  canGoNext?: boolean;
+  canGoPrevious?: boolean;
 }
 
 export const ImageDetailModal: React.FC<ImageDetailModalProps> = ({
@@ -41,7 +44,10 @@ export const ImageDetailModal: React.FC<ImageDetailModalProps> = ({
   isOpen,
   onClose,
   onNext,
-  onPrevious
+  onPrevious,
+  onLike,
+  canGoNext = false,
+  canGoPrevious = false
 }) => {
   const [imageLoaded, setImageLoaded] = useState(false);
   const [isLiked, setIsLiked] = useState(false);
@@ -139,7 +145,7 @@ export const ImageDetailModal: React.FC<ImageDetailModalProps> = ({
             </div>
 
             {/* 导航箭头 */}
-            {onPrevious && (
+            {onPrevious && canGoPrevious && (
               <Button
                 variant="ghost"
                 size="lg"
@@ -152,7 +158,7 @@ export const ImageDetailModal: React.FC<ImageDetailModalProps> = ({
               </Button>
             )}
 
-            {onNext && (
+            {onNext && canGoNext && (
               <Button
                 variant="ghost"
                 size="lg"
@@ -295,7 +301,13 @@ export const ImageDetailModal: React.FC<ImageDetailModalProps> = ({
                 <Button
                   variant={isLiked ? "default" : "outline"}
                   size="sm"
-                  onClick={() => setIsLiked(!isLiked)}
+                  onClick={() => {
+                    const newLikedState = !isLiked;
+                    setIsLiked(newLikedState);
+                    if (onLike) {
+                      onLike(image.id, newLikedState);
+                    }
+                  }}
                   className="flex-1"
                 >
                   <Heart className={`w-4 h-4 mr-2 ${isLiked ? 'fill-current' : ''}`} />
