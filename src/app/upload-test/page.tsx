@@ -3,7 +3,7 @@
 import React, { useState } from 'react';
 import { ImageUploadButton } from '@/components/ImageUploadButton';
 import { VideoUploadButton } from '@/components/VideoUploadButton';
-import { AdvancedUploadModal } from '@/components/upload/AdvancedUploadModal';
+import AdvancedUploadModal from '@/components/upload/AdvancedUploadModal';
 import { Button } from '@/components/ui/button';
 
 export default function UploadTestPage() {

@@ -6,6 +6,7 @@ import { handleApiError } from '@/lib/utils/error-handler';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import LoadingSpinner from '@/components/LoadingSpinner';
 import { Badge } from '@/components/ui/badge';
 
 export default function TestTagsPage() {
@@ -147,15 +148,14 @@ export default function TestTagsPage() {
               disabled={loading}
               variant="secondary"
             >
-              {loading ? '加载中...' : '刷新'}
+              {loading ? <LoadingSpinner size="sm" /> : '刷新'}
             </Button>
           </div>
         </CardHeader>
         <CardContent>
           {loading ? (
-            <div className="text-center py-8">
-              <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
-              <p className="mt-2 text-gray-600">加载中...</p>
+            <div className="py-8">
+              <LoadingSpinner className="justify-center" />
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">

@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { AdvancedUploadModal } from '@/components/upload/AdvancedUploadModal';
+import AdvancedUploadModal from '@/components/upload/AdvancedUploadModal';
 import { Upload, Image, Video } from 'lucide-react';
 
 export default function TestUploadPage() {
