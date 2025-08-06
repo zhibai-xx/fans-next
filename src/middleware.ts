@@ -9,6 +9,7 @@ const protectedPaths = [
 
 // 需要管理员权限的路径
 const adminOnlyPaths = [
+  '/admin',      // 后台管理系统根路径
   '/weibo-import',
 ];
 
@@ -55,7 +56,8 @@ export async function middleware(request: NextRequest) {
       return NextResponse.redirect(url);
     }
 
-    if ((token.user as any)?.role !== 'ADMIN') {
+    // 修复：角色信息直接在 token.role 中，不是在 token.user.role
+    if (token.role !== 'ADMIN') {
       // 非管理员用户跳转到主页并显示错误信息
       const url = new URL('/', request.url);
       url.searchParams.set('error', 'access-denied');
