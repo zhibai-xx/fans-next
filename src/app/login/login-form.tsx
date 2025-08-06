@@ -1,22 +1,20 @@
 'use client';
 
 import { useState } from 'react';
-import { signIn } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
-import { authService } from '@/services/auth.service';
-import { handleApiError } from '@/lib/utils/error-handler';
+import { useLoginMutation } from '@/hooks/mutations/useAuthMutations';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 
 export default function LoginForm() {
   const router = useRouter();
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const [formData, setFormData] = useState({
     username: '',
     password: '',
   });
+
+  const loginMutation = useLoginMutation();
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
@@ -25,40 +23,21 @@ export default function LoginForm() {
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    setError(null);
-    setIsLoading(true);
 
-    try {
-      // 使用 authService.login 进行登录
-      const response = await authService.login(formData);
-
-      // 使用获取到的凭据进行 NextAuth 登录
-      const result = await signIn('credentials', {
-        username: formData.username,
-        password: formData.password,
-        redirect: false,
-      });
-
-      if (result?.error) {
-        setError('用户名或密码错误');
-        setIsLoading(false);
-        return;
+    loginMutation.mutate(formData, {
+      onSuccess: () => {
+        // 登录成功后跳转
+        router.push('/');
+        router.refresh();
       }
-
-      router.push('/');
-      router.refresh();
-    } catch (error) {
-      console.error('登录错误:', error);
-      setError(handleApiError(error, '登录失败，请稍后重试'));
-      setIsLoading(false);
-    }
+    });
   };
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
-      {error && (
+      {loginMutation.error && (
         <div className="text-red-500 text-sm p-3 bg-red-50 rounded-md mb-4">
-          {error}
+          {loginMutation.error.message || '登录失败，请稍后重试'}
         </div>
       )}
 
@@ -104,10 +83,10 @@ export default function LoginForm() {
 
       <Button
         type="submit"
-        disabled={isLoading}
+        disabled={loginMutation.isPending}
         className="w-full"
       >
-        {isLoading ? '登录中...' : '登录'}
+        {loginMutation.isPending ? '登录中...' : '登录'}
       </Button>
     </form>
   );

@@ -1,33 +1,37 @@
 'use client';
 
 import Link from "next/link";
-import { useSession, signOut } from "next-auth/react";
 import { useState } from "react";
 import { Button } from '@/components/ui/button';
+import { useAuth } from '@/hooks/useAuth';
+import { useLogoutMutation } from '@/hooks/mutations/useAuthMutations';
+import LoadingSpinner from '@/components/LoadingSpinner';
 
 export function AuthNavButtons() {
-  const { data: session, status } = useSession();
+  const { user, isAuthenticated, isLoading, isAdmin } = useAuth();
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const logoutMutation = useLogoutMutation();
 
   const handleSignOut = async () => {
-    await signOut({ callbackUrl: '/' });
+    logoutMutation.mutate();
+    setIsDropdownOpen(false);
   };
 
   const toggleDropdown = () => {
     setIsDropdownOpen(!isDropdownOpen);
   };
 
-  if (status === "loading") {
+  if (isLoading) {
     return (
       <div className="mt-auto mb-4 text-center">
-        <div className="w-full py-2 px-4 bg-gray-800 text-white opacity-50 rounded-full text-center text-sm">
-          加载中...
+        <div className="w-full py-2 px-4 bg-gray-800 text-white opacity-50 rounded-full text-center text-sm flex items-center justify-center">
+          <LoadingSpinner size="sm" />
         </div>
       </div>
     );
   }
 
-  if (session && session.user) {
+  if (isAuthenticated && user) {
     return (
       <div className="mt-auto mb-4 relative">
         <Button
@@ -35,21 +39,21 @@ export function AuthNavButtons() {
           variant="secondary"
           className="w-full py-2 px-4 bg-gray-800 flex items-center justify-center space-x-2 rounded-full hover:bg-gray-700 transition text-white"
         >
-          {session.user.image ? (
+          {user.avatar_url ? (
             <img
-              src={session.user.image}
-              alt={session.user.name || "用户头像"}
+              src={user.avatar_url}
+              alt={user.nickname || user.username || "用户头像"}
               className="w-5 h-5 rounded-full"
             />
           ) : (
             <div className="w-5 h-5 bg-white text-gray-800 rounded-full flex items-center justify-center text-xs font-bold">
-              {session.user.name?.charAt(0) ||
-                session.user.username?.charAt(0) ||
+              {user.nickname?.charAt(0) ||
+                user.username?.charAt(0) ||
                 "U"}
             </div>
           )}
           <span className="text-sm truncate">
-            {session.user.name || session.user.username || "用户"}
+            {user.nickname || user.username || "用户"}
           </span>
         </Button>
 
@@ -62,6 +66,16 @@ export function AuthNavButtons() {
             >
               个人资料
             </Link>
+            {/* 管理员专用入口 */}
+            {isAdmin() && (
+              <Link
+                href="/admin/dashboard"
+                className="block py-2 px-3 text-sm text-blue-400 hover:bg-gray-800 rounded"
+                onClick={() => setIsDropdownOpen(false)}
+              >
+                管理后台
+              </Link>
+            )}
             <Button
               onClick={handleSignOut}
               variant="ghost"

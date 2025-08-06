@@ -23,13 +23,20 @@ nav[class*="fixed"] {
   will-change: auto;
 }
 
-/* 主内容区域边界保护 */
-main {
+/* 主内容区域边界保护 - 只应用于主网站，不影响管理后台 */
+main:not([data-sidebar-collapsed]) {
   transform: translateZ(0);
   position: relative;
   width: calc(100vw - 166px);
   max-width: calc(100vw - 166px);
   overflow-x: hidden;
+}
+
+/* 管理后台的main元素使用flexbox布局，不需要固定宽度 */
+main[data-sidebar-collapsed] {
+  width: auto;
+  max-width: none;
+  transform: none;
 }
 
 /* 确保粘性元素层级正确 */
@@ -470,5 +477,73 @@ img[loading="lazy"] {
 @container (min-width: 768px) {
   .media-grid {
     contain: layout style paint;
+  }
+}
+
+/* 管理后台响应式布局样式 */
+/* 根据侧边栏状态动态调整网格布局 */
+
+/* 4列网格布局 - 关键指标卡片 */
+.admin-dashboard-grid-4 {
+  @apply grid-cols-1 sm:grid-cols-2;
+}
+
+/* 侧边栏收起时 - 在较小屏幕就可以显示4列 */
+main[data-sidebar-collapsed="true"] .admin-dashboard-grid-4 {
+  @apply lg:grid-cols-4;
+}
+
+/* 侧边栏展开时 - 只在超大屏幕显示4列 */
+main[data-sidebar-collapsed="false"] .admin-dashboard-grid-4 {
+  @apply xl:grid-cols-4;
+}
+
+/* 3列网格布局 - 系统状态和快捷操作 */
+.admin-dashboard-grid-3 {
+  @apply grid-cols-1;
+}
+
+/* 侧边栏收起时 - 在大屏幕显示3列 */
+main[data-sidebar-collapsed="true"] .admin-dashboard-grid-3 {
+  @apply lg:grid-cols-3;
+}
+
+/* 侧边栏展开时 - 只在超大屏幕显示3列 */
+main[data-sidebar-collapsed="false"] .admin-dashboard-grid-3 {
+  @apply xl:grid-cols-3;
+}
+
+/* 卡片跨列设置 */
+.admin-dashboard-card-span-2 {
+  @apply col-span-1;
+}
+
+/* 侧边栏收起时 - 在大屏幕跨2列 */
+main[data-sidebar-collapsed="true"] .admin-dashboard-card-span-2 {
+  @apply lg:col-span-2;
+}
+
+/* 侧边栏展开时 - 只在超大屏幕跨2列 */
+main[data-sidebar-collapsed="false"] .admin-dashboard-card-span-2 {
+  @apply xl:col-span-2;
+}
+
+/* 确保在中等屏幕上的优化显示 */
+@media (min-width: 1024px) and (max-width: 1279px) {
+
+  /* 当侧边栏展开且屏幕尺寸在1024-1279px之间时 */
+  main[data-sidebar-collapsed="false"] .admin-dashboard-grid-4 {
+    @apply grid-cols-3;
+    /* 改为3列以避免挤压 */
+  }
+
+  main[data-sidebar-collapsed="false"] .admin-dashboard-grid-3 {
+    @apply grid-cols-1;
+    /* 改为单列堆叠 */
+  }
+
+  main[data-sidebar-collapsed="false"] .admin-dashboard-card-span-2 {
+    @apply col-span-1;
+    /* 取消跨列 */
   }
 }
