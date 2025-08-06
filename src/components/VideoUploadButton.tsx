@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { AdvancedUploadModal } from './upload/AdvancedUploadModal';
+import AdvancedUploadModal from './upload/AdvancedUploadModal';
 import { Button } from '@/components/ui/button';
 
 interface VideoUploadButtonProps {

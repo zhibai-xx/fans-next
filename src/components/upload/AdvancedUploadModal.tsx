@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useCallback, useEffect } from 'react';
 import { Upload, X, FileImage, FileVideo, Search, Plus, AlertCircle, CheckCircle2, ChevronDown, ChevronUp, Copy, Edit3, Zap } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -12,10 +12,11 @@ import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useDropzone } from 'react-dropzone';
 import { fileUploader, ExtendedUploadOptions } from '@/lib/upload/file-uploader';
-import { uploadService } from '@/services/upload.service';
 import { formatFileSize } from '@/lib/utils/format';
 import { UploadProgress } from './UploadProgress';
-import type { UploadTask, Tag, Category } from '@/types/upload';
+import { useUploadStore } from '@/store/upload.store';
+import { useUserTags, useUserCategories } from '@/hooks/queries/useUserMedia';
+import type { UploadTask, Tag, Category, FileWithMetadata } from '@/types/upload';
 
 interface AdvancedUploadModalProps {
   isOpen: boolean;
@@ -24,122 +25,104 @@ interface AdvancedUploadModalProps {
   onUploadComplete?: (mediaIds: string[]) => void;
 }
 
-interface FileWithMetadata {
-  file: File;
-  id: string;
-  title: string;
-  description: string;
-  tags: string[];
-  category?: Category;
-  taskId?: string;
-  // 为每个文件单独维护标签输入状态
-  tagInput?: string;
-  showTagDropdown?: boolean;
-  filteredTags?: Tag[];
-  // 新增：展开状态
-  isExpanded?: boolean;
-}
-
-// 批量操作模板
-interface BatchTemplate {
-  description: string;
-  tags: string[];
-  category?: Category;
-}
-
-export const AdvancedUploadModal: React.FC<AdvancedUploadModalProps> = ({
+export default function AdvancedUploadModal({
   isOpen,
   onClose,
   type,
-  onUploadComplete,
-}) => {
-  const [files, setFiles] = useState<FileWithMetadata[]>([]);
-  const [uploadTasks, setUploadTasks] = useState<UploadTask[]>([]);
-  const [tags, setTags] = useState<Tag[]>([]);
-  const [categories, setCategories] = useState<Category[]>([]);
-  const [isUploading, setIsUploading] = useState(false);
-  const [uploadResults, setUploadResults] = useState<{
-    completed: number;
-    failed: number;
-    total: number;
-  }>({ completed: 0, failed: 0, total: 0 });
+  onUploadComplete
+}: AdvancedUploadModalProps) {
+  // 使用Zustand store管理状态
+  const {
+    files,
+    uploadTasks,
+    isUploading,
+    uploadResults,
+    viewMode,
+    showBatchPanel,
+    batchTemplate,
+    tags,
+    categories,
+    addFiles,
+    removeFile,
+    updateFileMetadata,
+    setUploadTasks,
+    setIsUploading,
+    setUploadResults,
+    clearAllData,
+    setViewMode,
+    setShowBatchPanel,
+    setBatchTemplate,
+    applyBatchTemplate,
+    setTags,
+    setCategories
+  } = useUploadStore();
 
-  // 新增状态：交互模式和批量操作
-  const [viewMode, setViewMode] = useState<'compact' | 'detailed'>('compact');
-  const [showBatchPanel, setShowBatchPanel] = useState(false);
-  const [batchTemplate, setBatchTemplate] = useState<BatchTemplate>({
-    description: '',
-    tags: [],
-    category: undefined,
-  });
+  // 使用TanStack Query获取标签和分类数据
+  const { data: tagsData } = useUserTags();
+  const { data: categoriesData } = useUserCategories();
 
-  // 清除所有数据
-  const clearAllData = useCallback(() => {
-    setFiles([]);
-    setUploadTasks([]);
-    setIsUploading(false);
-    setUploadResults({ completed: 0, failed: 0, total: 0 });
-    setViewMode('compact');
-    setShowBatchPanel(false);
-    setBatchTemplate({ description: '', tags: [], category: undefined });
-
-    // 清理fileUploader中的所有任务，防止累积
-    fileUploader.clearCompletedTasks();
-  }, []);
-
-  // 每次打开 dialog 时清除数据
+  // 同步标签和分类到store
   useEffect(() => {
-    if (isOpen) {
-      clearAllData();
-      // 重新获取标签和分类
-      uploadService.getTags().then(res => setTags(res.tags || []));
-      if (type === 'video' || type === 'both') {
-        uploadService.getCategories().then(res => setCategories(res.categories || []));
-      }
+    if (tagsData) {
+      setTags(tagsData);
     }
-  }, [isOpen, type, clearAllData]);
+  }, [tagsData, setTags]);
+
+  useEffect(() => {
+    if (categoriesData && (type === 'video' || type === 'both')) {
+      setCategories(categoriesData);
+    }
+  }, [categoriesData, type, setCategories]);
+
+  // 清理数据当模态框关闭时
+  useEffect(() => {
+    if (!isOpen) {
+      // 清理fileUploader中的所有任务，防止累积
+      fileUploader.clearCompletedTasks();
+    }
+  }, [isOpen]);
 
   // 更新上传任务状态
   useEffect(() => {
+    if (!isUploading) return;
+
     const interval = setInterval(() => {
-      if (isUploading) {
-        const tasks = fileUploader.getAllTasks();
-        setUploadTasks(tasks);
+      const tasks = fileUploader.getAllTasks();
+      setUploadTasks(tasks);
 
-        // 修复统计逻辑：区分真正成功上传和跳过的文件
-        const actuallyCompletedTasks = tasks.filter(task => task.status === 'completed');
-        const skippedTasks = tasks.filter(task => task.status === 'skipped');
-        const failedTasks = tasks.filter(task => task.status === 'failed');
-        const totalTasks = tasks.length;
+      // 修复统计逻辑：区分真正成功上传和跳过的文件
+      const actuallyCompletedTasks = tasks.filter(task => task.status === 'completed');
+      const skippedTasks = tasks.filter(task => task.status === 'skipped');
+      const failedTasks = tasks.filter(task => task.status === 'failed');
+      const totalTasks = tasks.length;
 
-        setUploadResults({
-          completed: actuallyCompletedTasks.length, // 只计算真正成功的任务
-          failed: failedTasks.length,
-          total: totalTasks
-        });
+      setUploadResults({
+        completed: actuallyCompletedTasks.length,
+        failed: failedTasks.length,
+        total: totalTasks
+      });
 
-        // 检查是否所有任务都已完成
-        const allCompleted = tasks.every(task =>
-          task.status === 'completed' || task.status === 'skipped' || task.status === 'failed' || task.status === 'cancelled'
-        );
+      // 检查是否所有任务都已完成
+      const allCompleted = tasks.every(task =>
+        task.status === 'completed' || task.status === 'skipped' || task.status === 'failed' || task.status === 'cancelled'
+      );
 
-        if (allCompleted && tasks.length > 0) {
-          setIsUploading(false);
+      if (allCompleted && tasks.length > 0) {
+        setIsUploading(false);
 
-          // 修复回调逻辑：区分实际成功和跳过的文件
-          if (actuallyCompletedTasks.length > 0) {
-            const mediaIds = actuallyCompletedTasks.map(task => task.mediaId!).filter(Boolean);
-            onUploadComplete?.(mediaIds);
-          } else if (skippedTasks.length > 0 && actuallyCompletedTasks.length === 0) {
-            // 如果所有文件都是跳过的（文件已存在），传递空数组
-            onUploadComplete?.([]);
-          }
+        // 修复回调逻辑：区分实际成功和跳过的文件
+        if (actuallyCompletedTasks.length > 0) {
+          const mediaIds = actuallyCompletedTasks.map(task => task.mediaId!).filter(Boolean);
+          onUploadComplete?.(mediaIds);
+        } else if (skippedTasks.length > 0 && actuallyCompletedTasks.length === 0) {
+          // 如果所有文件都是跳过的（文件已存在），传递空数组
+          onUploadComplete?.([]);
         }
       }
     }, 500);
 
     return () => clearInterval(interval);
-  }, [isUploading, onUploadComplete]);
+  }, [isUploading, onUploadComplete, setUploadTasks, setUploadResults, setIsUploading]);
 
   // 文件拖放配置
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
@@ -161,7 +144,7 @@ export const AdvancedUploadModal: React.FC<AdvancedUploadModalProps> = ({
         filteredTags: [],
         isExpanded: false,
       }));
-      setFiles(prev => [...prev, ...newFiles]);
+      addFiles(newFiles);
 
       // 如果只有一个文件，自动展开
       if (newFiles.length === 1) {
@@ -176,660 +159,453 @@ export const AdvancedUploadModal: React.FC<AdvancedUploadModalProps> = ({
     },
   });
 
-  // 更新文件元数据
-  const updateFileMetadata = useCallback((fileId: string, updates: Partial<FileWithMetadata>) => {
-    setFiles(prev => prev.map(f =>
-      f.id === fileId ? { ...f, ...updates } : f
-    ));
-  }, []);
-
-  // 删除文件
-  const removeFile = useCallback((fileId: string) => {
-    setFiles(prev => prev.filter(f => f.id !== fileId));
+  // 删除文件处理
+  const handleRemoveFile = useCallback((fileId: string) => {
     // 如果有对应的上传任务，取消它
     const file = files.find(f => f.id === fileId);
     if (file?.taskId) {
       fileUploader.cancelUpload(file.taskId);
     }
-  }, [files]);
+    removeFile(fileId);
+  }, [files, removeFile]);
 
   // 切换文件展开状态
   const toggleFileExpanded = useCallback((fileId: string) => {
-    updateFileMetadata(fileId, {
-      isExpanded: !files.find(f => f.id === fileId)?.isExpanded
-    });
-  }, [files, updateFileMetadata]);
-
-  // 批量应用模板
-  const applyBatchTemplate = useCallback(() => {
-    setFiles(prev => prev.map(file => ({
-      ...file,
-      description: file.description || batchTemplate.description,
-      tags: [...new Set([...file.tags, ...batchTemplate.tags])],
-      category: file.category || batchTemplate.category,
-    })));
-    setShowBatchPanel(false);
-  }, [batchTemplate]);
-
-  // 复制第一个文件的设置到其他文件
-  const copyFirstFileSettings = useCallback(() => {
-    const firstFile = files[0];
-    if (!firstFile) return;
-
-    setFiles(prev => prev.map((file, index) =>
-      index === 0 ? file : {
-        ...file,
-        description: firstFile.description,
-        tags: [...firstFile.tags],
-        category: firstFile.category,
-      }
-    ));
-  }, [files]);
-
-  // 全部展开/折叠
-  const toggleAllExpanded = useCallback((expanded: boolean) => {
-    setFiles(prev => prev.map(file => ({ ...file, isExpanded: expanded })));
-  }, []);
-
-  // 添加标签到文件
-  const addTagToFile = useCallback((fileId: string, tagName: string) => {
-    const file = files.find(f => f.id === fileId);
-    if (file && !file.tags.includes(tagName)) {
-      updateFileMetadata(fileId, {
-        tags: [...file.tags, tagName]
-      });
-    }
-  }, [files, updateFileMetadata]);
-
-  // 从文件移除标签
-  const removeTagFromFile = useCallback((fileId: string, tagName: string) => {
     const file = files.find(f => f.id === fileId);
     if (file) {
       updateFileMetadata(fileId, {
-        tags: file.tags.filter(tag => tag !== tagName)
+        isExpanded: !file.isExpanded
       });
     }
   }, [files, updateFileMetadata]);
 
-  // 更新标签输入状态
-  const updateTagInput = useCallback((fileId: string, value: string) => {
-    const filtered = tags.filter(tag =>
-      tag.name.toLowerCase().includes(value.toLowerCase())
-    );
-
+  // 标签输入处理
+  const handleTagInput = useCallback((fileId: string, input: string) => {
     updateFileMetadata(fileId, {
-      tagInput: value,
-      filteredTags: filtered,
-      showTagDropdown: value.trim() !== '' && filtered.length > 0
+      tagInput: input,
+      showTagDropdown: input.length > 0,
+      filteredTags: tags.filter(tag =>
+        tag.name.toLowerCase().includes(input.toLowerCase())
+      )
     });
   }, [tags, updateFileMetadata]);
 
-  // 创建新标签
-  const createTag = async (tagName: string) => {
-    try {
-      const response = await uploadService.createTag({ name: tagName });
-      setTags(prev => [...prev, response.tag]);
-      return response.tag;
-    } catch (error) {
-      console.error('创建标签失败:', error);
-      return null;
+  // 添加标签
+  const addTag = useCallback((fileId: string, tagName: string) => {
+    const file = files.find(f => f.id === fileId);
+    if (file && !file.tags.some(t => t.name === tagName)) {
+      const tag = tags.find(t => t.name === tagName) || { id: `temp-${Date.now()}`, name: tagName };
+      updateFileMetadata(fileId, {
+        tags: [...file.tags, tag],
+        tagInput: '',
+        showTagDropdown: false,
+        filteredTags: []
+      });
     }
-  };
+  }, [files, tags, updateFileMetadata]);
+
+  // 移除标签
+  const removeTag = useCallback((fileId: string, tagName: string) => {
+    const file = files.find(f => f.id === fileId);
+    if (file) {
+      updateFileMetadata(fileId, {
+        tags: file.tags.filter(t => t.name !== tagName)
+      });
+    }
+  }, [files, updateFileMetadata]);
 
   // 开始上传
-  const startUpload = async () => {
+  const startUpload = useCallback(async () => {
+    if (files.length === 0) return;
+
     setIsUploading(true);
-    setUploadResults({ completed: 0, failed: 0, total: files.length });
 
-    for (const fileData of files) {
-      if (!fileData.taskId) {
-        const options: ExtendedUploadOptions = {
-          file: fileData.file,
-          title: fileData.title,
-          description: fileData.description,
-          tags: fileData.tags,
-          category: fileData.category,
-          onProgress: (progress) => {
-            console.log(`文件 ${fileData.title} 上传进度: ${progress}%`);
-          },
-          onComplete: (mediaId) => {
-            console.log(`文件 ${fileData.title} 上传完成: ${mediaId}`);
-          },
-          onError: (error) => {
-            console.error(`文件 ${fileData.title} 上传失败:`, error);
-            // 特殊处理文件已存在的情况
-            if (error.includes('文件已存在') || error.includes('Unique constraint') || error.includes('P2002')) {
-              console.log(`文件 ${fileData.title} 已存在，标记为完成`);
-            }
-          },
-          onStatusChange: (status) => {
-            console.log(`文件 ${fileData.title} 状态变化: ${status}`);
-          },
-        };
+    // 为每个文件创建上传任务
+    const uploadPromises = files.map(async (fileData) => {
+      const options: ExtendedUploadOptions = {
+        file: fileData.file,
+        title: fileData.title,
+        description: fileData.description,
+        tags: fileData.tags.map(tag => tag.name),
+        category: fileData.category,
+        onProgress: (progress) => {
+          // 进度更新会通过useEffect监听任务状态变化来处理
+        }
+      };
 
+      try {
         const taskId = await fileUploader.createUploadTask(options);
+        // 更新文件的taskId
         updateFileMetadata(fileData.id, { taskId });
+        return taskId;
+      } catch (error) {
+        console.error(`上传文件 ${fileData.file.name} 失败:`, error);
+        throw error;
       }
+    });
+
+    try {
+      await Promise.all(uploadPromises);
+    } catch (error) {
+      console.error('批量上传失败:', error);
+      setIsUploading(false);
     }
-  };
+  }, [files, setIsUploading, updateFileMetadata]);
 
-  // 获取文件对应的上传任务
-  const getFileTask = (fileId: string): UploadTask | undefined => {
-    const file = files.find(f => f.id === fileId);
-    if (file?.taskId) {
-      return uploadTasks.find(task => task.id === file.taskId);
+  // 关闭模态框
+  const handleClose = useCallback(() => {
+    if (isUploading) {
+      const confirmClose = window.confirm('正在上传中，确定要关闭吗？这将取消所有上传任务。');
+      if (!confirmClose) return;
+
+      // 取消所有上传任务
+      uploadTasks.forEach(task => {
+        if (task.id) {
+          fileUploader.cancelUpload(task.id);
+        }
+      });
     }
-    return undefined;
-  };
 
-  // 渲染标签选择器
-  const renderTagSelector = (fileData: FileWithMetadata) => {
-    const { id: fileId, tagInput = '', showTagDropdown = false, filteredTags = [] } = fileData;
+    clearAllData();
+    onClose();
+  }, [isUploading, uploadTasks, clearAllData, onClose]);
 
-    return (
-      <div className="space-y-2">
-        <Label>标签</Label>
-        <div className="relative">
-          <div className="flex gap-2">
-            <div className="flex-1 relative">
-              <div className="relative">
-                <Input
-                  value={tagInput}
-                  onChange={(e) => updateTagInput(fileId, e.target.value)}
-                  onFocus={() => {
-                    if (tagInput.trim() && filteredTags.length > 0) {
-                      updateFileMetadata(fileId, { showTagDropdown: true });
-                    }
-                  }}
-                  onBlur={() => {
-                    // 延时关闭下拉框，避免点击选项时立即关闭
-                    setTimeout(() => {
-                      updateFileMetadata(fileId, { showTagDropdown: false });
-                    }, 150);
-                  }}
-                  placeholder="搜索或创建标签"
-                  className="pr-8"
-                />
-                <Search className="absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-400" size={14} />
+  if (!isOpen) return null;
+
+  return (
+    <Dialog open={isOpen} onOpenChange={handleClose}>
+      <DialogContent className="max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <Upload className="h-5 w-5" />
+            高级上传 - {type === 'image' ? '图片' : type === 'video' ? '视频' : '图片和视频'}
+          </DialogTitle>
+          <DialogDescription>
+            拖拽文件到此处或点击选择文件，支持批量上传和元数据编辑
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="flex-1 overflow-auto">
+          {/* 文件拖放区域 */}
+          {files.length === 0 && (
+            <div
+              {...getRootProps()}
+              className={`
+                border-2 border-dashed rounded-lg p-8 text-center cursor-pointer transition-colors
+                ${isDragActive
+                  ? 'border-blue-400 bg-blue-50 dark:bg-blue-950'
+                  : 'border-gray-300 dark:border-gray-600 hover:border-gray-400 dark:hover:border-gray-500'
+                }
+              `}
+            >
+              <input {...getInputProps()} />
+              <Upload className="mx-auto h-12 w-12 text-gray-400 mb-4" />
+              <p className="text-lg font-medium text-gray-900 dark:text-white mb-2">
+                {isDragActive ? '释放文件开始上传' : '拖拽文件到此处'}
+              </p>
+              <p className="text-sm text-gray-500 dark:text-gray-400">
+                或者 <span className="text-blue-500 underline">点击选择文件</span>
+              </p>
+              <p className="text-xs text-gray-400 mt-2">
+                支持 {type === 'image' ? '图片格式' : type === 'video' ? '视频格式' : '图片和视频格式'}
+              </p>
+            </div>
+          )}
+
+          {/* 文件列表 */}
+          {files.length > 0 && (
+            <div className="space-y-4">
+              {/* 批量操作面板 */}
+              {showBatchPanel && files.length > 1 && (
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-sm flex items-center gap-2">
+                      <Zap className="h-4 w-4" />
+                      批量操作
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setShowBatchPanel(false)}
+                      >
+                        <X className="h-4 w-4" />
+                      </Button>
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-3">
+                    <div>
+                      <Label htmlFor="batch-description">批量描述</Label>
+                      <Textarea
+                        id="batch-description"
+                        placeholder="为所有文件设置相同的描述..."
+                        value={batchTemplate.description}
+                        onChange={(e) => setBatchTemplate({ ...batchTemplate, description: e.target.value })}
+                      />
+                    </div>
+
+                    {(type === 'video' || type === 'both') && (
+                      <div>
+                        <Label htmlFor="batch-category">批量分类</Label>
+                        <Select
+                          value={batchTemplate.category?.id}
+                          onValueChange={(value) => {
+                            const category = categories.find(c => c.id === value);
+                            setBatchTemplate({ ...batchTemplate, category });
+                          }}
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="选择分类..." />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {categories.map(category => (
+                              <SelectItem key={category.id} value={category.id}>
+                                {category.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    )}
+
+                    <Button
+                      onClick={applyBatchTemplate}
+                      className="w-full"
+                      variant="outline"
+                    >
+                      <Copy className="h-4 w-4 mr-2" />
+                      应用到所有文件
+                    </Button>
+                  </CardContent>
+                </Card>
+              )}
+
+              {/* 文件项列表 */}
+              <div className="space-y-3 max-h-96 overflow-y-auto">
+                {files.map((fileData) => (
+                  <Card key={fileData.id} className="relative">
+                    <CardContent className="p-4">
+                      <div className="flex items-start gap-3">
+                        {/* 文件图标和信息 */}
+                        <div className="flex-shrink-0">
+                          {fileData.file.type.startsWith('image/') ? (
+                            <FileImage className="h-8 w-8 text-blue-500" />
+                          ) : (
+                            <FileVideo className="h-8 w-8 text-purple-500" />
+                          )}
+                        </div>
+
+                        <div className="flex-1 min-w-0">
+                          {/* 文件基本信息 */}
+                          <div className="flex items-center gap-2 mb-2">
+                            <h4 className="font-medium text-sm truncate">
+                              {fileData.file.name}
+                            </h4>
+                            <span className="text-xs text-gray-500">
+                              {formatFileSize(fileData.file.size)}
+                            </span>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => toggleFileExpanded(fileData.id)}
+                              className="ml-auto"
+                            >
+                              {fileData.isExpanded ? (
+                                <ChevronUp className="h-4 w-4" />
+                              ) : (
+                                <ChevronDown className="h-4 w-4" />
+                              )}
+                            </Button>
+                          </div>
+
+                          {/* 展开的编辑区域 */}
+                          {fileData.isExpanded && (
+                            <div className="space-y-3 pt-2 border-t">
+                              {/* 标题 */}
+                              <div>
+                                <Label htmlFor={`title-${fileData.id}`}>标题</Label>
+                                <Input
+                                  id={`title-${fileData.id}`}
+                                  value={fileData.title}
+                                  onChange={(e) => updateFileMetadata(fileData.id, { title: e.target.value })}
+                                  placeholder="输入文件标题..."
+                                />
+                              </div>
+
+                              {/* 描述 */}
+                              <div>
+                                <Label htmlFor={`description-${fileData.id}`}>描述</Label>
+                                <Textarea
+                                  id={`description-${fileData.id}`}
+                                  value={fileData.description}
+                                  onChange={(e) => updateFileMetadata(fileData.id, { description: e.target.value })}
+                                  placeholder="输入文件描述..."
+                                  rows={2}
+                                />
+                              </div>
+
+                              {/* 标签 */}
+                              <div>
+                                <Label>标签</Label>
+                                <div className="space-y-2">
+                                  {/* 已选标签 */}
+                                  {fileData.tags.length > 0 && (
+                                    <div className="flex flex-wrap gap-1">
+                                      {fileData.tags.map((tag) => (
+                                        <Badge
+                                          key={tag.name}
+                                          variant="secondary"
+                                          className="text-xs"
+                                        >
+                                          {tag.name}
+                                          <button
+                                            onClick={() => removeTag(fileData.id, tag.name)}
+                                            className="ml-1 hover:bg-gray-300 rounded-full p-0.5"
+                                          >
+                                            <X className="h-3 w-3" />
+                                          </button>
+                                        </Badge>
+                                      ))}
+                                    </div>
+                                  )}
+
+                                  {/* 标签输入 */}
+                                  <div className="relative">
+                                    <Input
+                                      placeholder="输入标签名称..."
+                                      value={fileData.tagInput}
+                                      onChange={(e) => handleTagInput(fileData.id, e.target.value)}
+                                      onKeyDown={(e) => {
+                                        if (e.key === 'Enter' && fileData.tagInput.trim()) {
+                                          e.preventDefault();
+                                          addTag(fileData.id, fileData.tagInput.trim());
+                                        }
+                                      }}
+                                    />
+
+                                    {/* 标签下拉建议 */}
+                                    {fileData.showTagDropdown && fileData.filteredTags.length > 0 && (
+                                      <div className="absolute z-10 w-full mt-1 bg-white dark:bg-gray-800 border rounded-md shadow-lg max-h-32 overflow-y-auto">
+                                        {fileData.filteredTags.map((tag) => (
+                                          <button
+                                            key={tag.id}
+                                            className="w-full px-3 py-1.5 text-left text-sm hover:bg-gray-100 dark:hover:bg-gray-700"
+                                            onClick={() => addTag(fileData.id, tag.name)}
+                                          >
+                                            {tag.name}
+                                          </button>
+                                        ))}
+                                      </div>
+                                    )}
+                                  </div>
+                                </div>
+                              </div>
+
+                              {/* 分类（仅视频） */}
+                              {(type === 'video' || type === 'both') && (
+                                <div>
+                                  <Label htmlFor={`category-${fileData.id}`}>分类</Label>
+                                  <Select
+                                    value={fileData.category?.id || ''}
+                                    onValueChange={(value) => {
+                                      const category = categories.find(c => c.id === value);
+                                      updateFileMetadata(fileData.id, { category });
+                                    }}
+                                  >
+                                    <SelectTrigger>
+                                      <SelectValue placeholder="选择分类..." />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                      {categories.map(category => (
+                                        <SelectItem key={category.id} value={category.id}>
+                                          {category.name}
+                                        </SelectItem>
+                                      ))}
+                                    </SelectContent>
+                                  </Select>
+                                </div>
+                              )}
+                            </div>
+                          )}
+                        </div>
+
+                        {/* 删除按钮 */}
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleRemoveFile(fileData.id)}
+                          className="flex-shrink-0"
+                        >
+                          <X className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
               </div>
 
-              {/* 标签下拉列表 */}
-              {showTagDropdown && (
-                <div className="absolute z-10 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-32 overflow-y-auto">
-                  {filteredTags.map(tag => (
-                    <Button
-                      key={tag.id}
-                      variant="ghost"
-                      onClick={() => {
-                        addTagToFile(fileId, tag.name);
-                        updateFileMetadata(fileId, {
-                          tagInput: '',
-                          showTagDropdown: false
-                        });
-                      }}
-                      className="w-full justify-between h-auto p-3 text-sm"
-                    >
-                      <span className="text-gray-700">{tag.name}</span>
-                      <span className="text-xs text-gray-500">已存在</span>
-                    </Button>
-                  ))}
-                  {filteredTags.length === 0 && tagInput.trim() && (
-                    <Button
-                      variant="ghost"
-                      onClick={async () => {
-                        const newTag = await createTag(tagInput.trim());
-                        if (newTag) {
-                          addTagToFile(fileId, newTag.name);
-                        }
-                        updateFileMetadata(fileId, {
-                          tagInput: '',
-                          showTagDropdown: false
-                        });
-                      }}
-                      className="w-full justify-start h-auto p-3 text-sm gap-2"
-                    >
-                      <Plus size={14} className="text-blue-500" />
-                      <span className="text-gray-700">创建新标签 &quot;{tagInput.trim()}&quot;</span>
-                    </Button>
-                  )}
-                </div>
-              )}
+              {/* 添加更多文件 */}
+              <div
+                {...getRootProps()}
+                className="border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg p-4 text-center cursor-pointer hover:border-gray-400 dark:hover:border-gray-500 transition-colors"
+              >
+                <input {...getInputProps()} />
+                <Plus className="mx-auto h-6 w-6 text-gray-400 mb-2" />
+                <p className="text-sm text-gray-500 dark:text-gray-400">
+                  添加更多文件
+                </p>
+              </div>
             </div>
-          </div>
+          )}
 
-          {/* 已选择的标签 */}
-          {fileData.tags.length > 0 && (
-            <div className="flex flex-wrap gap-1 mt-2">
-              {fileData.tags.map(tagName => (
-                <Badge
-                  key={tagName}
-                  variant="secondary"
-                  className="text-xs"
-                >
-                  {tagName}
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => removeTagFromFile(fileId, tagName)}
-                    className="ml-1 h-auto w-auto p-0 text-blue-500 hover:text-blue-700"
-                  >
-                    <X size={10} />
-                  </Button>
-                </Badge>
-              ))}
+          {/* 上传进度 */}
+          {isUploading && (
+            <div className="mt-4">
+              <UploadProgress
+                tasks={uploadTasks}
+                results={uploadResults}
+              />
             </div>
           )}
         </div>
-      </div>
-    );
-  };
 
-  // 渲染详细编辑表单
-  const renderDetailedForm = (fileData: FileWithMetadata) => {
-    const task = getFileTask(fileData.id);
-    const isVideo = fileData.file.type.startsWith('video/');
+        {/* 底部操作按钮 */}
+        <div className="flex justify-between items-center pt-4 border-t">
+          <div className="flex items-center gap-2 text-sm text-gray-500">
+            {files.length > 0 && (
+              <span>{files.length} 个文件待上传</span>
+            )}
+          </div>
 
-    return (
-      <div className="pt-4 space-y-4">
-        {/* 标题 */}
-        <div>
-          <Label htmlFor={`title-${fileData.id}`}>标题</Label>
-          <Input
-            id={`title-${fileData.id}`}
-            value={fileData.title}
-            onChange={(e) => updateFileMetadata(fileData.id, { title: e.target.value })}
-            placeholder="输入文件标题"
-          />
-        </div>
-
-        {/* 描述 */}
-        <div>
-          <Label htmlFor={`description-${fileData.id}`}>描述</Label>
-          <Textarea
-            id={`description-${fileData.id}`}
-            value={fileData.description}
-            onChange={(e) => updateFileMetadata(fileData.id, { description: e.target.value })}
-            rows={2}
-            placeholder="输入文件描述（可选）"
-          />
-        </div>
-
-        {/* 分类选择（仅视频） */}
-        {isVideo && categories.length > 0 && (
-          <div>
-            <Label>分类</Label>
-            <Select
-              value={fileData.category?.id || ''}
-              onValueChange={(value) => {
-                const category = categories.find(c => c.id === value);
-                updateFileMetadata(fileData.id, { category });
-              }}
+          <div className="flex gap-2">
+            <Button
+              variant="outline"
+              onClick={handleClose}
+              disabled={isUploading}
             >
-              <SelectTrigger>
-                <SelectValue placeholder="选择分类" />
-              </SelectTrigger>
-              <SelectContent>
-                {categories.map(category => (
-                  <SelectItem key={category.id} value={category.id}>
-                    {category.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-        )}
+              {isUploading ? '上传中...' : '取消'}
+            </Button>
 
-        {/* 标签选择 */}
-        {renderTagSelector(fileData)}
-      </div>
-    );
-  };
-
-  return (
-    <>
-      <Dialog open={isOpen} onOpenChange={onClose}>
-        <DialogContent className="max-w-4xl max-h-[92vh] flex flex-col">
-          <DialogHeader>
-            <DialogTitle>
-              {type === 'image' ? '上传图片' : type === 'video' ? '上传视频' : '上传文件'}
-            </DialogTitle>
-            <DialogDescription>
-              {type === 'image' ? '支持 JPG、PNG、GIF 等图片格式' :
-                type === 'video' ? '支持 MP4、AVI、MOV 等视频格式' :
-                  '支持图片和视频格式'}
-            </DialogDescription>
-          </DialogHeader>
-
-          {/* 内容区域 */}
-          <div className="flex-1 overflow-hidden">
-            <div className="p-6 h-full flex flex-col">
-              {/* 文件拖放区域 */}
-              {!isUploading && (
-                <Card
-                  {...getRootProps()}
-                  className={`cursor-pointer transition-all duration-200 mb-6 ${isDragActive ? 'border-blue-500 bg-blue-50' : 'hover:border-gray-300 hover:bg-gray-50'
-                    }`}
-                >
-                  <CardContent className="p-6 text-center">
-                    <input {...getInputProps()} />
-                    <Upload className="mx-auto mb-3 text-gray-400" size={36} />
-                    <p className="text-lg text-gray-700 mb-2 font-medium">
-                      拖拽文件到此处或点击选择
-                    </p>
-                    <p className="text-sm text-gray-500">
-                      支持多文件批量上传
-                    </p>
-                  </CardContent>
-                </Card>
-              )}
-
-              {/* 上传状态汇总 */}
-              {isUploading && (
-                <Card className="bg-gradient-to-r from-blue-50 to-purple-50 border-blue-100 mb-6">
-                  <CardContent className="p-4">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        <div className="flex items-center gap-2">
-                          <CheckCircle2 className="text-green-500" size={18} />
-                          <span className="text-sm font-medium text-gray-700">
-                            成功: {uploadResults.completed}
-                          </span>
-                        </div>
-                        {uploadTasks.filter(task => task.status === 'skipped').length > 0 && (
-                          <div className="flex items-center gap-2">
-                            <AlertCircle className="text-yellow-500" size={18} />
-                            <span className="text-sm font-medium text-gray-700">
-                              跳过: {uploadTasks.filter(task => task.status === 'skipped').length}
-                            </span>
-                          </div>
-                        )}
-                        {uploadResults.failed > 0 && (
-                          <div className="flex items-center gap-2">
-                            <AlertCircle className="text-red-500" size={18} />
-                            <span className="text-sm font-medium text-gray-700">
-                              失败: {uploadResults.failed}
-                            </span>
-                          </div>
-                        )}
-                      </div>
-                      <span className="text-sm text-gray-600">
-                        进度: {uploadResults.completed + uploadResults.failed + uploadTasks.filter(task => task.status === 'skipped').length}/{uploadResults.total}
-                      </span>
-                    </div>
-                  </CardContent>
-                </Card>
-              )}
-
-              {/* 文件列表和操作区域 */}
-              {files.length > 0 && (
-                <div className="flex-1 min-h-0 flex flex-col">
-                  {/* 文件列表头部操作 */}
-                  <div className="flex items-center justify-between mb-4">
-                    <div className="flex items-center gap-4">
-                      <h3 className="text-lg font-medium text-gray-900">
-                        文件列表 ({files.length})
-                      </h3>
-
-                      {/* 视图模式切换 */}
-                      <div className="flex items-center gap-2">
-                        <Button
-                          variant={viewMode === 'compact' ? 'default' : 'outline'}
-                          size="sm"
-                          onClick={() => setViewMode('compact')}
-                        >
-                          <Zap size={14} className="mr-1" />
-                          快速模式
-                        </Button>
-                        <Button
-                          variant={viewMode === 'detailed' ? 'default' : 'outline'}
-                          size="sm"
-                          onClick={() => setViewMode('detailed')}
-                        >
-                          <Edit3 size={14} className="mr-1" />
-                          详细编辑
-                        </Button>
-                      </div>
-                    </div>
-
-                    <div className="flex items-center gap-2">
-                      {/* 批量操作按钮 */}
-                      {files.length > 1 && !isUploading && (
-                        <>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => setShowBatchPanel(!showBatchPanel)}
-                          >
-                            批量设置
-                          </Button>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={copyFirstFileSettings}
-                          >
-                            <Copy size={14} className="mr-1" />
-                            复制首个
-                          </Button>
-                        </>
-                      )}
-
-                      {/* 展开/折叠按钮 */}
-                      {viewMode === 'detailed' && (
-                        <div className="flex gap-1">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => toggleAllExpanded(true)}
-                          >
-                            全部展开
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => toggleAllExpanded(false)}
-                          >
-                            全部折叠
-                          </Button>
-                        </div>
-                      )}
-
-                      {!isUploading && (
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={clearAllData}
-                        >
-                          清空所有
-                        </Button>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* 批量操作面板 */}
-                  {showBatchPanel && (
-                    <Card className="bg-yellow-50 border-yellow-200 mb-4">
-                      <CardHeader>
-                        <CardTitle className="text-sm">批量设置</CardTitle>
-                      </CardHeader>
-                      <CardContent>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                          <div>
-                            <Label htmlFor="batch-description">通用描述</Label>
-                            <Input
-                              id="batch-description"
-                              value={batchTemplate.description}
-                              onChange={(e) => setBatchTemplate(prev => ({ ...prev, description: e.target.value }))}
-                              placeholder="为所有文件设置相同描述"
-                            />
-                          </div>
-                          <div className="flex gap-2">
-                            <Button
-                              onClick={applyBatchTemplate}
-                              className="bg-yellow-500 hover:bg-yellow-600"
-                            >
-                              应用到所有文件
-                            </Button>
-                            <Button
-                              variant="outline"
-                              onClick={() => setShowBatchPanel(false)}
-                            >
-                              取消
-                            </Button>
-                          </div>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  )}
-
-                  {/* 文件列表滚动区域 - 基于实际可用空间设置高度 */}
-                  <div
-                    className="overflow-y-auto border border-gray-200 rounded-lg p-2"
-                    style={{
-                      maxHeight: '280px', // 基于用户测试，288px以内可正常显示
-                      minHeight: '200px'  // 确保最小可用空间
-                    }}
-                  >
-                    <div className="space-y-3">
-                      {files.map((fileData) => {
-                        const task = getFileTask(fileData.id);
-                        const isVideo = fileData.file.type.startsWith('video/');
-                        const isExpanded = viewMode === 'detailed' ? fileData.isExpanded : false;
-
-                        return (
-                          <Card key={fileData.id} className="shadow-sm">
-                            {/* 文件头部信息 */}
-                            <CardContent className="p-4">
-                              <div className="flex items-center gap-3">
-                                {/* 文件图标 */}
-                                <div className="flex-shrink-0 p-2 bg-gray-50 rounded-lg">
-                                  {isVideo ? (
-                                    <FileVideo className="text-purple-500" size={20} />
-                                  ) : (
-                                    <FileImage className="text-blue-500" size={20} />
-                                  )}
-                                </div>
-
-                                {/* 文件信息 */}
-                                <div className="flex-1 min-w-0">
-                                  <div className="flex items-center gap-2">
-                                    <h4 className="font-medium text-gray-900 truncate text-sm">{fileData.file.name}</h4>
-                                    <Badge variant="outline" className="text-xs">
-                                      {formatFileSize(fileData.file.size)}
-                                    </Badge>
-                                  </div>
-
-                                  {/* 快速模式下显示标题输入 */}
-                                  {viewMode === 'compact' && !isUploading && (
-                                    <Input
-                                      value={fileData.title}
-                                      onChange={(e) => updateFileMetadata(fileData.id, { title: e.target.value })}
-                                      className="mt-2"
-                                      placeholder="输入文件标题"
-                                    />
-                                  )}
-                                </div>
-
-                                {/* 操作按钮 */}
-                                <div className="flex items-center gap-2">
-                                  {viewMode === 'detailed' && !isUploading && (
-                                    <Button
-                                      variant="ghost"
-                                      size="sm"
-                                      onClick={() => toggleFileExpanded(fileData.id)}
-                                    >
-                                      {isExpanded ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
-                                    </Button>
-                                  )}
-
-                                  {!isUploading && (
-                                    <Button
-                                      variant="ghost"
-                                      size="sm"
-                                      onClick={() => removeFile(fileData.id)}
-                                      className="text-gray-400 hover:text-red-500"
-                                    >
-                                      <X size={16} />
-                                    </Button>
-                                  )}
-                                </div>
-                              </div>
-                            </CardContent>
-
-                            {/* 详细编辑区域 - 可展开 */}
-                            {isExpanded && !isUploading && (
-                              <CardContent className="px-4 pb-4 border-t border-gray-100">
-                                {renderDetailedForm(fileData)}
-                              </CardContent>
-                            )}
-
-                            {/* 上传进度显示 */}
-                            {task && (
-                              <CardContent className="px-4 pb-4">
-                                <UploadProgress
-                                  task={task}
-                                  onRetry={() => {
-                                    if (fileData.taskId) {
-                                      const options: ExtendedUploadOptions = {
-                                        file: fileData.file,
-                                        title: fileData.title,
-                                        description: fileData.description,
-                                        tags: fileData.tags,
-                                        category: fileData.category,
-                                      };
-                                      fileUploader.retryUpload(fileData.taskId, options);
-                                    }
-                                  }}
-                                  onCancel={() => {
-                                    if (fileData.taskId) {
-                                      fileUploader.cancelUpload(fileData.taskId);
-                                    }
-                                  }}
-                                />
-                              </CardContent>
-                            )}
-                          </Card>
-                        );
-                      })}
-                    </div>
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* 底部操作按钮 */}
-          <div className="flex justify-between items-center bg-gray-50 dark:bg-gray-800 px-6 py-4 rounded-b-lg">
-            <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400">
-              <span>共 {files.length} 个文件</span>
-              {uploadResults.total > 0 && (
-                <span>• 完成 {uploadResults.completed}/{uploadResults.total}</span>
-              )}
-            </div>
-
-            <div className="flex items-center gap-3">
-              <Button
-                onClick={() => {
-                  // 强制清理所有状态和任务
-                  clearAllData();
-                  onClose();
-                }}
-                variant="outline"
-                disabled={isUploading}
-              >
-                关闭
-              </Button>
-
+            {files.length > 0 && (
               <Button
                 onClick={startUpload}
-                disabled={files.length === 0 || isUploading}
-                className="px-6"
+                disabled={isUploading}
+                className="min-w-[100px]"
               >
-                {isUploading ? '上传中...' : `开始上传 (${files.length})`}
+                {isUploading ? (
+                  <>
+                    <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent mr-2" />
+                    上传中...
+                  </>
+                ) : (
+                  <>
+                    <Upload className="h-4 w-4 mr-2" />
+                    开始上传
+                  </>
+                )}
               </Button>
-            </div>
+            )}
           </div>
-        </DialogContent>
-      </Dialog>
-    </>
+        </div>
+      </DialogContent>
+    </Dialog>
   );
-}; 
+}

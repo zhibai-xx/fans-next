@@ -1,5 +1,5 @@
 import React from 'react';
-import { AdvancedUploadModal } from './upload/AdvancedUploadModal';
+import AdvancedUploadModal from './upload/AdvancedUploadModal';
 
 interface Tag {
   id: string;
