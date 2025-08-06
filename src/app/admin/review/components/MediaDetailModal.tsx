@@ -61,7 +61,7 @@ export function MediaDetailModal({ media, isOpen, onClose, onUpdate }: MediaDeta
         description: media.description || '',
         category_id: media.category?.id || '',
         status: media.status,
-        tag_ids: media.tags?.map(tag => tag.id) || []
+        tag_ids: media.media_tags?.map(tag => tag.tag.id) || []
       });
     }
   }, [media]);
@@ -499,10 +499,10 @@ export function MediaDetailModal({ media, isOpen, onClose, onUpdate }: MediaDeta
                   </div>
                 ) : (
                   <div className="mt-2 flex flex-wrap gap-2">
-                    {media.tags?.length > 0 ? (
-                      media.tags.map((tag) => (
-                        <Badge key={tag.id} variant="secondary">
-                          {tag.name}
+                    {media.media_tags?.length > 0 ? (
+                      media.media_tags.map((mediaTag) => (
+                        <Badge key={mediaTag.tag.id} variant="secondary">
+                          {mediaTag.tag.name}
                         </Badge>
                       ))
                     ) : (
@@ -576,7 +576,7 @@ export function MediaDetailModal({ media, isOpen, onClose, onUpdate }: MediaDeta
                         description: media.description || '',
                         category_id: media.category?.id || '',
                         status: media.status,
-                        tag_ids: media.tags?.map(tag => tag.id) || []
+                        tag_ids: media.media_tags?.map(tag => tag.tag.id) || []
                       });
                     }
                   }}
