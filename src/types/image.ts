@@ -11,8 +11,11 @@ export interface ImageItem {
         avatar: string;
     };
     likes: number;
-    isBookmarked: boolean;
+    favorites: number; // 收藏数
+    isLiked?: boolean;  // 当前用户是否已点赞
+    isBookmarked: boolean; // 当前用户是否已收藏
     tags: string[];
+    views?: number; // 观看次数
 }
 
 export interface ImageGridProps {

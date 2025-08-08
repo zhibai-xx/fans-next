@@ -298,6 +298,7 @@ const MediaGridItem = React.memo(({
               <span>{formatFileSize(media.size)}</span>
               <span>{media.views} 查看</span>
               <span>{media.likes_count} 点赞</span>
+              <span>{media.favorites_count || 0} 收藏</span>
             </div>
             <div className="flex items-center">
               <Calendar className="w-3 h-3 mr-1" />
@@ -1305,6 +1306,14 @@ export default function MediaManagementPage() {
                           <div className="flex-1">
                             <p className="text-sm text-gray-500">点赞数</p>
                             <p className="font-medium text-gray-900">{previewMedia.likes_count}</p>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-3 p-3 bg-white rounded-lg border border-gray-200/60 hover:border-gray-300 transition-colors duration-200">
+                          <div className="w-2 h-2 bg-amber-400 rounded-full"></div>
+                          <div className="flex-1">
+                            <p className="text-sm text-gray-500">收藏数</p>
+                            <p className="font-medium text-gray-900">{previewMedia.favorites_count || 0}</p>
                           </div>
                         </div>
 

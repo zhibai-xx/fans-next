@@ -1,6 +1,7 @@
 'use client';
 
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { Search, Filter, X, ChevronDown, Tag, Grid3X3, LayoutGrid } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -36,6 +37,8 @@ export const ImageSearchBar: React.FC<ImageSearchBarProps> = ({
   const [searchQuery, setSearchQuery] = useState('');
   const [showFilters, setShowFilters] = useState(false);
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
+  const [filterButtonRect, setFilterButtonRect] = useState<DOMRect | null>(null);
+  const filterButtonRef = useRef<HTMLButtonElement>(null);
 
   // 搜索防抖
   useEffect(() => {
@@ -45,6 +48,50 @@ export const ImageSearchBar: React.FC<ImageSearchBarProps> = ({
 
     return () => clearTimeout(timer);
   }, [searchQuery, onSearch]);
+
+  // 同步标签状态
+  useEffect(() => {
+    if (currentFilters.tagId && !selectedTags.includes(currentFilters.tagId)) {
+      setSelectedTags([currentFilters.tagId]);
+    } else if (!currentFilters.tagId && selectedTags.length > 0) {
+      setSelectedTags([]);
+    }
+  }, [currentFilters.tagId, selectedTags]);
+
+  // 更新筛选按钮位置
+  useEffect(() => {
+    if (showFilters && filterButtonRef.current) {
+      const rect = filterButtonRef.current.getBoundingClientRect();
+      setFilterButtonRect(rect);
+    }
+  }, [showFilters]);
+
+  // 点击外部关闭筛选器
+  useEffect(() => {
+    if (!showFilters) return;
+
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as Element;
+      // 检查点击是否在筛选按钮或筛选面板内
+      if (
+        filterButtonRef.current?.contains(target) ||
+        target.closest('[data-filter-panel]') ||
+        // 排除Select下拉菜单的点击
+        target.closest('[data-radix-select-content]') ||
+        target.closest('[data-radix-select-viewport]') ||
+        target.closest('[data-radix-select-item]') ||
+        // 排除DropdownMenu的点击
+        target.closest('[data-radix-dropdown-menu-content]') ||
+        target.closest('[data-radix-dropdown-menu-item]')
+      ) {
+        return;
+      }
+      setShowFilters(false);
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [showFilters]);
 
   const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
@@ -63,26 +110,33 @@ export const ImageSearchBar: React.FC<ImageSearchBarProps> = ({
   };
 
   const handleTagSelect = (tagId: string) => {
-    const newTags = selectedTags.includes(tagId)
-      ? selectedTags.filter(id => id !== tagId)
-      : [...selectedTags, tagId];
-
-    setSelectedTags(newTags);
-    handleFilterChange('tagId', newTags.length > 0 ? newTags[0] : undefined);
+    // 目前只支持单标签筛选
+    if (selectedTags.includes(tagId)) {
+      // 取消选择
+      setSelectedTags([]);
+      handleFilterChange('tagId', undefined);
+    } else {
+      // 选择新标签（替换之前的选择）
+      setSelectedTags([tagId]);
+      handleFilterChange('tagId', tagId);
+    }
   };
 
   const clearAllFilters = () => {
     setSelectedTags([]);
-    onFilterChange({});
+    onFilterChange({
+      type: 'IMAGE', // 保持图片类型
+      status: 'APPROVED' // 保持已发布状态
+    });
   };
 
-  // 活跃筛选器数量
+  // 活跃筛选器数量（不计算默认的type和status筛选器）
   const activeFiltersCount = useMemo(() => {
     let count = 0;
-    if (currentFilters.type) count++;
-    if (currentFilters.status) count++;
     if (currentFilters.categoryId) count++;
     if (selectedTags.length > 0) count++;
+    if (currentFilters.sortBy && currentFilters.sortBy !== 'created_at') count++;
+    if (currentFilters.sortOrder && currentFilters.sortOrder !== 'desc') count++;
     return count;
   }, [currentFilters, selectedTags]);
 
@@ -90,8 +144,8 @@ export const ImageSearchBar: React.FC<ImageSearchBarProps> = ({
   const selectedTagsData = tags.filter(tag => selectedTags.includes(tag.id));
 
   return (
-    <div className="bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700 sticky top-0 z-40 backdrop-blur-sm bg-white/95 dark:bg-gray-900/95">
-      <div className="max-w-7xl mx-auto px-4 py-4">
+    <div className="bg-white/70 dark:bg-gray-900/70 border border-gray-200/50 dark:border-gray-700/50 rounded-2xl backdrop-blur-md shadow-sm">
+      <div className="px-6 py-4">
         {/* 主搜索栏 */}
         <div className="flex items-center gap-4 mb-4">
           <div className="relative flex-1">
@@ -101,7 +155,7 @@ export const ImageSearchBar: React.FC<ImageSearchBarProps> = ({
               placeholder="搜索图片、标签..."
               value={searchQuery}
               onChange={handleSearchChange}
-              className="pl-10 pr-4 py-3 text-base border-gray-300 focus:border-blue-500 focus:ring-blue-500 rounded-full"
+              className="pl-10 pr-4 py-3 text-base border-gray-200/60 focus:border-blue-400/60 focus:ring-blue-400/30 rounded-full bg-white/60 backdrop-blur-sm transition-all duration-200"
             />
             {searchQuery && (
               <Button
@@ -121,8 +175,9 @@ export const ImageSearchBar: React.FC<ImageSearchBarProps> = ({
           {/* 筛选按钮 */}
           <div className="relative">
             <Button
+              ref={filterButtonRef}
               variant="outline"
-              className="relative px-4 py-3 rounded-full"
+              className="relative px-4 py-3 rounded-full border-gray-200/60 bg-white/60 backdrop-blur-sm hover:bg-white/80 transition-all duration-200"
               onClick={() => setShowFilters(!showFilters)}
             >
               <Filter className="h-4 w-4 mr-2" />
@@ -138,8 +193,16 @@ export const ImageSearchBar: React.FC<ImageSearchBarProps> = ({
               <ChevronDown className="h-4 w-4 ml-2" />
             </Button>
 
-            {showFilters && (
-              <div className="absolute right-0 top-full mt-2 w-80 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 z-50 p-4">
+            {/* 筛选器面板使用Portal渲染到body */}
+            {showFilters && filterButtonRect && typeof window !== 'undefined' && createPortal(
+              <div
+                data-filter-panel
+                className="fixed w-80 bg-white/95 dark:bg-gray-800/95 rounded-2xl shadow-xl border border-gray-200/50 dark:border-gray-700/50 backdrop-blur-md z-[9999] p-5"
+                style={{
+                  left: Math.max(8, filterButtonRect.right - 320), // 确保不超出左边界
+                  top: filterButtonRect.bottom + 8, // 在按钮下方8px
+                }}
+              >
                 <div className="space-y-4">
                   <div className="flex items-center justify-between">
                     <h3 className="font-semibold text-base">筛选条件</h3>
@@ -157,23 +220,7 @@ export const ImageSearchBar: React.FC<ImageSearchBarProps> = ({
 
                   <div className="h-px bg-gray-200 dark:bg-gray-600" />
 
-                  {/* 媒体类型 */}
-                  <div>
-                    <label className="text-sm font-medium mb-2 block">媒体类型</label>
-                    <Select
-                      value={currentFilters.type || 'ALL'}
-                      onValueChange={(value) => handleFilterChange('type', value)}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="所有类型" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="ALL">所有类型</SelectItem>
-                        <SelectItem value="IMAGE">图片</SelectItem>
-                        <SelectItem value="VIDEO">视频</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
+                  {/* 隐藏媒体类型筛选，因为这是图片页面 */}
 
                   {/* 分类选择 */}
                   <div>
@@ -196,24 +243,7 @@ export const ImageSearchBar: React.FC<ImageSearchBarProps> = ({
                     </Select>
                   </div>
 
-                  {/* 状态筛选 */}
-                  <div>
-                    <label className="text-sm font-medium mb-2 block">状态</label>
-                    <Select
-                      value={currentFilters.status || 'ALL_STATUS'}
-                      onValueChange={(value) => handleFilterChange('status', value)}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="所有状态" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="ALL_STATUS">所有状态</SelectItem>
-                        <SelectItem value="APPROVED">已发布</SelectItem>
-                        <SelectItem value="PENDING">待审核</SelectItem>
-                        <SelectItem value="PRIVATE">私有</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
+                  {/* 隐藏状态筛选，用户不应该看到审核状态 */}
 
                   {/* 标签选择 */}
                   <div>
@@ -226,10 +256,13 @@ export const ImageSearchBar: React.FC<ImageSearchBarProps> = ({
                             variant={selectedTags.includes(tag.id) ? "default" : "ghost"}
                             size="sm"
                             onClick={() => handleTagSelect(tag.id)}
-                            className="justify-start text-left text-xs"
+                            className="justify-start text-left text-xs hover:bg-gray-100 transition-colors"
                           >
                             <Tag className="h-3 w-3 mr-2" />
                             {tag.name}
+                            {selectedTags.includes(tag.id) && (
+                              <div className="ml-auto w-2 h-2 bg-blue-500 rounded-full"></div>
+                            )}
                           </Button>
                         ))}
                       </div>
@@ -242,7 +275,9 @@ export const ImageSearchBar: React.FC<ImageSearchBarProps> = ({
                     <Select
                       value={`${currentFilters.sortBy || 'created_at'}_${currentFilters.sortOrder || 'desc'}`}
                       onValueChange={(value) => {
-                        const [sortBy, sortOrder] = value.split('_');
+                        const parts = value.split('_');
+                        const sortOrder = parts.pop(); // 取最后一个作为排序方向
+                        const sortBy = parts.join('_'); // 其余部分作为字段名
                         handleFilterChange('sortBy', sortBy);
                         handleFilterChange('sortOrder', sortOrder);
                       }}
@@ -259,18 +294,20 @@ export const ImageSearchBar: React.FC<ImageSearchBarProps> = ({
                     </Select>
                   </div>
                 </div>
-              </div>
+              </div>,
+              document.body
             )}
           </div>
 
           {/* 布局切换 */}
           {onLayoutChange && (
-            <div className="flex items-center bg-gray-100 dark:bg-gray-800 rounded-full p-1">
+            <div className="flex items-center bg-white/60 dark:bg-gray-800/60 backdrop-blur-sm rounded-full p-1 border border-gray-200/50">
               <Button
                 variant={layoutMode === 'masonry' ? 'default' : 'ghost'}
                 size="sm"
                 onClick={() => onLayoutChange('masonry')}
-                className="h-8 w-8 p-0 rounded-full"
+                className="h-8 w-8 p-0 rounded-full transition-all duration-200 hover:scale-105"
+                title="瀑布流布局"
               >
                 <LayoutGrid className="h-4 w-4" />
               </Button>
@@ -278,7 +315,8 @@ export const ImageSearchBar: React.FC<ImageSearchBarProps> = ({
                 variant={layoutMode === 'grid' ? 'default' : 'ghost'}
                 size="sm"
                 onClick={() => onLayoutChange('grid')}
-                className="h-8 w-8 p-0 rounded-full"
+                className="h-8 w-8 p-0 rounded-full transition-all duration-200 hover:scale-105"
+                title="网格布局"
               >
                 <Grid3X3 className="h-4 w-4" />
               </Button>
@@ -288,9 +326,9 @@ export const ImageSearchBar: React.FC<ImageSearchBarProps> = ({
 
         {/* 活跃筛选器显示 */}
         {(searchQuery || activeFiltersCount > 0) && (
-          <div className="flex flex-wrap items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2 pt-2">
             {searchQuery && (
-              <Badge variant="secondary" className="rounded-full">
+              <Badge variant="secondary" className="rounded-full bg-blue-50 text-blue-700 border-blue-200">
                 搜索: "{searchQuery}"
                 <Button
                   variant="ghost"
@@ -299,7 +337,7 @@ export const ImageSearchBar: React.FC<ImageSearchBarProps> = ({
                     setSearchQuery('');
                     onSearch('');
                   }}
-                  className="ml-1 h-4 w-4 p-0 hover:bg-transparent"
+                  className="ml-1 h-4 w-4 p-0 hover:bg-transparent text-blue-600 hover:text-blue-800"
                 >
                   <X className="h-3 w-3" />
                 </Button>
@@ -307,13 +345,13 @@ export const ImageSearchBar: React.FC<ImageSearchBarProps> = ({
             )}
 
             {selectedCategory && (
-              <Badge variant="outline" className="rounded-full">
+              <Badge variant="outline" className="rounded-full bg-purple-50 text-purple-700 border-purple-200">
                 分类: {selectedCategory.name}
                 <Button
                   variant="ghost"
                   size="sm"
                   onClick={() => handleFilterChange('categoryId', undefined)}
-                  className="ml-1 h-4 w-4 p-0 hover:bg-transparent"
+                  className="ml-1 h-4 w-4 p-0 hover:bg-transparent text-purple-600 hover:text-purple-800"
                 >
                   <X className="h-3 w-3" />
                 </Button>
@@ -321,36 +359,31 @@ export const ImageSearchBar: React.FC<ImageSearchBarProps> = ({
             )}
 
             {selectedTagsData.map(tag => (
-              <Badge key={tag.id} variant="outline" className="rounded-full">
+              <Badge key={tag.id} variant="outline" className="rounded-full bg-green-50 text-green-700 border-green-200">
                 <Tag className="h-3 w-3 mr-1" />
                 {tag.name}
                 <Button
                   variant="ghost"
                   size="sm"
                   onClick={() => handleTagSelect(tag.id)}
-                  className="ml-1 h-4 w-4 p-0 hover:bg-transparent"
+                  className="ml-1 h-4 w-4 p-0 hover:bg-transparent text-green-600 hover:text-green-800"
                 >
                   <X className="h-3 w-3" />
                 </Button>
               </Badge>
             ))}
 
-            {currentFilters.type && (
-              <Badge variant="outline" className="rounded-full">
-                类型: {currentFilters.type === 'IMAGE' ? '图片' : '视频'}
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => handleFilterChange('type', undefined)}
-                  className="ml-1 h-4 w-4 p-0 hover:bg-transparent"
-                >
-                  <X className="h-3 w-3" />
-                </Button>
-              </Badge>
-            )}
+            {/* 隐藏类型筛选器，因为这是图片页面 */}
 
-            <div className="text-sm text-gray-500 ml-2">
-              {isLoading ? '搜索中...' : `找到 ${resultCount} 个结果`}
+            <div className="text-sm text-gray-400 ml-2">
+              {isLoading ? (
+                <div className="flex items-center gap-2">
+                  <div className="w-3 h-3 border-2 border-blue-300 border-t-blue-600 rounded-full animate-spin" />
+                  <span>搜索中</span>
+                </div>
+              ) : (
+                `${resultCount} 个结果`
+              )}
             </div>
           </div>
         )}
@@ -359,11 +392,11 @@ export const ImageSearchBar: React.FC<ImageSearchBarProps> = ({
   );
 };
 
-// 防抖函数
-function debounce<T extends (...args: any[]) => void>(func: T, delay: number): T {
-  let timeoutId: NodeJS.Timeout;
-  return ((...args: any[]) => {
-    clearTimeout(timeoutId);
-    timeoutId = setTimeout(() => func(...args), delay);
-  }) as T;
-} 
+// 防抖函数（当前未使用，但保留以备后用）
+// function debounce<T extends (...args: any[]) => void>(func: T, delay: number): T {
+//   let timeoutId: NodeJS.Timeout;
+//   return ((...args: any[]) => {
+//     clearTimeout(timeoutId);
+//     timeoutId = setTimeout(() => func(...args), delay);
+//   }) as T;
+// } 

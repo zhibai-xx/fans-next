@@ -69,10 +69,10 @@ export default function AdvancedUploadModal({
   }, [tagsData, setTags]);
 
   useEffect(() => {
-    if (categoriesData && (type === 'video' || type === 'both')) {
+    if (categoriesData) {
       setCategories(categoriesData);
     }
-  }, [categoriesData, type, setCategories]);
+  }, [categoriesData, setCategories]);
 
   // 清理数据当模态框关闭时
   useEffect(() => {
@@ -380,166 +380,276 @@ export default function AdvancedUploadModal({
 
               {/* 文件项列表 */}
               <div className="space-y-3 max-h-96 overflow-y-auto">
-                {files.map((fileData) => (
-                  <Card key={fileData.id} className="relative">
-                    <CardContent className="p-4">
-                      <div className="flex items-start gap-3">
-                        {/* 文件图标和信息 */}
-                        <div className="flex-shrink-0">
-                          {fileData.file.type.startsWith('image/') ? (
-                            <FileImage className="h-8 w-8 text-blue-500" />
-                          ) : (
-                            <FileVideo className="h-8 w-8 text-purple-500" />
-                          )}
-                        </div>
+                {files.map((fileData) => {
+                  // 获取文件的上传状态来确定卡片样式
+                  const task = uploadTasks.find(t => t && t.file.name === fileData.file.name);
+                  const getCardClassName = () => {
+                    if (!task) return "relative";
 
-                        <div className="flex-1 min-w-0">
-                          {/* 文件基本信息 */}
-                          <div className="flex items-center gap-2 mb-2">
-                            <h4 className="font-medium text-sm truncate">
-                              {fileData.file.name}
-                            </h4>
-                            <span className="text-xs text-gray-500">
-                              {formatFileSize(fileData.file.size)}
-                            </span>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => toggleFileExpanded(fileData.id)}
-                              className="ml-auto"
-                            >
-                              {fileData.isExpanded ? (
-                                <ChevronUp className="h-4 w-4" />
-                              ) : (
-                                <ChevronDown className="h-4 w-4" />
-                              )}
-                            </Button>
+                    switch (task.status) {
+                      case 'completed':
+                        return "relative border-green-200 bg-green-50/30";
+                      case 'failed':
+                        return "relative border-red-200 bg-red-50/30";
+                      case 'uploading':
+                      case 'calculating':
+                      case 'merging':
+                        return "relative border-blue-200 bg-blue-50/30";
+                      case 'skipped':
+                        return "relative border-orange-200 bg-orange-50/30";
+                      default:
+                        return "relative";
+                    }
+                  };
+
+                  return (
+                    <Card key={fileData.id} className={getCardClassName()}>
+                      <CardContent className="p-4">
+                        <div className="flex items-start gap-3">
+                          {/* 文件图标和信息 */}
+                          <div className="flex-shrink-0">
+                            {fileData.file.type.startsWith('image/') ? (
+                              <FileImage className="h-8 w-8 text-blue-500" />
+                            ) : (
+                              <FileVideo className="h-8 w-8 text-purple-500" />
+                            )}
                           </div>
 
-                          {/* 展开的编辑区域 */}
-                          {fileData.isExpanded && (
-                            <div className="space-y-3 pt-2 border-t">
-                              {/* 标题 */}
-                              <div>
-                                <Label htmlFor={`title-${fileData.id}`}>标题</Label>
-                                <Input
-                                  id={`title-${fileData.id}`}
-                                  value={fileData.title}
-                                  onChange={(e) => updateFileMetadata(fileData.id, { title: e.target.value })}
-                                  placeholder="输入文件标题..."
-                                />
-                              </div>
+                          <div className="flex-1 min-w-0">
+                            {/* 文件基本信息 */}
+                            <div className="flex items-center gap-2 mb-2">
+                              <h4 className="font-medium text-sm truncate">
+                                {fileData.file.name}
+                              </h4>
+                              <span className="text-xs text-gray-500">
+                                {formatFileSize(fileData.file.size)}
+                              </span>
 
-                              {/* 描述 */}
-                              <div>
-                                <Label htmlFor={`description-${fileData.id}`}>描述</Label>
-                                <Textarea
-                                  id={`description-${fileData.id}`}
-                                  value={fileData.description}
-                                  onChange={(e) => updateFileMetadata(fileData.id, { description: e.target.value })}
-                                  placeholder="输入文件描述..."
-                                  rows={2}
-                                />
-                              </div>
+                              {/* 上传状态指示器 */}
+                              {(() => {
+                                const task = uploadTasks.find(t => t && t.file.name === fileData.file.name);
+                                if (!task) return null;
 
-                              {/* 标签 */}
-                              <div>
-                                <Label>标签</Label>
-                                <div className="space-y-2">
-                                  {/* 已选标签 */}
-                                  {fileData.tags.length > 0 && (
-                                    <div className="flex flex-wrap gap-1">
-                                      {fileData.tags.map((tag) => (
-                                        <Badge
-                                          key={tag.name}
-                                          variant="secondary"
-                                          className="text-xs"
-                                        >
-                                          {tag.name}
-                                          <button
-                                            onClick={() => removeTag(fileData.id, tag.name)}
-                                            className="ml-1 hover:bg-gray-300 rounded-full p-0.5"
-                                          >
-                                            <X className="h-3 w-3" />
-                                          </button>
-                                        </Badge>
-                                      ))}
+                                switch (task.status) {
+                                  case 'pending':
+                                    return (
+                                      <div className="flex items-center gap-1">
+                                        <div className="w-2 h-2 bg-gray-400 rounded-full animate-pulse" />
+                                        <span className="text-xs text-gray-500">等待中</span>
+                                      </div>
+                                    );
+                                  case 'calculating':
+                                    return (
+                                      <div className="flex items-center gap-1">
+                                        <div className="w-2 h-2 bg-yellow-400 rounded-full animate-pulse" />
+                                        <span className="text-xs text-yellow-600">计算MD5</span>
+                                      </div>
+                                    );
+                                  case 'uploading':
+                                    return (
+                                      <div className="flex items-center gap-1">
+                                        <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse" />
+                                        <span className="text-xs text-blue-600">上传中 {task.progress}%</span>
+                                      </div>
+                                    );
+                                  case 'merging':
+                                    return (
+                                      <div className="flex items-center gap-1">
+                                        <div className="w-2 h-2 bg-purple-500 rounded-full animate-pulse" />
+                                        <span className="text-xs text-purple-600">合并中</span>
+                                      </div>
+                                    );
+                                  case 'completed':
+                                    return (
+                                      <div className="flex items-center gap-1">
+                                        <CheckCircle2 className="w-4 h-4 text-green-500" />
+                                        <span className="text-xs text-green-600 font-medium">完成</span>
+                                      </div>
+                                    );
+                                  case 'skipped':
+                                    return (
+                                      <div className="flex items-center gap-1">
+                                        <CheckCircle2 className="w-4 h-4 text-orange-500" />
+                                        <span className="text-xs text-orange-600">已存在</span>
+                                      </div>
+                                    );
+                                  case 'failed':
+                                    return (
+                                      <div className="flex items-center gap-1">
+                                        <AlertCircle className="w-4 h-4 text-red-500" />
+                                        <span className="text-xs text-red-600 font-medium">失败</span>
+                                      </div>
+                                    );
+                                  case 'cancelled':
+                                    return (
+                                      <div className="flex items-center gap-1">
+                                        <X className="w-4 h-4 text-gray-500" />
+                                        <span className="text-xs text-gray-600">已取消</span>
+                                      </div>
+                                    );
+                                  default:
+                                    return null;
+                                }
+                              })()}
+
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => toggleFileExpanded(fileData.id)}
+                                className="ml-auto"
+                              >
+                                {fileData.isExpanded ? (
+                                  <ChevronUp className="h-4 w-4" />
+                                ) : (
+                                  <ChevronDown className="h-4 w-4" />
+                                )}
+                              </Button>
+                            </div>
+
+                            {/* 错误信息显示 */}
+                            {(() => {
+                              const task = uploadTasks.find(t => t && t.file.name === fileData.file.name);
+                              if (task && task.status === 'failed' && task.error) {
+                                return (
+                                  <div className="mt-2 p-2 bg-red-50 border border-red-200 rounded-md">
+                                    <div className="flex items-start gap-2">
+                                      <AlertCircle className="w-4 h-4 text-red-500 flex-shrink-0 mt-0.5" />
+                                      <div className="text-sm text-red-700">
+                                        <div className="font-medium">上传失败</div>
+                                        <div className="text-xs mt-1">{task.error}</div>
+                                      </div>
                                     </div>
-                                  )}
+                                  </div>
+                                );
+                              }
+                              return null;
+                            })()}
 
-                                  {/* 标签输入 */}
-                                  <div className="relative">
-                                    <Input
-                                      placeholder="输入标签名称..."
-                                      value={fileData.tagInput}
-                                      onChange={(e) => handleTagInput(fileData.id, e.target.value)}
-                                      onKeyDown={(e) => {
-                                        if (e.key === 'Enter' && fileData.tagInput.trim()) {
-                                          e.preventDefault();
-                                          addTag(fileData.id, fileData.tagInput.trim());
-                                        }
-                                      }}
-                                    />
+                            {/* 展开的编辑区域 */}
+                            {fileData.isExpanded && (
+                              <div className="space-y-3 pt-2 border-t">
+                                {/* 标题 */}
+                                <div>
+                                  <Label htmlFor={`title-${fileData.id}`}>标题</Label>
+                                  <Input
+                                    id={`title-${fileData.id}`}
+                                    value={fileData.title}
+                                    onChange={(e) => updateFileMetadata(fileData.id, { title: e.target.value })}
+                                    placeholder="输入文件标题..."
+                                  />
+                                </div>
 
-                                    {/* 标签下拉建议 */}
-                                    {fileData.showTagDropdown && fileData.filteredTags.length > 0 && (
-                                      <div className="absolute z-10 w-full mt-1 bg-white dark:bg-gray-800 border rounded-md shadow-lg max-h-32 overflow-y-auto">
-                                        {fileData.filteredTags.map((tag) => (
-                                          <button
-                                            key={tag.id}
-                                            className="w-full px-3 py-1.5 text-left text-sm hover:bg-gray-100 dark:hover:bg-gray-700"
-                                            onClick={() => addTag(fileData.id, tag.name)}
+                                {/* 描述 */}
+                                <div>
+                                  <Label htmlFor={`description-${fileData.id}`}>描述</Label>
+                                  <Textarea
+                                    id={`description-${fileData.id}`}
+                                    value={fileData.description}
+                                    onChange={(e) => updateFileMetadata(fileData.id, { description: e.target.value })}
+                                    placeholder="输入文件描述..."
+                                    rows={2}
+                                  />
+                                </div>
+
+                                {/* 标签 */}
+                                <div>
+                                  <Label>标签</Label>
+                                  <div className="space-y-2">
+                                    {/* 已选标签 */}
+                                    {fileData.tags.length > 0 && (
+                                      <div className="flex flex-wrap gap-1">
+                                        {fileData.tags.map((tag) => (
+                                          <Badge
+                                            key={tag.name}
+                                            variant="secondary"
+                                            className="text-xs"
                                           >
                                             {tag.name}
-                                          </button>
+                                            <button
+                                              onClick={() => removeTag(fileData.id, tag.name)}
+                                              className="ml-1 hover:bg-gray-300 rounded-full p-0.5"
+                                            >
+                                              <X className="h-3 w-3" />
+                                            </button>
+                                          </Badge>
                                         ))}
                                       </div>
                                     )}
+
+                                    {/* 标签输入 */}
+                                    <div className="relative">
+                                      <Input
+                                        placeholder="输入标签名称..."
+                                        value={fileData.tagInput}
+                                        onChange={(e) => handleTagInput(fileData.id, e.target.value)}
+                                        onKeyDown={(e) => {
+                                          if (e.key === 'Enter' && fileData.tagInput.trim()) {
+                                            e.preventDefault();
+                                            addTag(fileData.id, fileData.tagInput.trim());
+                                          }
+                                        }}
+                                      />
+
+                                      {/* 标签下拉建议 */}
+                                      {fileData.showTagDropdown && fileData.filteredTags.length > 0 && (
+                                        <div className="absolute z-10 w-full mt-1 bg-white dark:bg-gray-800 border rounded-md shadow-lg max-h-32 overflow-y-auto">
+                                          {fileData.filteredTags.map((tag) => (
+                                            <button
+                                              key={tag.id}
+                                              className="w-full px-3 py-1.5 text-left text-sm hover:bg-gray-100 dark:hover:bg-gray-700"
+                                              onClick={() => addTag(fileData.id, tag.name)}
+                                            >
+                                              {tag.name}
+                                            </button>
+                                          ))}
+                                        </div>
+                                      )}
+                                    </div>
                                   </div>
                                 </div>
+
+                                {/* 分类 */}
+                                {categories.length > 0 && (
+                                  <div>
+                                    <Label htmlFor={`category-${fileData.id}`}>分类</Label>
+                                    <Select
+                                      value={fileData.category?.id || ''}
+                                      onValueChange={(value) => {
+                                        const category = categories.find(c => c.id === value);
+                                        updateFileMetadata(fileData.id, { category });
+                                      }}
+                                    >
+                                      <SelectTrigger>
+                                        <SelectValue placeholder="选择分类..." />
+                                      </SelectTrigger>
+                                      <SelectContent>
+                                        {categories.map(category => (
+                                          <SelectItem key={category.id} value={category.id}>
+                                            {category.name}
+                                          </SelectItem>
+                                        ))}
+                                      </SelectContent>
+                                    </Select>
+                                  </div>
+                                )}
                               </div>
+                            )}
+                          </div>
 
-                              {/* 分类（仅视频） */}
-                              {(type === 'video' || type === 'both') && (
-                                <div>
-                                  <Label htmlFor={`category-${fileData.id}`}>分类</Label>
-                                  <Select
-                                    value={fileData.category?.id || ''}
-                                    onValueChange={(value) => {
-                                      const category = categories.find(c => c.id === value);
-                                      updateFileMetadata(fileData.id, { category });
-                                    }}
-                                  >
-                                    <SelectTrigger>
-                                      <SelectValue placeholder="选择分类..." />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                      {categories.map(category => (
-                                        <SelectItem key={category.id} value={category.id}>
-                                          {category.name}
-                                        </SelectItem>
-                                      ))}
-                                    </SelectContent>
-                                  </Select>
-                                </div>
-                              )}
-                            </div>
-                          )}
+                          {/* 删除按钮 */}
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleRemoveFile(fileData.id)}
+                            className="flex-shrink-0"
+                          >
+                            <X className="h-4 w-4" />
+                          </Button>
                         </div>
-
-                        {/* 删除按钮 */}
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleRemoveFile(fileData.id)}
-                          className="flex-shrink-0"
-                        >
-                          <X className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
+                      </CardContent>
+                    </Card>
+                  );
+                })}
               </div>
 
               {/* 添加更多文件 */}

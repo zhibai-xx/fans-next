@@ -1,17 +1,21 @@
 'use client';
 
-import React, { useState, useCallback, useMemo, useRef } from 'react';
+import React, { useState, useCallback, useMemo, useRef, useEffect } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { ImageUploadButton } from '@/components/ImageUploadButton';
 import { ImageSearchBar } from './components/ImageSearchBar';
 import { MasonryImageGrid } from './components/MasonryImageGrid';
+import { GridImageLayout } from './components/GridImageLayout';
 import { ImageDetailModal } from './components/ImageDetailModal';
 import { MediaItem, MediaFilters } from '@/services/media.service';
+import { InteractionService } from '@/services/interaction.service';
+import type { MediaInteractionStatus, BatchLikeStatus, BatchFavoriteStatus } from '@/types/interaction';
 import {
     useInfiniteImages,
     useUserTags,
     useUserCategories,
     useLikeImageMutation,
+    useFavoriteImageMutation,
     useIncrementViewsMutation,
     userMediaQueryUtils
 } from '@/hooks/queries/useUserMedia';
@@ -32,6 +36,9 @@ export default function ImagesPage() {
     const [layoutMode, setLayoutMode] = useState<'masonry' | 'grid'>('masonry');
     const [selectedImage, setSelectedImage] = useState<MediaItem | null>(null);
     const [selectedImageIndex, setSelectedImageIndex] = useState<number>(-1);
+
+    // 互动状态管理
+    const [interactionStatuses, setInteractionStatuses] = useState<Record<string, MediaInteractionStatus>>({});
 
     // 无限滚动引用
     const loadMoreRef = useRef<HTMLDivElement>(null);
@@ -59,12 +66,70 @@ export default function ImagesPage() {
 
     // Mutation hooks
     const likeImageMutation = useLikeImageMutation();
+    const favoriteImageMutation = useFavoriteImageMutation();
     const incrementViewsMutation = useIncrementViewsMutation();
 
     // 合并所有页面的图片数据
     const images = useMemo(() => {
         return data?.pages.flatMap(page => page.data || []) || [];
     }, [data]);
+
+    // 批量获取互动状态
+    useEffect(() => {
+        const loadInteractionStatuses = async () => {
+            if (images.length === 0) return;
+
+            const mediaIds = images.map(image => image.id);
+
+            try {
+                const [likeResponse, favoriteResponse] = await Promise.all([
+                    InteractionService.getBatchLikeStatus(mediaIds),
+                    InteractionService.getBatchFavoriteStatus(mediaIds)
+                ]);
+
+                if (likeResponse.success && favoriteResponse.success && likeResponse.data && favoriteResponse.data) {
+                    const likeStatuses = likeResponse.data.likes_status || {};
+                    const favoriteStatuses = favoriteResponse.data.favorites_status || {};
+
+                    const combined: Record<string, MediaInteractionStatus> = {};
+
+                    for (const image of images) {
+                        combined[image.id] = {
+                            is_liked: likeStatuses[image.id] || false,
+                            is_favorited: favoriteStatuses[image.id] || false,
+                            likes_count: image.likes_count || 0,
+                            favorites_count: (image as any).favorites_count || 0,
+                        };
+                    }
+
+                    setInteractionStatuses(combined);
+                }
+            } catch (error) {
+                console.error('批量获取互动状态失败:', error);
+                // 如果批量获取失败，设置默认状态
+                const defaultStatuses: Record<string, MediaInteractionStatus> = {};
+                for (const image of images) {
+                    defaultStatuses[image.id] = {
+                        is_liked: false,
+                        is_favorited: false,
+                        likes_count: image.likes_count || 0,
+                        favorites_count: (image as any).favorites_count || 0,
+                    };
+                }
+                setInteractionStatuses(defaultStatuses);
+            }
+        };
+
+        loadInteractionStatuses();
+    }, [images]);
+
+    // 处理互动状态更新的回调
+    const handleInteractionChange = useCallback((mediaId: string, newStatus: MediaInteractionStatus) => {
+        setInteractionStatuses(prev => ({
+            ...prev,
+            [mediaId]: newStatus
+        }));
+    }, []);
 
     // 统计信息
     const totalCount = data?.pages[0]?.meta?.total || 0;
@@ -155,7 +220,32 @@ export default function ImagesPage() {
     // 点赞处理
     const handleLike = useCallback((mediaId: string, isLiked: boolean) => {
         likeImageMutation.mutate({ mediaId, isLiked });
+
+        // 乐观更新本地状态
+        setInteractionStatuses(prev => ({
+            ...prev,
+            [mediaId]: {
+                ...prev[mediaId],
+                is_liked: !isLiked,
+                likes_count: isLiked ? (prev[mediaId]?.likes_count || 0) - 1 : (prev[mediaId]?.likes_count || 0) + 1,
+            }
+        }));
     }, [likeImageMutation]);
+
+    // 收藏处理
+    const handleFavorite = useCallback((mediaId: string, isFavorited: boolean) => {
+        favoriteImageMutation.mutate({ mediaId, isFavorited });
+
+        // 乐观更新本地状态
+        setInteractionStatuses(prev => ({
+            ...prev,
+            [mediaId]: {
+                ...prev[mediaId],
+                is_favorited: !isFavorited,
+                favorites_count: isFavorited ? (prev[mediaId]?.favorites_count || 0) - 1 : (prev[mediaId]?.favorites_count || 0) + 1,
+            }
+        }));
+    }, [favoriteImageMutation]);
 
     // 上传完成处理
     const handleUploadComplete = useCallback(() => {
@@ -174,25 +264,20 @@ export default function ImagesPage() {
     }, [refetch]);
 
     return (
-        <div className="min-h-screen bg-gradient-to-br from-purple-50 via-blue-50 to-cyan-50">
-            <div className="container mx-auto px-4 py-8">
-                {/* 页面标题和上传按钮 */}
-                <div className="flex flex-col sm:flex-row items-center justify-between mb-8">
-                    <div className="mb-4 sm:mb-0">
-                        <h1 className="text-3xl font-bold text-gray-900 mb-2">
-                            精美图片
-                        </h1>
-                        <p className="text-gray-600">
-                            发现和分享美好时刻 • 共 {totalCount} 张图片
-                        </p>
+        <div className="min-h-screen bg-gray-50/30">
+            <div className="max-w-7xl mx-auto px-6 py-6">
+                {/* 顶部工具栏 */}
+                <div className="flex items-center justify-between mb-6">
+                    <div className="flex items-center gap-3 text-sm text-gray-600">
+                        <span>{totalCount} 张图片</span>
                     </div>
-                    <div className="flex items-center space-x-4">
+                    <div className="flex items-center gap-3">
                         <button
                             onClick={handleRefresh}
-                            className="p-2 text-gray-600 hover:text-gray-900 rounded-lg hover:bg-white/50 transition-colors"
+                            className="p-2 text-gray-500 hover:text-gray-700 rounded-full hover:bg-white/80 backdrop-blur-sm transition-all duration-200 hover:scale-105"
                             title="刷新"
                         >
-                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
                             </svg>
                         </button>
@@ -201,7 +286,7 @@ export default function ImagesPage() {
                 </div>
 
                 {/* 搜索和筛选栏 */}
-                <div className="mb-8">
+                <div className="mb-6">
                     <ImageSearchBar
                         onSearch={handleSearch}
                         onFilterChange={handleFilterChange}
@@ -215,22 +300,39 @@ export default function ImagesPage() {
                     />
                 </div>
 
-                {/* 图片网格 */}
+                {/* 图片网格 - 根据布局模式渲染不同组件 */}
                 <div className="mb-8">
-                    <MasonryImageGrid
-                        images={images}
-                        isLoading={isLoading}
-                        hasMore={hasNextPage}
-                        onLoadMore={handleLoadMore}
-                        onImageClick={handleImageClick}
-                    />
+                    {layoutMode === 'masonry' ? (
+                        <MasonryImageGrid
+                            images={images}
+                            isLoading={isLoading}
+                            hasMore={hasNextPage}
+                            onLoadMore={handleLoadMore}
+                            onImageClick={handleImageClick}
+                            interactionStatuses={interactionStatuses}
+                            onInteractionChange={handleInteractionChange}
+                        />
+                    ) : (
+                        <GridImageLayout
+                            images={images}
+                            isLoading={isLoading}
+                            hasMore={hasNextPage}
+                            onLoadMore={handleLoadMore}
+                            onImageClick={handleImageClick}
+                            interactionStatuses={interactionStatuses}
+                            onInteractionChange={handleInteractionChange}
+                        />
+                    )}
                 </div>
 
                 {/* 加载更多触发器 */}
                 {hasNextPage && (
                     <div ref={loadMoreRef} className="flex justify-center py-8">
                         {isFetchingNextPage && (
-                            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+                            <div className="flex items-center gap-3 px-6 py-3 bg-white/80 backdrop-blur-sm rounded-full shadow-sm">
+                                <div className="animate-spin rounded-full h-5 w-5 border-2 border-blue-200 border-t-blue-500"></div>
+                                <span className="text-sm text-gray-600">加载更多图片</span>
+                            </div>
                         )}
                     </div>
                 )}
@@ -246,6 +348,8 @@ export default function ImagesPage() {
                     onNext={handleNextImage}
                     onPrevious={handlePreviousImage}
                     onLike={handleLike}
+                    onFavorite={handleFavorite}
+                    interactionStatus={selectedImage ? interactionStatuses[selectedImage.id] : undefined}
                     canGoNext={selectedImageIndex < images.length - 1}
                     canGoPrevious={selectedImageIndex > 0}
                 />

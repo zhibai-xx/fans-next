@@ -1,5 +1,6 @@
 import { useQuery, useInfiniteQuery, useMutation } from '@tanstack/react-query';
 import { MediaService, MediaItem, MediaTag, MediaCategory, MediaFilters } from '@/services/media.service';
+import { InteractionService } from '@/services/interaction.service';
 import { useToast } from '@/hooks/use-toast';
 
 // 查询键工厂
@@ -111,20 +112,52 @@ export function useLikeImageMutation() {
 
   return useMutation({
     mutationFn: async ({ mediaId, isLiked }: { mediaId: string; isLiked: boolean }) => {
-      // TODO: 实现点赞功能
-      console.log('点赞功能待实现:', { mediaId, isLiked });
-      return Promise.resolve();
+      // 调用真实的互动服务
+      const response = await InteractionService.toggleLike(mediaId, isLiked);
+      if (!response.success) {
+        throw new Error(response.message || '操作失败');
+      }
+      return response.data;
     },
     onSuccess: (data, variables) => {
       toast({
-        title: variables.isLiked ? '取消点赞' : '点赞成功',
-        description: variables.isLiked ? '已取消点赞' : '感谢你的喜欢！',
+        title: variables.isLiked ? '取消点赞成功' : '点赞成功',
+        description: variables.isLiked ? '已取消点赞' : '感谢您的点赞！',
       });
     },
     onError: (error) => {
       toast({
         title: '操作失败',
         description: error instanceof Error ? error.message : '点赞操作失败，请重试',
+        variant: 'destructive',
+      });
+    },
+  });
+}
+
+// 收藏功能
+export function useFavoriteImageMutation() {
+  const { toast } = useToast();
+
+  return useMutation({
+    mutationFn: async ({ mediaId, isFavorited }: { mediaId: string; isFavorited: boolean }) => {
+      // 调用真实的互动服务
+      const response = await InteractionService.toggleFavorite(mediaId, isFavorited);
+      if (!response.success) {
+        throw new Error(response.message || '操作失败');
+      }
+      return response.data;
+    },
+    onSuccess: (data, variables) => {
+      toast({
+        title: variables.isFavorited ? '取消收藏成功' : '收藏成功',
+        description: variables.isFavorited ? '已从收藏中移除' : '已添加到收藏夹',
+      });
+    },
+    onError: (error) => {
+      toast({
+        title: '操作失败',
+        description: error instanceof Error ? error.message : '收藏操作失败，请重试',
         variant: 'destructive',
       });
     },

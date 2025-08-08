@@ -31,6 +31,7 @@ export interface MediaItem {
   status: 'PENDING' | 'APPROVED' | 'REJECTED' | 'PRIVATE';
   views: number;
   likes_count: number;
+  favorites_count: number;
   source: string;
   original_created_at?: string;
   source_metadata?: any;
@@ -82,6 +83,11 @@ export class MediaService {
       if (filters.type) queryParams.set('type', filters.type);
       if (filters.status) queryParams.set('status', filters.status);
       if (filters.userUuid) queryParams.set('userUuid', filters.userUuid);
+      if (filters.categoryId) queryParams.set('categoryId', filters.categoryId);
+      if (filters.tagId) queryParams.set('tagId', filters.tagId);
+      if (filters.search) queryParams.set('search', filters.search);
+      if (filters.sortBy) queryParams.set('sortBy', filters.sortBy);
+      if (filters.sortOrder) queryParams.set('sortOrder', filters.sortOrder);
 
       console.log('正在获取媒体列表:', queryParams.toString());
 

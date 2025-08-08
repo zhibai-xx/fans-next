@@ -31,6 +31,7 @@ export interface Media {
   updated_at: string;
   views: number;
   likes_count: number;
+  favorites_count: number;
   category_id?: string;
   user: {
     id: number;

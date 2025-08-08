@@ -2,10 +2,9 @@
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import Image from 'next/image';
-import { Heart, Bookmark, Download, Eye, Calendar, User } from 'lucide-react';
+import { Heart, Bookmark, Download, Eye, User } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import LoadingSpinner from '@/components/LoadingSpinner';
-import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
 import { MediaItem } from '@/services/media.service';
@@ -48,19 +47,17 @@ const normalizeImageUrl = (imageUrl: string): string => {
   return '';
 };
 
-interface MasonryImageGridProps {
+interface GridImageLayoutProps {
   images: MediaItem[];
   onLoadMore?: () => void;
   hasMore?: boolean;
   isLoading?: boolean;
   onImageClick?: (image: MediaItem) => void;
-  columns?: number;
-  gap?: number;
   interactionStatuses?: Record<string, MediaInteractionStatus>;
   onInteractionChange?: (mediaId: string, newStatus: MediaInteractionStatus) => void;
 }
 
-interface ImageCardProps {
+interface GridImageCardProps {
   image: MediaItem;
   onClick?: () => void;
   priority?: boolean;
@@ -68,8 +65,8 @@ interface ImageCardProps {
   onInteractionChange?: (mediaId: string, newStatus: MediaInteractionStatus) => void;
 }
 
-// 优化的图片卡片组件
-const OptimizedImageCard: React.FC<ImageCardProps> = ({
+// Grid图片卡片组件
+const GridImageCard: React.FC<GridImageCardProps> = ({
   image,
   onClick,
   priority = false,
@@ -108,20 +105,11 @@ const OptimizedImageCard: React.FC<ImageCardProps> = ({
     return num.toString();
   };
 
-  // 格式化日期
-  const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
-    return date.toLocaleDateString('zh-CN', {
-      month: 'short',
-      day: 'numeric'
-    });
-  };
-
   /**
    * 处理点赞操作
    */
   const handleLike = async (e: React.MouseEvent) => {
-    e.stopPropagation(); // 阻止事件冒泡，避免触发图片点击
+    e.stopPropagation();
     if (isLikeLoading) return;
 
     setIsLikeLoading(true);
@@ -138,7 +126,6 @@ const OptimizedImageCard: React.FC<ImageCardProps> = ({
 
       setInteractionStatus(newStatus);
 
-      // 调用API
       const response = await InteractionService.toggleLike(image.id, previousStatus);
 
       if (!response.success) {
@@ -157,7 +144,6 @@ const OptimizedImageCard: React.FC<ImageCardProps> = ({
     } catch (error) {
       console.error('点赞操作失败:', error);
 
-      // 回滚UI状态
       setInteractionStatus(prev => ({
         ...prev,
         is_liked: previousStatus,
@@ -178,7 +164,7 @@ const OptimizedImageCard: React.FC<ImageCardProps> = ({
    * 处理收藏操作
    */
   const handleFavorite = async (e: React.MouseEvent) => {
-    e.stopPropagation(); // 阻止事件冒泡
+    e.stopPropagation();
     if (isFavoriteLoading) return;
 
     setIsFavoriteLoading(true);
@@ -195,7 +181,6 @@ const OptimizedImageCard: React.FC<ImageCardProps> = ({
 
       setInteractionStatus(newStatus);
 
-      // 调用API
       const response = await InteractionService.toggleFavorite(image.id, previousStatus);
 
       if (!response.success) {
@@ -214,7 +199,6 @@ const OptimizedImageCard: React.FC<ImageCardProps> = ({
     } catch (error) {
       console.error('收藏操作失败:', error);
 
-      // 回滚UI状态
       setInteractionStatus(prev => ({
         ...prev,
         is_favorited: previousStatus,
@@ -259,53 +243,57 @@ const OptimizedImageCard: React.FC<ImageCardProps> = ({
     }
   };
 
+  // 格式化日期（当前未使用，但保留以备后用）
+  // const formatDate = (dateString: string) => {
+  //   const date = new Date(dateString);
+  //   return date.toLocaleDateString('zh-CN', {
+  //     month: 'short',
+  //     day: 'numeric'
+  //   });
+  // };
+
   return (
     <Card
-      className="group cursor-pointer transition-all duration-300 hover:shadow-xl hover:-translate-y-1 overflow-hidden border-0 bg-white/90 dark:bg-gray-800/90 backdrop-blur-sm break-inside-avoid mb-4 rounded-2xl"
+      className="group cursor-pointer transition-all duration-300 hover:shadow-xl hover:-translate-y-1 overflow-hidden border-0 bg-white/90 dark:bg-gray-800/90 backdrop-blur-sm aspect-square rounded-2xl"
       onClick={onClick}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
     >
-      <CardContent className="p-0 relative">
+      <CardContent className="p-0 relative h-full">
         {/* 图片容器 */}
-        <div className="relative overflow-hidden rounded-t-2xl">
-          <div className="relative bg-gray-100 dark:bg-gray-700">
+        <div className="relative overflow-hidden h-full">
+          <div className="relative bg-gray-100 dark:bg-gray-700 h-full">
             {!imageFailed && (
               <Image
                 src={normalizeImageUrl(image.thumbnail_url || image.url)}
                 alt={image.title}
-                width={image.width || 400}
-                height={image.height || 600}
+                fill
                 sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, (max-width: 1280px) 33vw, 25vw"
-                className={`w-full h-auto transition-all duration-500 ${imageLoaded
+                className={`object-cover transition-all duration-500 ${imageLoaded
                   ? 'opacity-100 scale-100'
                   : 'opacity-0 scale-105'
                   } ${isHovered ? 'scale-105' : ''}`}
                 priority={priority}
                 onLoad={() => setImageLoaded(true)}
                 onError={() => setImageFailed(true)}
-                style={{
-                  maxWidth: '100%',
-                  height: 'auto',
-                }}
               />
             )}
 
             {/* 加载状态 */}
             {!imageLoaded && !imageFailed && (
-              <div className="absolute inset-0 flex items-center justify-center min-h-[200px]">
+              <div className="absolute inset-0 flex items-center justify-center">
                 <div className="w-8 h-8 border-4 border-blue-200 border-t-blue-500 rounded-full animate-spin" />
               </div>
             )}
 
             {/* 失败状态 */}
             {imageFailed && (
-              <div className="flex items-center justify-center bg-gray-200 dark:bg-gray-700 min-h-[200px]">
+              <div className="absolute inset-0 flex items-center justify-center bg-gray-200 dark:bg-gray-700">
                 <div className="text-center text-gray-500">
                   <div className="w-12 h-12 mx-auto mb-2 bg-gray-300 rounded-full flex items-center justify-center">
                     <div className="w-6 h-6 bg-gray-400 rounded" />
                   </div>
-                  <div className="text-sm">图片加载失败</div>
+                  <div className="text-sm">加载失败</div>
                 </div>
               </div>
             )}
@@ -340,66 +328,41 @@ const OptimizedImageCard: React.FC<ImageCardProps> = ({
 
             {/* 底部信息 */}
             <div className="absolute bottom-3 left-3 right-3">
-              <div className="flex items-center gap-2 text-white text-sm">
-                <div className="w-6 h-6 bg-white/20 rounded-full flex items-center justify-center overflow-hidden">
-                  {image.user.avatar_url ? (
-                    <Image
-                      src={normalizeAvatarUrl(image.user.avatar_url)}
-                      alt={image.user.username}
-                      width={24}
-                      height={24}
-                      className="object-cover w-auto h-auto"
-                      style={{ width: '100%', height: '100%' }}
-                    />
-                  ) : (
-                    <User className="w-3 h-3" />
-                  )}
+              <div className="text-white text-sm">
+                <h3 className="font-semibold mb-1 line-clamp-2 text-sm">
+                  {image.title}
+                </h3>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <div className="w-5 h-5 bg-white/20 rounded-full flex items-center justify-center overflow-hidden">
+                      {image.user.avatar_url ? (
+                        <Image
+                          src={normalizeAvatarUrl(image.user.avatar_url)}
+                          alt={image.user.username}
+                          width={20}
+                          height={20}
+                          className="object-cover w-full h-full"
+                        />
+                      ) : (
+                        <User className="w-2.5 h-2.5" />
+                      )}
+                    </div>
+                    <span className="text-xs truncate">
+                      {image.user.username}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-3 text-xs">
+                    <div className="flex items-center gap-1">
+                      <Eye className="w-3 h-3" />
+                      <span>{formatNumber(image.views)}</span>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <Heart className="w-3 h-3" />
+                      <span>{formatNumber(interactionStatus.likes_count)}</span>
+                    </div>
+                  </div>
                 </div>
-                <span className="truncate font-medium">
-                  {image.user.username}
-                </span>
               </div>
-            </div>
-          </div>
-        </div>
-
-        {/* 卡片底部信息 */}
-        <div className="p-4">
-          <h3 className="font-semibold text-gray-900 dark:text-white text-sm mb-2 line-clamp-2">
-            {image.title}
-          </h3>
-
-          {/* 标签 */}
-          {image.tags && image.tags.length > 0 && (
-            <div className="flex flex-wrap gap-1 mb-3">
-              {image.tags.slice(0, 3).map((tag) => (
-                <Badge key={tag.id} variant="secondary" className="text-xs px-2 py-1">
-                  {tag.name}
-                </Badge>
-              ))}
-              {image.tags.length > 3 && (
-                <Badge variant="outline" className="text-xs px-2 py-1">
-                  +{image.tags.length - 3}
-                </Badge>
-              )}
-            </div>
-          )}
-
-          {/* 统计信息 */}
-          <div className="flex items-center justify-between text-xs text-gray-500 dark:text-gray-400">
-            <div className="flex items-center gap-3">
-              <div className="flex items-center gap-1">
-                <Eye className="w-3 h-3" />
-                <span>{formatNumber(image.views)}</span>
-              </div>
-              <div className="flex items-center gap-1">
-                <Heart className="w-3 h-3" />
-                <span>{formatNumber(interactionStatus.likes_count)}</span>
-              </div>
-            </div>
-            <div className="flex items-center gap-1">
-              <Calendar className="w-3 h-3" />
-              <span>{formatDate(image.created_at)}</span>
             </div>
           </div>
         </div>
@@ -430,7 +393,7 @@ const ActionButton: React.FC<ActionButtonProps> = ({
     <Button
       variant="ghost"
       size="sm"
-      className={`h-8 w-8 p-0 rounded-full backdrop-blur-sm transition-all duration-200 ${className} ${loading ? 'opacity-50 cursor-not-allowed' : ''}`}
+      className={`h-7 w-7 p-0 rounded-full backdrop-blur-sm transition-all duration-200 ${className} ${loading ? 'opacity-50 cursor-not-allowed' : ''}`}
       title={tooltip}
       disabled={loading}
       onClick={(e) => {
@@ -454,45 +417,17 @@ const ActionButton: React.FC<ActionButtonProps> = ({
   );
 };
 
-// 主瀑布流组件
-export const MasonryImageGrid: React.FC<MasonryImageGridProps> = ({
+// 主Grid布局组件
+export const GridImageLayout: React.FC<GridImageLayoutProps> = ({
   images,
   onLoadMore,
   hasMore = false,
   isLoading = false,
   onImageClick,
-  columns: fixedColumns,
-  gap = 16,
   interactionStatuses,
   onInteractionChange
 }) => {
   const observerRef = useRef<HTMLDivElement>(null);
-  const [columns, setColumns] = useState(3);
-
-  // 响应式列数计算
-  const calculateColumns = useCallback(() => {
-    if (fixedColumns) {
-      setColumns(fixedColumns);
-      return;
-    }
-
-    const width = window.innerWidth;
-    if (width >= 1536) setColumns(6);       // 2xl
-    else if (width >= 1280) setColumns(5);  // xl
-    else if (width >= 1024) setColumns(4);  // lg
-    else if (width >= 768) setColumns(3);   // md
-    else if (width >= 640) setColumns(2);   // sm
-    else setColumns(1);                     // base
-  }, [fixedColumns]);
-
-  // 监听窗口大小变化
-  useEffect(() => {
-    calculateColumns();
-
-    const handleResize = () => calculateColumns();
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
-  }, [calculateColumns]);
 
   // 无限滚动
   useEffect(() => {
@@ -518,21 +453,14 @@ export const MasonryImageGrid: React.FC<MasonryImageGridProps> = ({
 
   return (
     <div className="w-full">
-      {/* CSS Column 瀑布流容器 */}
-      <div
-        className="w-full"
-        style={{
-          columnCount: columns,
-          columnGap: `${gap}px`,
-          columnFill: 'balance'
-        }}
-      >
+      {/* Grid容器 */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
         {images.map((image, index) => (
-          <OptimizedImageCard
+          <GridImageCard
             key={image.id}
             image={image}
             onClick={() => handleImageClick(image)}
-            priority={index < 6} // 前6张图片优先加载
+            priority={index < 12} // 前12张图片优先加载
             interactionStatus={interactionStatuses?.[image.id]}
             onInteractionChange={onInteractionChange}
           />
@@ -574,4 +502,4 @@ export const MasonryImageGrid: React.FC<MasonryImageGridProps> = ({
       </div>
     </div>
   );
-}; 
+};
