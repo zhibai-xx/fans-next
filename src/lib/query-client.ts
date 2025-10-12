@@ -4,10 +4,27 @@ import { QueryClient } from '@tanstack/react-query';
 export const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      // 数据认为是新鲜的时间（5分钟）
-      staleTime: 5 * 60 * 1000,
-      // 缓存时间（30分钟）
-      gcTime: 30 * 60 * 1000,
+      // 根据数据类型动态设置缓存策略
+      staleTime: (query) => {
+        const queryKey = query.queryKey[0] as string;
+        const cacheConfigs = {
+          'user': 10 * 60 * 1000,     // 用户数据：10分钟
+          'media': 2 * 60 * 1000,     // 媒体数据：2分钟  
+          'interactions': 30 * 1000,  // 互动数据：30秒
+          'stats': 5 * 60 * 1000,     // 统计数据：5分钟
+        };
+        return cacheConfigs[queryKey] || 1 * 60 * 1000; // 默认1分钟
+      },
+      gcTime: (query) => {
+        const queryKey = query.queryKey[0] as string;
+        const gcConfigs = {
+          'user': 60 * 60 * 1000,     // 用户数据：1小时
+          'media': 10 * 60 * 1000,    // 媒体数据：10分钟
+          'interactions': 5 * 60 * 1000, // 互动数据：5分钟
+          'stats': 30 * 60 * 1000,    // 统计数据：30分钟
+        };
+        return gcConfigs[queryKey] || 10 * 60 * 1000; // 默认10分钟
+      },
       // 重试次数
       retry: (failureCount, error: any) => {
         // 4xx 错误不重试

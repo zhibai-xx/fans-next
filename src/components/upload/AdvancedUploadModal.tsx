@@ -636,15 +636,18 @@ export default function AdvancedUploadModal({
                             )}
                           </div>
 
-                          {/* 删除按钮 */}
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleRemoveFile(fileData.id)}
-                            className="flex-shrink-0"
-                          >
-                            <X className="h-4 w-4" />
-                          </Button>
+                          {/* 删除按钮 - 上传完成后禁用 */}
+                          {(!task || !['completed', 'skipped'].includes(task.status)) && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleRemoveFile(fileData.id)}
+                              className="flex-shrink-0"
+                              disabled={task?.status === 'uploading' || task?.status === 'merging'}
+                            >
+                              <X className="h-4 w-4" />
+                            </Button>
+                          )}
                         </div>
                       </CardContent>
                     </Card>

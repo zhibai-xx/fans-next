@@ -25,6 +25,8 @@ export interface Media {
   size: number;
   media_type: 'IMAGE' | 'VIDEO';
   duration?: number;
+  width?: number;
+  height?: number;
   status: 'PENDING' | 'APPROVED' | 'REJECTED';
   visibility: 'VISIBLE' | 'HIDDEN';
   created_at: string;

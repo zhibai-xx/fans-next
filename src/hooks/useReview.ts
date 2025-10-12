@@ -94,8 +94,8 @@ export function useReview(initialFilters: ReviewFilters = {}): UseReviewResult {
         setSelectedMap(new Map());
       }
 
-      setHasMore(response.meta.hasMore);
-      setTotal(response.meta.total);
+      setHasMore(response.pagination.page < response.pagination.totalPages);
+      setTotal(response.pagination.total);
 
       // 智能页面检查：如果当前页面没有数据且不是第一页，自动跳转到第一页
       if (!append && response.data.length === 0 && filters.skip && filters.skip > 0) {
@@ -268,6 +268,45 @@ export function useReview(initialFilters: ReviewFilters = {}): UseReviewResult {
     }
   }, [smartRefresh, toast]);
 
+  const deleteItem = useCallback(async (id: string) => {
+    try {
+      await ReviewService.deleteMedia(id);
+      toast({
+        title: '成功',
+        description: '已删除',
+      });
+      await smartRefresh();
+    } catch (error) {
+      console.error('删除失败:', error);
+      toast({
+        title: '错误',
+        description: '删除失败',
+        variant: 'destructive'
+      });
+    }
+  }, [smartRefresh, toast]);
+
+  const batchDelete = useCallback(async () => {
+    const itemsToDelete = Array.from(selectedItems);
+    if (itemsToDelete.length === 0) return;
+
+    try {
+      await ReviewService.batchDeleteMedia(itemsToDelete);
+      toast({
+        title: '成功',
+        description: `已批量删除 ${itemsToDelete.length} 项`,
+      });
+      await smartRefresh();
+    } catch (error) {
+      console.error('批量删除失败:', error);
+      toast({
+        title: '错误',
+        description: '批量删除失败',
+        variant: 'destructive'
+      });
+    }
+  }, [selectedItems, smartRefresh, toast]);
+
   // 加载更多
   const loadMore = useCallback(async () => {
     if (!isLoading && hasMore) {
@@ -327,6 +366,8 @@ export function useReview(initialFilters: ReviewFilters = {}): UseReviewResult {
     batchReject,
     approveItem,
     rejectItem,
+    deleteItem,
+    batchDelete,
     batchSetTags: async () => { },
     batchSetCategory: async () => { },
     isSelected: (mediaId: string) => selectedMap.get(mediaId) || false

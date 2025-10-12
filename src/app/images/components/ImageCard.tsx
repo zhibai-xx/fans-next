@@ -285,7 +285,7 @@ const ActionButton: React.FC<ActionButtonProps> = ({
     size="sm"
     onClick={onClick}
     disabled={loading}
-    className={`p-2 h-auto w-auto rounded-full bg-black/30 backdrop-blur-sm hover:bg-black/50 transition-colors ${active
+    className={`p-2 h-auto w-auto rounded-full bg-black/30 hover:bg-black/50 transition-colors ${active
       ? 'text-red-500 hover:text-red-400'
       : 'text-white hover:text-gray-200'
       } ${loading ? 'opacity-50 cursor-not-allowed' : ''}`}

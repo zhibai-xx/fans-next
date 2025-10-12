@@ -254,7 +254,7 @@ const GridImageCard: React.FC<GridImageCardProps> = ({
 
   return (
     <Card
-      className="group cursor-pointer transition-all duration-300 hover:shadow-xl hover:-translate-y-1 overflow-hidden border-0 bg-white/90 dark:bg-gray-800/90 backdrop-blur-sm aspect-square rounded-2xl"
+      className="group cursor-pointer transition-all duration-300 hover:shadow-xl hover:-translate-y-1 overflow-hidden border-0 bg-white dark:bg-gray-800 aspect-square rounded-2xl"
       onClick={onClick}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
@@ -393,7 +393,7 @@ const ActionButton: React.FC<ActionButtonProps> = ({
     <Button
       variant="ghost"
       size="sm"
-      className={`h-7 w-7 p-0 rounded-full backdrop-blur-sm transition-all duration-200 ${className} ${loading ? 'opacity-50 cursor-not-allowed' : ''}`}
+      className={`h-7 w-7 p-0 rounded-full bg-white/80 transition-all duration-200 ${className} ${loading ? 'opacity-50 cursor-not-allowed' : ''}`}
       title={tooltip}
       disabled={loading}
       onClick={(e) => {
@@ -477,7 +477,7 @@ export const GridImageLayout: React.FC<GridImageLayoutProps> = ({
 
         {!hasMore && images.length > 0 && (
           <div className="text-center">
-            <div className="inline-flex items-center gap-2 px-4 py-2 bg-white/80 backdrop-blur-sm rounded-full text-sm text-gray-500 shadow-sm">
+            <div className="inline-flex items-center gap-2 px-4 py-2 bg-white rounded-full text-sm text-gray-500 shadow-sm">
               <div className="w-2 h-2 bg-green-400 rounded-full"></div>
               <span>已加载全部 {images.length} 张图片</span>
             </div>
@@ -486,7 +486,7 @@ export const GridImageLayout: React.FC<GridImageLayoutProps> = ({
 
         {!isLoading && images.length === 0 && (
           <div className="text-center py-16">
-            <div className="inline-flex flex-col items-center gap-4 px-8 py-6 bg-white/80 backdrop-blur-sm rounded-2xl shadow-sm">
+            <div className="inline-flex flex-col items-center gap-4 px-8 py-6 bg-white rounded-2xl shadow-sm">
               <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center">
                 <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />

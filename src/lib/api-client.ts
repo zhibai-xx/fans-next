@@ -135,14 +135,24 @@ export class ApiClient {
   }
 
   /**
-   * 发送请求的通用方法
+   * 延迟函数 - 用于限流重试
+   */
+  private async delay(ms: number): Promise<void> {
+    return new Promise(resolve => setTimeout(resolve, ms));
+  }
+
+  /**
+   * 发送请求的通用方法，支持限流重试
    */
   async request<T>(
     method: RequestMethod,
     endpoint: string,
     data?: any,
-    options?: RequestOptions
+    options?: RequestOptions & { retryCount?: number }
   ): Promise<T> {
+    const maxRetries = 3;
+    const retryCount = options?.retryCount || 0;
+
     try {
       const url = this.buildUrl(endpoint, options?.params);
       const headers = await this.prepareHeaders(data, options);
@@ -161,6 +171,21 @@ export class ApiClient {
       };
 
       const response = await fetch(url, config);
+
+      // 处理429限流错误
+      if (response.status === 429 && retryCount < maxRetries) {
+        const retryDelay = Math.pow(2, retryCount) * 1000; // 指数退避：1s, 2s, 4s
+        
+        console.warn(`⚠️ 触发限流 (429)，${retryDelay}ms后重试 (${retryCount + 1}/${maxRetries})`);
+        
+        await this.delay(retryDelay);
+        
+        return this.request<T>(method, endpoint, data, {
+          ...options,
+          retryCount: retryCount + 1
+        });
+      }
+
       return await this.handleResponse<T>(response);
     } catch (error) {
       if (error instanceof ApiError) {

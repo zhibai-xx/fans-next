@@ -5,7 +5,18 @@ import { useReview } from '@/hooks/useReview';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { MediaDetailModal } from './MediaDetailModal';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import { ModernMediaDetailModal } from './ModernMediaDetailModal';
+import { VideoThumbnail, VideoCardThumbnail } from '@/components/VideoThumbnail';
 import {
   BarChart3,
   Clock,
@@ -17,7 +28,8 @@ import {
   RefreshCw,
   Settings,
   ImageIcon,
-  VideoIcon
+  VideoIcon,
+  Trash2
 } from 'lucide-react';
 import { ReviewService } from '@/services/review.service';
 
@@ -45,19 +57,33 @@ const MediaItem = memo(({ media, isSelected, viewMode, onToggle, onViewDetail }:
   if (viewMode === 'grid') {
     return (
       <div className={containerClass} onClick={handleClick}>
-        <div className="aspect-square bg-gray-100 relative group rounded-lg overflow-hidden flex items-center justify-center">
-          <img
-            src={media.thumbnail_url || media.url}
-            alt=""
-            className="media-image max-w-full max-h-full object-contain"
-            loading="lazy"
-            decoding="async"
-            sizes="(max-width: 768px) 100vw, (max-width: 1024px) 50vw, 25vw"
-            style={{
-              maxWidth: '100%',
-              maxHeight: '100%'
-            }}
-          />
+        <div className="aspect-square relative group rounded-lg overflow-hidden">
+          {media.media_type === 'VIDEO' ? (
+            <VideoCardThumbnail
+              src={media.thumbnail_url}
+              alt={media.title}
+              duration={media.duration}
+              className="w-full h-full"
+              showPlayIcon={false}
+              loading={!media.thumbnail_url}
+              smartAspectRatio={true}
+            />
+          ) : (
+            <div className="bg-gray-100 flex items-center justify-center h-full">
+              <img
+                src={media.thumbnail_url || media.url}
+                alt=""
+                className="media-image max-w-full max-h-full object-contain"
+                loading="lazy"
+                decoding="async"
+                sizes="(max-width: 768px) 100vw, (max-width: 1024px) 50vw, 25vw"
+                style={{
+                  maxWidth: '100%',
+                  maxHeight: '100%'
+                }}
+              />
+            </div>
+          )}
           {/* 选中状态 */}
           {isSelected && (
             <div className="absolute top-2 right-2" style={{ transform: 'translateZ(0)' }}>
@@ -90,19 +116,29 @@ const MediaItem = memo(({ media, isSelected, viewMode, onToggle, onViewDetail }:
   return (
     <div className={containerClass} onClick={handleClick}>
       <div className="flex items-center p-3 space-x-3">
-        <div className="w-16 h-16 bg-gray-100 rounded flex items-center justify-center overflow-hidden flex-shrink-0">
-          <img
-            src={media.thumbnail_url || media.url}
-            alt=""
-            className="media-image max-w-full max-h-full object-contain"
-            loading="lazy"
-            decoding="async"
-            sizes="64px"
-            style={{
-              maxWidth: '100%',
-              maxHeight: '100%'
-            }}
-          />
+        <div className="w-16 h-16 rounded overflow-hidden flex-shrink-0">
+          {media.media_type === 'VIDEO' ? (
+            <VideoCardThumbnail
+              src={media.thumbnail_url}
+              alt={media.title}
+              duration={media.duration}
+              className="w-full h-full"
+              showPlayIcon={false}
+              loading={!media.thumbnail_url}
+              smartAspectRatio={true}
+            />
+          ) : (
+            <div className="bg-gray-100 flex items-center justify-center h-full">
+              <img
+                src={media.thumbnail_url || media.url}
+                alt=""
+                className="media-image w-full h-full object-contain"
+                loading="lazy"
+                decoding="async"
+                sizes="64px"
+              />
+            </div>
+          )}
         </div>
         <div className="flex-1 min-w-0">
           <h4 className="font-medium text-sm truncate">{media.title}</h4>
@@ -173,6 +209,7 @@ export function ReviewDashboard() {
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [showShortcuts, setShowShortcuts] = useState(false);
   const [selectedMedia, setSelectedMedia] = useState<any>(null); // 用于存储选中的媒体详情
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
 
   const review = useReview({
     status: 'PENDING',
@@ -194,6 +231,7 @@ export function ReviewDashboard() {
     clearSelection,
     batchApprove,
     batchReject,
+    batchDelete,
     refreshMediaList,
     currentFilters,
     refreshStats
@@ -229,6 +267,7 @@ export function ReviewDashboard() {
   const canBatchApprove = currentFilters.status === 'PENDING' && selectionState.hasSelection;
   const canBatchReject = currentFilters.status === 'PENDING' && selectionState.hasSelection;
   const canBatchWithdrawRejection = currentFilters.status === 'REJECTED' && selectionState.hasSelection;
+  const canBatchDelete = selectionState.hasSelection; // 所有状态都可以删除
 
   // 批量操作处理
   const handleBatchApprove = useCallback(async () => {
@@ -258,6 +297,16 @@ export function ReviewDashboard() {
       console.error('批量撤回拒绝失败:', error);
     }
   }, [selectedItems, canBatchWithdrawRejection, refreshMediaList, refreshStats]);
+
+  const handleBatchDelete = useCallback(() => {
+    if (!canBatchDelete) return;
+    setShowDeleteDialog(true);
+  }, [canBatchDelete]);
+
+  const confirmBatchDelete = useCallback(async () => {
+    setShowDeleteDialog(false);
+    await batchDelete();
+  }, [batchDelete]);
 
   // 快捷键处理
   useEffect(() => {
@@ -512,6 +561,20 @@ export function ReviewDashboard() {
                       已通过的内容请到媒体管理页面进行管理
                     </div>
                   )}
+
+                  {/* 批量删除按钮 - 只在已拒绝状态下显示 */}
+                  {filterStates.isRejected && (
+                    <Button
+                      size="sm"
+                      variant="destructive"
+                      onClick={handleBatchDelete}
+                      disabled={isLoading || !canBatchDelete}
+                      className="bg-red-600 hover:bg-red-700"
+                    >
+                      <Trash2 className="h-4 w-4 mr-2" />
+                      批量删除
+                    </Button>
+                  )}
                 </div>
               </div>
               <Button size="sm" variant="outline" onClick={clearSelection}>
@@ -618,7 +681,7 @@ export function ReviewDashboard() {
       </Card>
 
       {/* 媒体详情模态框 */}
-      <MediaDetailModal
+      <ModernMediaDetailModal
         media={selectedMedia}
         isOpen={!!selectedMedia}
         onClose={() => setSelectedMedia(null)}
@@ -665,6 +728,27 @@ export function ReviewDashboard() {
           </Card>
         </div>
       )}
+
+      {/* 删除确认弹框 */}
+      <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>确认删除</AlertDialogTitle>
+            <AlertDialogDescription>
+              确定要删除选中的 {selectionState.selectedCount} 项内容吗？此操作将永久删除这些内容及相关文件，无法撤销。
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>取消</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={confirmBatchDelete}
+              className="bg-red-600 hover:bg-red-700 text-white"
+            >
+              确认删除
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 } 

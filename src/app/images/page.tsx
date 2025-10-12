@@ -3,13 +3,14 @@
 import React, { useState, useCallback, useMemo, useRef, useEffect } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { ImageUploadButton } from '@/components/ImageUploadButton';
+
 import { ImageSearchBar } from './components/ImageSearchBar';
 import { MasonryImageGrid } from './components/MasonryImageGrid';
 import { GridImageLayout } from './components/GridImageLayout';
 import { ImageDetailModal } from './components/ImageDetailModal';
 import { MediaItem, MediaFilters } from '@/services/media.service';
 import { InteractionService } from '@/services/interaction.service';
-import type { MediaInteractionStatus, BatchLikeStatus, BatchFavoriteStatus } from '@/types/interaction';
+import type { MediaInteractionStatus } from '@/types/interaction';
 import {
     useInfiniteImages,
     useUserTags,
@@ -132,7 +133,7 @@ export default function ImagesPage() {
     }, []);
 
     // 统计信息
-    const totalCount = data?.pages[0]?.meta?.total || 0;
+    const totalCount = data?.pages[0]?.pagination?.total || 0;
 
     // 处理错误
     React.useEffect(() => {
@@ -148,7 +149,7 @@ export default function ImagesPage() {
 
     // 无限滚动监听
     useIntersectionObserverLegacy({
-        target: loadMoreRef,
+        target: loadMoreRef as React.RefObject<Element>,
         onIntersect: () => {
             if (hasNextPage && !isFetchingNextPage) {
                 fetchNextPage();
@@ -257,11 +258,7 @@ export default function ImagesPage() {
         });
     }, [toast]);
 
-    // 刷新数据
-    const handleRefresh = useCallback(() => {
-        refetch();
-        userMediaQueryUtils.invalidateImages(queryClient);
-    }, [refetch]);
+
 
     return (
         <div className="min-h-screen bg-gray-50/30">
@@ -272,15 +269,6 @@ export default function ImagesPage() {
                         <span>{totalCount} 张图片</span>
                     </div>
                     <div className="flex items-center gap-3">
-                        <button
-                            onClick={handleRefresh}
-                            className="p-2 text-gray-500 hover:text-gray-700 rounded-full hover:bg-white/80 backdrop-blur-sm transition-all duration-200 hover:scale-105"
-                            title="刷新"
-                        >
-                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                            </svg>
-                        </button>
                         <ImageUploadButton onUploadComplete={handleUploadComplete} />
                     </div>
                 </div>
@@ -329,7 +317,7 @@ export default function ImagesPage() {
                 {hasNextPage && (
                     <div ref={loadMoreRef} className="flex justify-center py-8">
                         {isFetchingNextPage && (
-                            <div className="flex items-center gap-3 px-6 py-3 bg-white/80 backdrop-blur-sm rounded-full shadow-sm">
+                            <div className="flex items-center gap-3 px-6 py-3 bg-white rounded-full shadow-sm">
                                 <div className="animate-spin rounded-full h-5 w-5 border-2 border-blue-200 border-t-blue-500"></div>
                                 <span className="text-sm text-gray-600">加载更多图片</span>
                             </div>

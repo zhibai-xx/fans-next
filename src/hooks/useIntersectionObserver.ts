@@ -1,97 +1,74 @@
-// hooks/useIntersectionObserver.ts
-import { useEffect, useState, RefObject } from 'react';
+import { useEffect } from 'react';
 
 interface UseIntersectionObserverOptions {
-  root?: Element | null;
+  target?: React.RefObject<Element>;
+  onIntersect: () => void;
+  threshold?: number;
   rootMargin?: string;
-  threshold?: number | number[];
-  once?: boolean;
+  enabled?: boolean;
 }
 
-interface UseIntersectionObserverResult {
-  isIntersecting: boolean;
-  entry?: IntersectionObserverEntry;
-}
-
-export const useIntersectionObserver = (
-  target: RefObject<Element | null>,
-  options: UseIntersectionObserverOptions = {}
-): UseIntersectionObserverResult => {
-  const [isIntersecting, setIsIntersecting] = useState(false);
-  const [entry, setEntry] = useState<IntersectionObserverEntry>();
-
-  const { root = null, rootMargin = '0px', threshold = 0, once = false } = options;
-
+/**
+ * Intersection Observer Hook
+ * 用于检测元素是否进入视口，常用于无限滚动
+ */
+export function useIntersectionObserver(
+  target: React.RefObject<Element>,
+  { onIntersect, threshold = 0, rootMargin = '0px', enabled = true }: UseIntersectionObserverOptions
+) {
   useEffect(() => {
-    if (!target.current) return;
+    if (!enabled || !target.current) return;
 
     const observer = new IntersectionObserver(
-      ([entry]) => {
-        setIsIntersecting(entry.isIntersecting);
-        setEntry(entry);
-
-        if (once && entry.isIntersecting) {
-          observer.unobserve(target.current!);
-        }
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            onIntersect();
+          }
+        });
       },
       {
-        root,
-        rootMargin,
         threshold,
+        rootMargin,
       }
     );
 
     observer.observe(target.current);
 
     return () => {
-      if (target.current) {
-        observer.unobserve(target.current);
-      }
+      observer.disconnect();
     };
-  }, [target, root, rootMargin, threshold, once]);
+  }, [target, onIntersect, threshold, rootMargin, enabled]);
+}
 
-  return { isIntersecting, entry };
-};
+/**
+ * Legacy version that accepts options object with target included
+ * 保持向后兼容性的版本
+ */
+export function useIntersectionObserverLegacy(options: UseIntersectionObserverOptions) {
+  const { target, onIntersect, threshold = 0, rootMargin = '0px', enabled = true } = options || {};
 
-// 保持向后兼容的旧版本
-export const useIntersectionObserverLegacy = ({
-  target,
-  onIntersect,
-  threshold = 0,
-  rootMargin = '0px',
-  once = false
-}: {
-  target: RefObject<HTMLDivElement | null>;
-  onIntersect: () => void;
-  threshold?: number;
-  rootMargin?: string;
-  once?: boolean;
-}) => {
   useEffect(() => {
+    if (!enabled || !target?.current) return;
+
     const observer = new IntersectionObserver(
-      ([entry]) => {
-        if (entry?.isIntersecting) {
-          onIntersect();
-          if (once && target.current) {
-            observer.unobserve(target.current);
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            onIntersect();
           }
-        }
+        });
       },
       {
-        root: null,
+        threshold,
         rootMargin,
-        threshold
       }
     );
 
-    if (target.current) {
-      observer.observe(target.current);
-    }
+    observer.observe(target.current);
 
     return () => {
-      if (target.current) {
-        observer.unobserve(target.current);
-      }
+      observer.disconnect();
     };
-  }, [target, onIntersect, rootMargin, threshold, once]);
-};
+  }, [target, onIntersect, threshold, rootMargin, enabled]);
+}

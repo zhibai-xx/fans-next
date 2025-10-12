@@ -144,7 +144,7 @@ export const ImageSearchBar: React.FC<ImageSearchBarProps> = ({
   const selectedTagsData = tags.filter(tag => selectedTags.includes(tag.id));
 
   return (
-    <div className="bg-white/70 dark:bg-gray-900/70 border border-gray-200/50 dark:border-gray-700/50 rounded-2xl backdrop-blur-md shadow-sm">
+    <div className="bg-white dark:bg-gray-900 border border-gray-200/50 dark:border-gray-700/50 rounded-2xl shadow-sm">
       <div className="px-6 py-4">
         {/* 主搜索栏 */}
         <div className="flex items-center gap-4 mb-4">
@@ -155,7 +155,7 @@ export const ImageSearchBar: React.FC<ImageSearchBarProps> = ({
               placeholder="搜索图片、标签..."
               value={searchQuery}
               onChange={handleSearchChange}
-              className="pl-10 pr-4 py-3 text-base border-gray-200/60 focus:border-blue-400/60 focus:ring-blue-400/30 rounded-full bg-white/60 backdrop-blur-sm transition-all duration-200"
+              className="pl-10 pr-4 py-3 text-base border-gray-200/60 focus:border-blue-400/60 focus:ring-blue-400/30 rounded-full bg-white transition-all duration-200"
             />
             {searchQuery && (
               <Button
@@ -177,7 +177,7 @@ export const ImageSearchBar: React.FC<ImageSearchBarProps> = ({
             <Button
               ref={filterButtonRef}
               variant="outline"
-              className="relative px-4 py-3 rounded-full border-gray-200/60 bg-white/60 backdrop-blur-sm hover:bg-white/80 transition-all duration-200"
+              className="relative px-4 py-3 rounded-full border-gray-200/60 bg-white hover:bg-gray-50 transition-all duration-200"
               onClick={() => setShowFilters(!showFilters)}
             >
               <Filter className="h-4 w-4 mr-2" />
@@ -197,7 +197,7 @@ export const ImageSearchBar: React.FC<ImageSearchBarProps> = ({
             {showFilters && filterButtonRect && typeof window !== 'undefined' && createPortal(
               <div
                 data-filter-panel
-                className="fixed w-80 bg-white/95 dark:bg-gray-800/95 rounded-2xl shadow-xl border border-gray-200/50 dark:border-gray-700/50 backdrop-blur-md z-[9999] p-5"
+                className="fixed w-80 bg-white dark:bg-gray-800 rounded-2xl shadow-xl border border-gray-200/50 dark:border-gray-700/50 z-40 p-5"
                 style={{
                   left: Math.max(8, filterButtonRect.right - 320), // 确保不超出左边界
                   top: filterButtonRect.bottom + 8, // 在按钮下方8px
@@ -301,7 +301,7 @@ export const ImageSearchBar: React.FC<ImageSearchBarProps> = ({
 
           {/* 布局切换 */}
           {onLayoutChange && (
-            <div className="flex items-center bg-white/60 dark:bg-gray-800/60 backdrop-blur-sm rounded-full p-1 border border-gray-200/50">
+            <div className="flex items-center bg-white dark:bg-gray-800 rounded-full p-1 border border-gray-200/50">
               <Button
                 variant={layoutMode === 'masonry' ? 'default' : 'ghost'}
                 size="sm"

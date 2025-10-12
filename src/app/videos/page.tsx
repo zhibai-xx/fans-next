@@ -1,65 +1,57 @@
 'use client';
 
 import React, { useState, useCallback, useMemo, useRef } from 'react';
-import { VideoGrid } from './components/VideoGrid'
-import { SearchBar } from './components/SearchBar'
-import { CategoryTabs } from './components/CategoryTabs'
-import { VideoUploadButton } from '@/components/VideoUploadButton'
-import { useSearchParams } from 'next/navigation';
-import { MediaItem, MediaFilters } from '@/services/media.service';
+import { ModernVideoGrid } from './components/ModernVideoGrid';
+import { SearchBar } from './components/SearchBar';
+import { CategoryTabs } from './components/CategoryTabs';
+import { Button } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { VideoUploadButton } from '@/components/VideoUploadButton';
+
 import {
   useInfiniteVideos,
-  useUserTags,
-  useUserCategories,
-  useLikeImageMutation,
-  useIncrementViewsMutation,
-  userMediaQueryUtils
-} from '@/hooks/queries/useUserMedia';
-import { useIntersectionObserverLegacy } from '@/hooks/useIntersectionObserver';
-import { queryClient } from '@/lib/query-client';
+  useTrendingVideos,
+  useLatestVideos,
+  videoQueryUtils
+} from '@/hooks/useVideos';
+import { VideoFilters } from '@/services/video.service';
+import { useIntersectionObserver } from '@/hooks/useIntersectionObserver';
 import { useToast } from '@/hooks/use-toast';
+import { useQueryClient } from '@tanstack/react-query';
+import {
+  RefreshCw,
+  TrendingUp,
+  Clock,
+  Upload,
+  Filter,
+  Grid,
+  List
+} from 'lucide-react';
 
-// URL规范化辅助函数
-const normalizeUrl = (url: string | null | undefined, fallback: string = ''): string => {
-  if (!url) return fallback;
-  if (url.startsWith('http')) return url;
-  if (url.startsWith('/')) return url;
-  return `/${url}`;
-};
 
-export default function VideosPage() {
-  const searchParams = useSearchParams();
+
+export default function ModernVideosPage() {
   const { toast } = useToast();
+  const queryClient = useQueryClient();
 
-  // 本地UI状态
+  // 本地状态
   const [searchQuery, setSearchQuery] = useState('');
-  const [filters, setFilters] = useState<MediaFilters>({
-    type: 'VIDEO', // 只显示视频
-    status: 'APPROVED', // 只显示已发布的视频
-    sortBy: 'created_at',
-    sortOrder: 'desc'
-  });
+  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
+  const [activeTab, setActiveTab] = useState<'all' | 'trending' | 'latest'>('all');
 
   // 无限滚动引用
   const loadMoreRef = useRef<HTMLDivElement>(null);
 
-  // 从URL获取分类
-  React.useEffect(() => {
-    const category = searchParams.get('category');
-    if (category && category !== 'all') {
-      setFilters(prev => ({ ...prev, categoryId: category }));
-    } else {
-      setFilters(prev => ({ ...prev, categoryId: undefined }));
-    }
-  }, [searchParams]);
+  // 构建筛选条件
+  const filters: VideoFilters = useMemo(() => ({
+    search: searchQuery || undefined,
+    status: 'APPROVED',
+    sortBy: activeTab === 'trending' ? 'views' : 'created_at',
+    sortOrder: 'desc',
+  }), [searchQuery, activeTab]);
 
-  // 构建API筛选参数
-  const apiFilters: MediaFilters = useMemo(() => ({
-    ...filters,
-    search: searchQuery.trim() || undefined,
-  }), [searchQuery, filters]);
-
-  // 使用TanStack Query获取数据
+  // 主要的视频查询
   const {
     data,
     fetchNextPage,
@@ -68,189 +60,257 @@ export default function VideosPage() {
     isLoading,
     isError,
     error,
-    refetch
-  } = useInfiniteVideos(apiFilters, 24);
+    refetch,
+  } = useInfiniteVideos(filters);
 
-  const { data: tags } = useUserTags();
-  const { data: categories } = useUserCategories();
-
-  // Mutation hooks
-  const likeVideoMutation = useLikeImageMutation();
-  const incrementViewsMutation = useIncrementViewsMutation();
+  // 热门和最新视频查询（用于推荐）
+  const { data: trendingData } = useTrendingVideos(8);
+  const { data: latestData } = useLatestVideos(8);
 
   // 合并所有页面的视频数据
   const videos = useMemo(() => {
+    if (activeTab === 'trending' && trendingData?.data) {
+      return trendingData.data;
+    }
+    if (activeTab === 'latest' && latestData?.data) {
+      return latestData.data;
+    }
     return data?.pages.flatMap(page => page.data || []) || [];
-  }, [data]);
+  }, [data, trendingData, latestData, activeTab]);
 
   // 统计信息
-  const totalCount = data?.pages[0]?.meta?.total || 0;
+  const totalCount = data?.pages[0]?.pagination?.total || 0;
 
-  // 处理错误
+  // 错误处理
   React.useEffect(() => {
     if (isError && error) {
       console.error('加载视频数据失败:', error);
       toast({
         title: '加载失败',
-        description: error instanceof Error ? error.message : '无法加载视频数据，请检查网络连接',
-        variant: 'destructive'
+        description: '无法加载视频数据，请检查网络连接',
+        variant: 'destructive',
+        duration: 5000,
       });
     }
   }, [isError, error, toast]);
 
   // 无限滚动监听
-  useIntersectionObserverLegacy({
-    target: loadMoreRef,
+  useIntersectionObserver(loadMoreRef, {
     onIntersect: () => {
-      if (hasNextPage && !isFetchingNextPage) {
+      if (hasNextPage && !isFetchingNextPage && activeTab === 'all') {
         fetchNextPage();
       }
     },
     threshold: 0.1,
-    rootMargin: '100px'
+    rootMargin: '100px',
   });
 
   // 搜索处理
   const handleSearch = useCallback((query: string) => {
     setSearchQuery(query);
-    // TanStack Query 会自动重新获取数据
+    setActiveTab('all'); // 搜索时切回全部标签
   }, []);
 
-  // 分类切换处理
-  const handleCategoryChange = useCallback((categoryId: string) => {
-    const updatedFilters = {
-      ...filters,
-      categoryId: categoryId === 'all' ? undefined : categoryId,
-    };
-    console.log('分类筛选更新:', updatedFilters);
-    setFilters(updatedFilters);
-  }, [filters]);
+  // 筛选条件变更处理
+  const handleFiltersChange = useCallback((newFilters: VideoFilters) => {
+    // 这里可以处理更多筛选条件，暂时只处理排序
+    console.log('筛选条件更新:', newFilters);
+  }, []);
 
-  // 视频点击处理
-  const handleVideoClick = useCallback((video: MediaItem) => {
-    // 增加查看次数
-    incrementViewsMutation.mutate(video.id);
 
-    // TODO: 实现视频播放逻辑
-    console.log('视频点击:', video);
-  }, [incrementViewsMutation]);
 
-  // 点赞处理
-  const handleLike = useCallback((mediaId: string, isLiked: boolean) => {
-    likeVideoMutation.mutate({ mediaId, isLiked });
-  }, [likeVideoMutation]);
-
-  // 上传完成处理
-  const handleUploadComplete = useCallback(() => {
-    // 刷新视频列表
-    userMediaQueryUtils.invalidateVideos(queryClient);
-    toast({
-      title: '上传成功',
-      description: '视频已成功上传并等待审核',
-    });
-  }, [toast]);
+  // 标签切换处理
+  const handleTabChange = useCallback((tab: 'all' | 'trending' | 'latest') => {
+    setActiveTab(tab);
+    setSearchQuery(''); // 清除搜索
+  }, []);
 
   // 刷新数据
   const handleRefresh = useCallback(() => {
     refetch();
-    userMediaQueryUtils.invalidateVideos(queryClient);
-  }, [refetch]);
+    videoQueryUtils.invalidateAll(queryClient);
+    toast({
+      title: '刷新成功',
+      description: '视频列表已更新',
+      duration: 2000,
+    });
+  }, [refetch, queryClient, toast]);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50">
-      <div className="container mx-auto px-4 py-8">
-        {/* 页面标题和上传按钮 */}
-        <div className="flex flex-col sm:flex-row items-center justify-between mb-8">
-          <div className="mb-4 sm:mb-0">
-            <h1 className="text-3xl font-bold text-gray-900 mb-2">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 dark:from-gray-900 dark:via-blue-950 dark:to-indigo-950">
+      <div className="container mx-auto px-4 py-8 max-w-7xl">
+        {/* 页面头部 */}
+        <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between mb-8">
+          <div className="mb-4 lg:mb-0">
+            <h1 className="text-4xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent mb-2">
               精彩视频
             </h1>
-            <p className="text-gray-600">
-              欣赏精彩内容 • 共 {totalCount} 个视频
-            </p>
+            <div className="flex items-center space-x-4 text-gray-600 dark:text-gray-300">
+              <span className="flex items-center">
+                <Grid className="w-4 h-4 mr-1" />
+                共 {totalCount.toLocaleString()} 个视频
+              </span>
+              {activeTab !== 'all' && (
+                <Badge variant="secondary" className="bg-blue-100 text-blue-800">
+                  {activeTab === 'trending' ? '热门推荐' : '最新发布'}
+                </Badge>
+              )}
+            </div>
           </div>
-          <div className="flex items-center space-x-4">
-            <button
-              onClick={handleRefresh}
-              className="p-2 text-gray-600 hover:text-gray-900 rounded-lg hover:bg-white/50 transition-colors"
-              title="刷新"
+
+          {/* 右侧操作按钮 */}
+          <div className="flex items-center space-x-3">
+            {/* 视图切换 */}
+            <div className="flex rounded-lg border border-gray-200 overflow-hidden">
+              <Button
+                variant={viewMode === 'grid' ? 'default' : 'ghost'}
+                size="sm"
+                onClick={() => setViewMode('grid')}
+                className="rounded-none"
+              >
+                <Grid className="w-4 h-4" />
+              </Button>
+              <Button
+                variant={viewMode === 'list' ? 'default' : 'ghost'}
+                size="sm"
+                onClick={() => setViewMode('list')}
+                className="rounded-none"
+              >
+                <List className="w-4 h-4" />
+              </Button>
+            </div>
+
+            {/* 上传按钮 */}
+            <VideoUploadButton
+              onUploadComplete={(mediaIds) => {
+                toast({
+                  title: '上传成功',
+                  description: `已成功上传 ${mediaIds.length} 个视频`,
+                });
+                // 刷新视频列表
+                refetch();
+              }}
+            />
+          </div>
+        </div>
+
+        {/* 内容标签 */}
+        <div className="flex items-center justify-center mb-6">
+          <div className="flex rounded-lg border border-gray-200 bg-white/60 backdrop-blur-sm p-1">
+            <Button
+              variant={activeTab === 'all' ? 'default' : 'ghost'}
+              size="sm"
+              onClick={() => handleTabChange('all')}
+              className={activeTab === 'all' ? 'bg-blue-600 text-white' : ''}
             >
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-              </svg>
-            </button>
-            <VideoUploadButton onUploadComplete={handleUploadComplete} />
+              <Grid className="w-4 h-4 mr-2" />
+              全部
+            </Button>
+            <Button
+              variant={activeTab === 'trending' ? 'default' : 'ghost'}
+              size="sm"
+              onClick={() => handleTabChange('trending')}
+              className={activeTab === 'trending' ? 'bg-red-600 text-white' : ''}
+            >
+              <TrendingUp className="w-4 h-4 mr-2" />
+              热门
+            </Button>
+            <Button
+              variant={activeTab === 'latest' ? 'default' : 'ghost'}
+              size="sm"
+              onClick={() => handleTabChange('latest')}
+              className={activeTab === 'latest' ? 'bg-green-600 text-white' : ''}
+            >
+              <Clock className="w-4 h-4 mr-2" />
+              最新
+            </Button>
           </div>
         </div>
 
-        {/* 搜索栏 */}
-        <div className="mb-6">
-          <SearchBar />
-        </div>
-
-        {/* 分类标签 */}
+        {/* 搜索栏 - 在所有tab下都显示 */}
         <div className="mb-8">
-          <CategoryTabs
-            categories={[
-              { id: 'all', name: '全部' },
-              ...(categories || [])
-            ]}
+          <SearchBar
+            onSearch={handleSearch}
+            placeholder="搜索您感兴趣的视频内容..."
           />
         </div>
 
-        {/* 加载状态 */}
-        {isLoading && videos.length === 0 && (
-          <div className="flex justify-center items-center py-16">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600"></div>
-            <span className="ml-4 text-gray-600">加载视频中...</span>
+        {/* 当前筛选条件显示 */}
+        {searchQuery && (
+          <div className="flex items-center space-x-2 mb-6">
+            <Filter className="w-4 h-4 text-gray-500" />
+            <span className="text-sm text-gray-600">当前筛选:</span>
+            <Badge variant="outline" className="bg-white/60">
+              搜索: {searchQuery}
+            </Badge>
           </div>
         )}
 
         {/* 视频网格 */}
-        {!isLoading || videos.length > 0 ? (
-          <div className="mb-8">
-            <VideoGrid
-              videos={videos.map(video => ({
-                id: video.id,
-                title: video.title,
-                thumbnail: normalizeUrl(video.thumbnail_url, '/assets/zjy3.png'),
-                duration: video.duration ? `${Math.floor(video.duration / 60)}:${String(video.duration % 60).padStart(2, '0')}` : '00:00',
-                views: video.views,
-                publishedAt: video.created_at,
-                author: {
-                  id: video.user.uuid,
-                  name: video.user.username,
-                  avatar: normalizeUrl(video.user.avatar_url, '/assets/zjy3.png'),
-                  followers: 0 // TODO: 添加粉丝数统计
-                },
-                videoUrl: normalizeUrl(video.url),
-                recommendations: [], // TODO: 实现推荐逻辑
-                likes: video.likes_count,
-                commentsCount: 0, // TODO: 添加评论数统计
-                isLiked: false, // TODO: 实现点赞状态
-                isBookmarked: false, // TODO: 实现收藏状态
-                source: 'USER_UPLOAD' as const,
-                originalCreatedAt: video.original_created_at,
-                sourceMetadata: video.source_metadata
-              }))}
-            />
-          </div>
-        ) : null}
+        <div className="mb-8">
+          <ModernVideoGrid
+            videos={videos}
+            isLoading={isLoading && videos.length === 0}
+          />
+        </div>
 
         {/* 加载更多触发器 */}
-        {hasNextPage && (
+        {hasNextPage && activeTab === 'all' && (
           <div ref={loadMoreRef} className="flex justify-center py-8">
-            {isFetchingNextPage && (
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600"></div>
+            {isFetchingNextPage ? (
+              <div className="flex items-center space-x-2 text-gray-500">
+                <RefreshCw className="w-5 h-5 animate-spin" />
+                <span>加载更多...</span>
+              </div>
+            ) : (
+              <Button
+                variant="outline"
+                onClick={() => fetchNextPage()}
+                className="bg-white/60 backdrop-blur-sm"
+              >
+                点击加载更多
+              </Button>
             )}
           </div>
         )}
 
         {/* 没有更多内容提示 */}
-        {!hasNextPage && videos.length > 0 && (
-          <div className="text-center py-8 text-gray-500">
-            已显示全部视频
+        {!hasNextPage && videos.length > 0 && activeTab === 'all' && (
+          <div className="text-center py-8">
+            <div className="inline-flex items-center px-4 py-2 rounded-full bg-white/60 backdrop-blur-sm text-gray-500">
+              <span>已显示全部视频内容</span>
+            </div>
           </div>
+        )}
+
+        {/* 空状态提示 */}
+        {!isLoading && videos.length === 0 && (
+          <Card className="p-12 text-center bg-white/60 backdrop-blur-sm">
+            <div className="w-20 h-20 mx-auto mb-4 text-gray-300">
+              <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
+              </svg>
+            </div>
+            <h3 className="text-xl font-semibold text-gray-700 mb-2">
+              {searchQuery ? '没有找到相关视频' : '暂无视频内容'}
+            </h3>
+            <p className="text-gray-500 mb-6">
+              {searchQuery
+                ? '试试其他关键词或调整筛选条件'
+                : '还没有任何视频内容，快来上传第一个视频吧！'
+              }
+            </p>
+            {searchQuery ? (
+              <Button variant="outline" onClick={() => setSearchQuery('')}>
+                清除搜索条件
+              </Button>
+            ) : (
+              <Button className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700">
+                <Upload className="w-4 h-4 mr-2" />
+                上传第一个视频
+              </Button>
+            )}
+          </Card>
         )}
       </div>
     </div>

@@ -43,12 +43,13 @@ export interface MediaItem {
 }
 
 export interface MediaListResponse {
+  success: boolean;
   data: MediaItem[];
-  meta: {
+  pagination: {
+    page: number;
+    limit: number;
     total: number;
-    skip: number;
-    take: number;
-    hasMore: boolean;
+    totalPages: number;
   };
 }
 

@@ -184,6 +184,35 @@ export class ReviewService {
     console.log('🏷️ ReviewService.getAllTags 收到响应:', response);
     return response.tags;
   }
+
+  /**
+   * 删除单个媒体
+   */
+  static async deleteMedia(mediaId: string): Promise<void> {
+    console.log('🗑️ ReviewService.deleteMedia 发送请求:', mediaId);
+
+    await apiClient.delete(`/admin/media/${mediaId}`, {
+      withAuth: true,
+    });
+
+    console.log('🗑️ ReviewService.deleteMedia 删除成功');
+  }
+
+  /**
+   * 批量删除媒体
+   */
+  static async batchDeleteMedia(mediaIds: string[]): Promise<BatchOperationResult> {
+    console.log('🗑️ ReviewService.batchDeleteMedia 发送请求:', mediaIds);
+
+    const response = await apiClient.post<BatchOperationResult>(
+      '/admin/media/batch/delete',
+      { mediaIds },
+      { withAuth: true }
+    );
+
+    console.log('🗑️ ReviewService.batchDeleteMedia 删除成功:', response);
+    return response;
+  }
 }
 
 // 审核快捷键服务
@@ -283,6 +312,8 @@ export interface UseReviewResult {
   batchReject: () => Promise<void>;
   approveItem: (mediaId: string) => Promise<void>;
   rejectItem: (mediaId: string) => Promise<void>;
+  deleteItem: (mediaId: string) => Promise<void>; // 新增：删除单个媒体
+  batchDelete: () => Promise<void>; // 新增：批量删除媒体
   batchSetTags: (tagIds: string[], action?: 'add' | 'replace') => Promise<void>;
   batchSetCategory: (categoryId?: string) => Promise<void>;
   isSelected: (mediaId: string) => boolean; // 新增：高性能选择状态查询

@@ -1,7 +1,7 @@
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -13,6 +13,7 @@ import { X, Eye, Edit3, Check, AlertCircle } from 'lucide-react';
 import { MediaItem } from '@/services/media.service';
 import { ReviewService } from '@/services/review.service';
 import { handleApiError } from '@/lib/utils/error-handler';
+import RobustVideoPlayer from '@/components/video/RobustVideoPlayer';
 
 interface MediaDetailModalProps {
   media: MediaItem | null;
@@ -34,6 +35,244 @@ interface TagOption {
   created_at: string;
   usage_count: number;
 }
+
+// URL格式化函数 - 确保URL符合访问要求并防止无效URL
+const formatVideoUrl = (url: string | null | undefined): string => {
+  if (!url || typeof url !== 'string' || url.trim() === '') {
+    console.warn('⚠️ formatVideoUrl: 无效URL', url);
+    return '';
+  }
+
+  const cleanUrl = url.trim();
+
+  console.log(`🔧 formatVideoUrl处理: ${cleanUrl}`);
+
+  // 如果是绝对URL且指向后端3000端口，转换为相对路径让Next.js代理处理
+  if (cleanUrl.startsWith('http://localhost:3000/')) {
+    const path = cleanUrl.replace('http://localhost:3000/', '');
+    // 如果是API路径，去掉api前缀因为Next.js会自动添加
+    if (path.startsWith('api/')) {
+      const relativePath = `/${path}`;
+      console.log(`   🔄 后端绝对URL转相对路径: ${cleanUrl} -> ${relativePath}`);
+      return relativePath;
+    } else {
+      // processed等静态文件路径，直接转为相对路径
+      const relativePath = `/${path}`;
+      console.log(`   🔄 后端静态文件转相对路径: ${cleanUrl} -> ${relativePath}`);
+      return relativePath;
+    }
+  }
+
+  // 如果是其他绝对URL，直接返回
+  if (cleanUrl.startsWith('http://') || cleanUrl.startsWith('https://')) {
+    console.log(`   ✅ 外部绝对URL: ${cleanUrl}`);
+    return cleanUrl;
+  }
+
+  // 如果已经是相对路径，直接返回
+  if (cleanUrl.startsWith('/')) {
+    console.log(`   ✅ 已是相对路径: ${cleanUrl}`);
+    return cleanUrl;
+  }
+
+  // 处理数据库存储的相对路径格式（如uploads/xxx）
+  if (cleanUrl.startsWith('uploads/')) {
+    const pathParts = cleanUrl.replace('uploads/', '');
+    if (!pathParts) {
+      console.warn('⚠️ formatVideoUrl: uploads/路径无效', cleanUrl);
+      return '';
+    }
+    const relativePath = `/api/upload/file/${pathParts}`;
+    console.log(`   🔄 uploads路径转API路径: ${cleanUrl} -> ${relativePath}`);
+    return relativePath;
+  }
+
+  // 其他情况，作为文件路径处理
+  if (cleanUrl.length > 0) {
+    const relativePath = `/api/upload/file/${cleanUrl}`;
+    console.log(`   🔄 默认路径转API路径: ${cleanUrl} -> ${relativePath}`);
+    return relativePath;
+  }
+
+  console.warn('⚠️ formatVideoUrl: 无法处理的URL', cleanUrl);
+  return '';
+};
+
+// 视频播放器包装组件 - 使用React.memo避免不必要的重新渲染
+const VideoPlayerWrapper = React.memo(function VideoPlayerWrapper({ media }: { media: MediaItem }) {
+  const [isModalReady, setIsModalReady] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  // 等待Modal完全打开后再初始化Video.js
+  useEffect(() => {
+    console.log('🎬 VideoPlayerWrapper 组件挂载，准备延迟初始化...');
+
+    // 使用requestAnimationFrame确保DOM完全渲染
+    const checkDOMReady = () => {
+      if (containerRef.current && document.contains(containerRef.current)) {
+        console.log('✅ DOM容器已准备好');
+        const timer = setTimeout(() => {
+          console.log('🎬 Modal动画完成，准备初始化Video.js...');
+          setIsModalReady(true);
+        }, 600); // 增加延迟时间确保Modal完全稳定
+
+        return () => clearTimeout(timer);
+      } else {
+        console.log('⏳ 等待DOM容器准备...');
+        const retryTimer = setTimeout(checkDOMReady, 100);
+        return () => clearTimeout(retryTimer);
+      }
+    };
+
+    // 使用双重检查：requestAnimationFrame + setTimeout
+    const frameId = requestAnimationFrame(() => {
+      const cleanup = checkDOMReady();
+      return cleanup;
+    });
+
+    return () => {
+      console.log('🧹 VideoPlayerWrapper 清理');
+      cancelAnimationFrame(frameId);
+    };
+  }, []); // 空依赖数组，只在组件挂载时运行
+  // 使用useMemo缓存视频源，避免每次渲染都重新创建导致无限重试
+  const videoSources = useMemo(() => {
+    const sources = media.video_qualities && media.video_qualities.length > 0
+      ? media.video_qualities.map(quality => {
+        const formattedUrl = formatVideoUrl(quality.url);
+        return {
+          src: formattedUrl,
+          type: 'video/mp4',
+          label: quality.quality || `${quality.height}p`,
+          res: quality.height ? `${quality.height}p` : undefined
+        };
+      }).filter(source => source.src) // 过滤掉空的src
+      : (() => {
+        const formattedUrl = formatVideoUrl(media.url);
+        return formattedUrl ? [{ src: formattedUrl, type: 'video/mp4', label: '原画' }] : [];
+      })();
+
+    // 调试：打印视频源信息
+    console.log('🎬 MediaDetailModal 视频源详情:', {
+      mediaId: media.id,
+      originalUrl: media.url,
+      thumbnailUrl: media.thumbnail_url,
+      videoQualities: media.video_qualities,
+      videoSources: sources.map(source => ({
+        src: source.src,
+        label: source.label,
+        type: source.type
+      })),
+      hasValidSources: sources.length > 0,
+      mediaType: media.media_type
+    });
+
+    return sources;
+  }, [media.id, media.url, media.video_qualities]);
+
+  // 缓存海报URL
+  const posterUrl = useMemo(() => formatVideoUrl(media.thumbnail_url), [media.thumbnail_url]);
+
+  // 如果没有有效的视频源，显示错误信息而不是播放器
+  if (videoSources.length === 0) {
+    return (
+      <div className="aspect-video bg-gray-100 rounded-lg flex items-center justify-center">
+        <div className="text-center p-8">
+          <div className="w-16 h-16 mx-auto mb-4 text-gray-400">
+            <svg className="w-full h-full" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5}
+                d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z" />
+            </svg>
+          </div>
+          <h3 className="text-lg font-medium text-gray-600 mb-2">视频无法播放</h3>
+          <p className="text-sm text-gray-500">视频文件可能已损坏或不存在</p>
+        </div>
+      </div>
+    );
+  }
+
+  // 如果Modal还没准备好，显示加载状态
+  if (!isModalReady) {
+    return (
+      <div ref={containerRef} className="aspect-video bg-black rounded-lg flex items-center justify-center">
+        <div className="text-white text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white mx-auto mb-2"></div>
+          <p className="text-sm">正在初始化播放器...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // 根据视频尺寸确定容器样式
+  const getVideoContainerClass = () => {
+    if (!media.width || !media.height) return "aspect-video"; // 默认16:9
+
+    const ratio = media.width / media.height;
+    if (ratio > 1.5) {
+      return "aspect-video"; // 横屏视频
+    } else if (ratio < 0.8) {
+      return ""; // 竖屏视频不固定比例，让播放器自适应
+    } else {
+      return "aspect-square"; // 正方形视频
+    }
+  };
+
+  const getVideoContainerStyle = () => {
+    if (!media.width || !media.height) return { minHeight: '300px' };
+
+    const ratio = media.width / media.height;
+    if (ratio > 1.5) {
+      // 横屏视频
+      return {
+        minHeight: '300px',
+        maxHeight: '500px'
+      };
+    } else if (ratio < 0.8) {
+      // 竖屏视频 - 给足够的高度
+      return {
+        minHeight: '500px',
+        maxHeight: '70vh',
+        width: '100%',
+        maxWidth: '400px',
+        margin: '0 auto'
+      };
+    } else {
+      // 正方形视频
+      return {
+        minHeight: '400px',
+        maxHeight: '500px',
+        width: '100%',
+        maxWidth: '500px',
+        margin: '0 auto'
+      };
+    }
+  };
+
+  return (
+    <div
+      ref={containerRef}
+      className={`bg-black rounded-lg overflow-hidden ${getVideoContainerClass()}`}
+      style={getVideoContainerStyle()}
+    >
+      <RobustVideoPlayer
+        key={`robust-video-${media.id}`}
+        src={videoSources}
+        poster={posterUrl}
+        aspectRatio="auto"
+        controls={true}
+        autoplay={false}
+        enableQualitySelector={videoSources.length > 1}
+        className="w-full h-full"
+        onError={(error) => {
+          console.error('审核页面视频播放错误:', error);
+        }}
+      />
+    </div>
+  );
+}, (prevProps, nextProps) => {
+  // 只有当media.id变化时才重新渲染
+  return prevProps.media.id === nextProps.media.id;
+});
 
 export function MediaDetailModal({ media, isOpen, onClose, onUpdate }: MediaDetailModalProps) {
   const [isEditing, setIsEditing] = useState(false);
@@ -272,6 +511,22 @@ export function MediaDetailModal({ media, isOpen, onClose, onUpdate }: MediaDeta
     }
   };
 
+  // 根据视频比例确定模态框布局
+  const getModalLayoutClass = () => {
+    if (!media || media.media_type !== 'VIDEO' || !media.width || !media.height) {
+      return 'grid-cols-1 lg:grid-cols-2'; // 默认布局
+    }
+
+    const ratio = media.width / media.height;
+    if (ratio < 0.8) {
+      // 竖屏视频：使用单列布局，让视频和信息垂直排列
+      return 'grid-cols-1 max-w-4xl mx-auto';
+    } else {
+      // 横屏或正方形视频：使用双列布局
+      return 'grid-cols-1 lg:grid-cols-2';
+    }
+  };
+
   const getStatusHint = (status: string) => {
     switch (status) {
       case 'APPROVED': return '已通过的内容请在媒体管理页面进行管理';
@@ -302,6 +557,9 @@ export function MediaDetailModal({ media, isOpen, onClose, onUpdate }: MediaDeta
                   </>
                 )}
               </DialogTitle>
+              <DialogDescription className="sr-only">
+                {isEditing ? '编辑媒体文件的详细信息和状态' : '查看媒体文件的详细信息'}
+              </DialogDescription>
               <div className="flex items-center gap-2 flex-shrink-0">
                 <Badge className={getStatusColor(formData.status)}>
                   {getStatusText(formData.status)}
@@ -325,7 +583,7 @@ export function MediaDetailModal({ media, isOpen, onClose, onUpdate }: MediaDeta
           </div>
         )}
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className={`grid gap-6 ${getModalLayoutClass()}`}>
           {/* 媒体预览 */}
           <div className="space-y-4">
             <Card>
@@ -343,16 +601,8 @@ export function MediaDetailModal({ media, isOpen, onClose, onUpdate }: MediaDeta
                       }}
                     />
                   ) : (
-                    <video
-                      src={media.url}
-                      className="max-w-full max-h-[600px] object-contain block"
-                      controls
-                      style={{
-                        maxWidth: '100%',
-                        height: 'auto',
-                        minHeight: '200px'
-                      }}
-                    />
+                    // 只有当Modal打开且是视频时才渲染VideoPlayerWrapper
+                    isOpen && <VideoPlayerWrapper key={media.id} media={media} />
                   )}
                 </div>
               </CardContent>

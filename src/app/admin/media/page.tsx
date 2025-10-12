@@ -13,6 +13,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import LoadingSpinner from '@/components/LoadingSpinner';
+import VideoPlayerWrapper from '@/components/video/VideoPlayerWrapper';
 import {
   Search,
   Filter,
@@ -96,6 +97,162 @@ const formatImageUrl = (url: string | null | undefined): string => {
   return `${BASE_URL}/api/upload/file/${url}`;
 };
 
+// URL格式化函数 - 确保URL符合访问要求并防止无效URL
+const formatVideoUrl = (url: string | null | undefined): string => {
+  if (!url || typeof url !== 'string' || url.trim() === '') {
+    console.warn('⚠️ formatVideoUrl: 无效URL', url);
+    return '';
+  }
+
+  const cleanUrl = url.trim();
+
+  console.log(`🔧 formatVideoUrl处理: ${cleanUrl}`);
+
+  // 如果是绝对URL且指向后端3000端口，转换为相对路径让Next.js代理处理
+  if (cleanUrl.startsWith('http://localhost:3000/')) {
+    const path = cleanUrl.replace('http://localhost:3000/', '');
+    // 如果是API路径，去掉api前缀因为Next.js会自动添加
+    if (path.startsWith('api/')) {
+      const relativePath = `/${path}`;
+      console.log(`   🔄 后端绝对URL转相对路径: ${cleanUrl} -> ${relativePath}`);
+      return relativePath;
+    } else {
+      // processed等静态文件路径，直接转为相对路径
+      const relativePath = `/${path}`;
+      console.log(`   🔄 后端静态文件转相对路径: ${cleanUrl} -> ${relativePath}`);
+      return relativePath;
+    }
+  }
+
+  // 如果是其他绝对URL，直接返回
+  if (cleanUrl.startsWith('http://') || cleanUrl.startsWith('https://')) {
+    console.log(`   ✅ 外部绝对URL: ${cleanUrl}`);
+    return cleanUrl;
+  }
+
+  // 如果已经是相对路径，直接返回
+  if (cleanUrl.startsWith('/')) {
+    console.log(`   ✅ 已是相对路径: ${cleanUrl}`);
+    return cleanUrl;
+  }
+
+  // 处理数据库存储的相对路径格式（如uploads/xxx）
+  if (cleanUrl.startsWith('uploads/')) {
+    const pathParts = cleanUrl.replace('uploads/', '');
+    if (!pathParts) {
+      console.warn('⚠️ formatVideoUrl: uploads/路径无效', cleanUrl);
+      return '';
+    }
+    const relativePath = `/api/upload/file/${pathParts}`;
+    console.log(`   🔄 uploads路径转API路径: ${cleanUrl} -> ${relativePath}`);
+    return relativePath;
+  }
+
+  // 其他情况，作为文件路径处理
+  if (cleanUrl.length > 0) {
+    const relativePath = `/api/upload/file/${cleanUrl}`;
+    console.log(`   🔄 默认路径转API路径: ${cleanUrl} -> ${relativePath}`);
+    return relativePath;
+  }
+
+  console.warn('⚠️ formatVideoUrl: 无法处理的URL', cleanUrl);
+  return '';
+};
+
+// 视频播放器包装组件 - 完全复制审核管理页面的实现
+
+
+// 管理页面视频播放器组件 - 使用新的健壮播放器
+function AdminVideoPlayerWrapper({ media }: { media: any }) {
+  // 准备视频源 - 支持多质量源（复制审核页面的逻辑）
+  const videoSources = React.useMemo(() => {
+    const sources = media.video_qualities && media.video_qualities.length > 0
+      ? media.video_qualities.map((quality: any) => {
+        const formattedUrl = formatVideoUrl(quality.url);
+        return {
+          src: formattedUrl,
+          type: 'video/mp4',
+          label: quality.quality || `${quality.height}p`,
+          res: quality.height ? `${quality.height}p` : undefined
+        };
+      }).filter((source: any) => source.src)
+      : (() => {
+        const formattedUrl = formatVideoUrl(media.url);
+        return formattedUrl ? [{ src: formattedUrl, type: 'video/mp4', label: '原画' }] : [];
+      })();
+
+    console.log('🎬 AdminVideoPlayerWrapper 视频源详情:', {
+      mediaId: media.id,
+      originalUrl: media.url,
+      videoQualities: media.video_qualities,
+      videoSources: sources,
+      hasMultipleQualities: sources.length > 1
+    });
+
+    return sources;
+  }, [media.url, media.video_qualities]);
+
+  // 海报图URL
+  const posterUrl = media.thumbnail_url ? formatVideoUrl(media.thumbnail_url) : undefined;
+
+  // 如果没有有效视频源，显示错误
+  if (videoSources.length === 0) {
+    return (
+      <div className="aspect-video bg-gray-100 rounded-lg flex items-center justify-center">
+        <div className="text-center p-8">
+          <div className="w-16 h-16 mx-auto mb-4 text-gray-400">⚠️</div>
+          <h3 className="text-lg font-medium text-gray-600 mb-2">视频无法播放</h3>
+          <p className="text-sm text-gray-500">视频文件可能已损坏或不存在</p>
+        </div>
+      </div>
+    );
+  }
+
+  // 🎯 完全移除比例区分，使用纯粹的比例计算 - 学习主流平台做法
+  const getVideoContainerStyle = () => {
+    if (!media.width || !media.height) {
+      // 未知尺寸，使用16:9作为默认
+      return {
+        aspectRatio: '16/9',
+        maxWidth: '800px',
+        margin: '0 auto'
+      };
+    }
+
+    const ratio = media.width / media.height;
+    console.log(`🎬 视频尺寸: ${media.width}×${media.height}, 比例: ${ratio.toFixed(2)}`);
+
+    // 🎯 不区分横屏/竖屏/方形，统一使用视频原始比例
+    return {
+      aspectRatio: `${media.width}/${media.height}`, // 使用视频的真实比例
+      maxWidth: '800px', // 统一最大宽度限制
+      maxHeight: '70vh', // 统一最大高度限制
+      margin: '0 auto'   // 居中显示
+    };
+  };
+
+  return (
+    <div
+      className="bg-black rounded-lg overflow-hidden"
+      style={getVideoContainerStyle()}
+    >
+      <VideoPlayerWrapper
+        key={`robust-video-${media.id}`}
+        src={videoSources}
+        poster={posterUrl}
+        aspectRatio="auto"
+        controls={true}
+        autoplay={false}
+        enableQualitySelector={videoSources.length > 1}
+        className="w-full h-full"
+        onError={(error) => {
+          console.error('视频播放错误:', error);
+        }}
+      />
+    </div>
+  );
+}
+
 // 文件大小格式化函数
 const formatFileSize = (bytes: number): string => {
   const sizes = ['B', 'KB', 'MB', 'GB'];
@@ -142,10 +299,16 @@ const MediaGridItem = React.memo(({
     return `${mins}:${secs.toString().padStart(2, '0')}`;
   }, []);
 
+  // YouTube风格的智能缩略图样式
+  const getVideoThumbnailClass = useCallback((): string => {
+    // 🎯 统一使用16:9容器，让所有视频缩略图保持一致的外观
+    return 'aspect-video bg-gray-100 flex items-center justify-center';
+  }, []);
+
   const VisibilityIcon = visibilityConfig.icon;
 
   return (
-    <Card className="group relative overflow-hidden transition-all duration-200 hover:shadow-lg">
+    <Card className="group relative overflow-hidden transition-all duration-300 hover:shadow-xl hover:-translate-y-1 bg-white border border-gray-200">
       {/* 选择复选框 */}
       <div className="absolute top-2 left-2 z-10">
         <Button
@@ -162,9 +325,9 @@ const MediaGridItem = React.memo(({
         </Button>
       </div>
 
-      {/* 媒体预览区域 */}
+      {/* 媒体预览区域 - 根据媒体类型和尺寸动态调整 */}
       <div
-        className="relative aspect-video bg-gray-100 cursor-pointer overflow-hidden"
+        className={`relative cursor-pointer overflow-hidden ${getVideoThumbnailClass()}`}
         onClick={() => onPreview(media)}
       >
         {media.media_type === 'IMAGE' ? (
@@ -180,7 +343,7 @@ const MediaGridItem = React.memo(({
                 alt={media.title}
                 fill
                 sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
-                className={`object-cover transition-opacity duration-300 ${imageLoaded ? 'opacity-100' : 'opacity-0'
+                className={`object-contain transition-opacity duration-300 ${imageLoaded ? 'opacity-100' : 'opacity-0'
                   }`}
                 onLoad={() => setImageLoaded(true)}
                 onError={() => setImageError(true)}
@@ -197,7 +360,7 @@ const MediaGridItem = React.memo(({
             )}
           </>
         ) : (
-          <div className="relative">
+          <div className="relative w-full h-full flex items-center justify-center">
             {media.thumbnail_url && !imageError ? (
               <>
                 <Image
@@ -205,7 +368,7 @@ const MediaGridItem = React.memo(({
                   alt={media.title}
                   fill
                   sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
-                  className={`object-cover transition-opacity duration-300 ${imageLoaded ? 'opacity-100' : 'opacity-0'
+                  className={`object-contain transition-opacity duration-300 ${imageLoaded ? 'opacity-100' : 'opacity-0'
                     }`}
                   onLoad={() => setImageLoaded(true)}
                   onError={() => setImageError(true)}
@@ -225,11 +388,33 @@ const MediaGridItem = React.memo(({
                 </div>
               </div>
             )}
-            {media.duration && (
-              <div className="absolute bottom-2 right-2 bg-black/70 text-white text-xs px-2 py-1 rounded">
-                {formatDuration(media.duration)}
-              </div>
-            )}
+            {/* 视频时长和比例标识 */}
+            <div className="absolute bottom-2 right-2 flex flex-col items-end space-y-1">
+              {/* 视频比例指示器 */}
+              {media.width && media.height && (() => {
+                const ratio = media.width / media.height;
+                let ratioText = '';
+                let ratioIcon = null;
+
+                // 🎯 使用比例数值替代横屏/竖屏/方形的旧区分方式
+                ratioText = `${ratio.toFixed(2)}`;
+                ratioIcon = <div className="w-2.5 h-2.5 bg-current rounded-sm" />;
+
+                return (
+                  <div className="bg-blue-600/80 text-white text-xs px-2 py-1 rounded-md backdrop-blur-sm flex items-center space-x-1">
+                    {ratioIcon}
+                    <span>{ratioText}</span>
+                  </div>
+                );
+              })()}
+
+              {/* 视频时长 */}
+              {media.duration && (
+                <div className="bg-black/80 text-white text-xs px-2 py-1 rounded-md backdrop-blur-sm font-medium">
+                  {formatDuration(media.duration)}
+                </div>
+              )}
+            </div>
           </div>
         )}
 
@@ -265,61 +450,82 @@ const MediaGridItem = React.memo(({
       </div>
 
       {/* 媒体信息 */}
-      <CardContent className="p-3">
-        <div className="space-y-2">
+      <CardContent className="p-4">
+        <div className="space-y-3">
           {/* 标题和状态 */}
-          <div className="flex items-start justify-between">
-            <h3 className="font-medium text-sm line-clamp-2 flex-1 mr-2">
+          <div className="flex items-start justify-between gap-2">
+            <h3 className="font-semibold text-sm text-gray-900 line-clamp-2 flex-1">
               {media.title}
             </h3>
-            <Badge variant={visibilityConfig.variant} className="shrink-0">
-              <VisibilityIcon className={`w-3 h-3 mr-1 ${visibilityConfig.color}`} />
+            <Badge
+              variant={visibilityConfig.variant}
+              className={`shrink-0 text-xs ${media.visibility === 'VISIBLE' ? 'bg-green-50 text-green-700 border-green-200' : 'bg-gray-50 text-gray-600 border-gray-200'}`}
+            >
+              <VisibilityIcon className="w-3 h-3 mr-1" />
               {visibilityConfig.text}
             </Badge>
           </div>
 
-          {/* 用户和分类信息 */}
-          <div className="flex items-center text-xs text-gray-500 space-x-2">
-            <div className="flex items-center">
-              <User className="w-3 h-3 mr-1" />
-              {media.user.username}
-            </div>
+          {/* 用户信息 */}
+          <div className="flex items-center text-xs text-gray-600">
+            <User className="w-3 h-3 mr-1.5 text-gray-400" />
+            <span className="font-medium">{media.user.username}</span>
             {media.category && (
-              <div className="flex items-center">
-                <FolderOpen className="w-3 h-3 mr-1" />
-                {media.category.name}
-              </div>
+              <>
+                <span className="mx-2 text-gray-300">•</span>
+                <FolderOpen className="w-3 h-3 mr-1 text-gray-400" />
+                <span>{media.category.name}</span>
+              </>
             )}
           </div>
 
-          {/* 统计信息 */}
-          <div className="flex items-center justify-between text-xs text-gray-500">
-            <div className="flex items-center space-x-3">
-              <span>{formatFileSize(media.size)}</span>
-              <span>{media.views} 查看</span>
-              <span>{media.likes_count} 点赞</span>
-              <span>{media.favorites_count || 0} 收藏</span>
+          {/* 统计信息网格 - 重新设计为2x2网格 */}
+          <div className="grid grid-cols-2 gap-2 text-xs">
+            <div className="flex items-center justify-between bg-gray-50 rounded-lg px-2.5 py-1.5">
+              <span className="text-gray-500">大小</span>
+              <span className="font-medium text-gray-900">{formatFileSize(media.size)}</span>
             </div>
-            <div className="flex items-center">
-              <Calendar className="w-3 h-3 mr-1" />
-              {new Date(media.created_at).toLocaleDateString()}
+            <div className="flex items-center justify-between bg-blue-50 rounded-lg px-2.5 py-1.5">
+              <span className="text-blue-600">查看</span>
+              <span className="font-medium text-blue-700">{media.views}</span>
             </div>
+            <div className="flex items-center justify-between bg-red-50 rounded-lg px-2.5 py-1.5">
+              <span className="text-red-600">点赞</span>
+              <span className="font-medium text-red-700">{media.likes_count}</span>
+            </div>
+            <div className="flex items-center justify-between bg-amber-50 rounded-lg px-2.5 py-1.5">
+              <span className="text-amber-600">收藏</span>
+              <span className="font-medium text-amber-700">{media.favorites_count || 0}</span>
+            </div>
+          </div>
+
+          {/* 创建时间 */}
+          <div className="flex items-center text-xs text-gray-500">
+            <Calendar className="w-3 h-3 mr-1.5 text-gray-400" />
+            <span>{new Date(media.created_at).toLocaleDateString('zh-CN', {
+              year: 'numeric',
+              month: 'short',
+              day: 'numeric'
+            })}</span>
           </div>
 
           {/* 标签 */}
           {media.media_tags && media.media_tags.length > 0 && (
-            <div className="flex flex-wrap gap-1">
+            <div className="flex flex-wrap gap-1.5">
               {media.media_tags.slice(0, 3).map((mediaTag) => (
                 <Badge
                   key={mediaTag.tag.id}
-                  variant="outline"
-                  className="text-xs px-1 py-0"
+                  variant="secondary"
+                  className="text-xs px-2 py-0.5 bg-blue-50 text-blue-700 border-0 hover:bg-blue-100"
                 >
-                  {mediaTag.tag.name}
+                  #{mediaTag.tag.name}
                 </Badge>
               ))}
               {media.media_tags && media.media_tags.length > 3 && (
-                <Badge variant="outline" className="text-xs px-1 py-0">
+                <Badge
+                  variant="secondary"
+                  className="text-xs px-2 py-0.5 bg-gray-100 text-gray-600 border-0"
+                >
                   +{media.media_tags.length - 3}
                 </Badge>
               )}
@@ -327,13 +533,13 @@ const MediaGridItem = React.memo(({
           )}
 
           {/* 操作按钮 */}
-          <div className="flex gap-1 pt-1">
+          <div className="flex gap-2 pt-2">
             <Button
               variant="outline"
               size="sm"
-              className={`h-6 text-xs px-2 ${media.visibility === 'VISIBLE'
-                ? 'text-gray-600 hover:text-gray-700'
-                : 'text-green-600 hover:text-green-700'
+              className={`flex-1 h-8 text-xs font-medium transition-all duration-200 ${media.visibility === 'VISIBLE'
+                ? 'bg-gray-50 hover:bg-gray-100 text-gray-600 border-gray-200'
+                : 'bg-green-50 hover:bg-green-100 text-green-600 border-green-200'
                 }`}
               onClick={() => onVisibilityUpdate(
                 media.id,
@@ -342,12 +548,12 @@ const MediaGridItem = React.memo(({
             >
               {media.visibility === 'VISIBLE' ? (
                 <>
-                  <EyeOff className="w-3 h-3 mr-1" />
+                  <EyeOff className="w-3 h-3 mr-1.5" />
                   隐藏
                 </>
               ) : (
                 <>
-                  <Eye className="w-3 h-3 mr-1" />
+                  <Eye className="w-3 h-3 mr-1.5" />
                   显示
                 </>
               )}
@@ -355,10 +561,10 @@ const MediaGridItem = React.memo(({
             <Button
               variant="outline"
               size="sm"
-              className="h-6 text-xs px-2 text-blue-600 hover:text-blue-700"
+              className="flex-1 h-8 text-xs font-medium bg-blue-50 hover:bg-blue-100 text-blue-600 border-blue-200 transition-all duration-200"
               onClick={() => onEdit(media)}
             >
-              <Edit className="w-3 h-3 mr-1" />
+              <Edit className="w-3 h-3 mr-1.5" />
               编辑
             </Button>
           </div>
@@ -689,7 +895,9 @@ export default function MediaManagementPage() {
 
   // 本地UI状态
   const [searchTerm, setSearchTerm] = useState('');
-  const [filters, setFilters] = useState<MediaFilters>({});
+  const [filters, setFilters] = useState<MediaFilters>({
+    status: 'APPROVED' // 默认只显示已审核通过的内容
+  });
   const [selectedMedia, setSelectedMedia] = useState<string[]>([]);
 
   // 编辑状态
@@ -765,7 +973,7 @@ export default function MediaManagementPage() {
    */
   // 无限滚动监听
   useIntersectionObserverLegacy({
-    target: loadMoreRef,
+    target: loadMoreRef as React.RefObject<Element>,
     onIntersect: () => {
       if (hasNextPage && !isFetchingNextPage) {
         fetchNextPage();
@@ -1204,7 +1412,7 @@ export default function MediaManagementPage() {
 
       {/* 媒体预览对话框 */}
       <Dialog open={!!previewMedia} onOpenChange={() => setPreviewMedia(null)}>
-        <DialogContent className="max-w-4xl max-h-[90vh] flex flex-col animate-in fade-in-0 zoom-in-95 duration-200">
+        <DialogContent className="max-w-4xl max-h-[95vh] flex flex-col animate-in fade-in-0 zoom-in-95 duration-200">
           <DialogHeader className="border-b border-gray-100 pb-4 flex-shrink-0">
             <DialogTitle className="text-xl font-semibold text-gray-900 flex items-center gap-3">
               <div className="w-2 h-6 bg-gradient-to-b from-blue-500 to-purple-600 rounded-full"></div>
@@ -1216,10 +1424,10 @@ export default function MediaManagementPage() {
             <div className="flex flex-col flex-1 min-h-0">
               <div className="flex-1 overflow-y-auto px-1 py-2">
                 <div className="space-y-6">
-                  {/* 媒体预览卡片 */}
-                  <div className="bg-gradient-to-r from-gray-50 to-gray-100/50 rounded-xl p-4 border border-gray-200/60 shadow-sm hover:shadow-md transition-all duration-300">
-                    <div className="relative aspect-video bg-white rounded-xl overflow-hidden shadow-sm ring-1 ring-gray-200">
-                      {previewMedia.media_type === 'IMAGE' ? (
+                  {/* 媒体预览 - 简化层级结构 */}
+                  <div className="relative overflow-hidden rounded-xl">
+                    {previewMedia.media_type === 'IMAGE' ? (
+                      <div className="aspect-video overflow-hidden rounded-xl bg-black">
                         <Image
                           src={formatImageUrl(previewMedia.url)}
                           alt={previewMedia.title}
@@ -1227,15 +1435,10 @@ export default function MediaManagementPage() {
                           className="object-contain"
                           sizes="(max-width: 768px) 100vw, 80vw"
                         />
-                      ) : (
-                        <video
-                          src={formatImageUrl(previewMedia.url)}
-                          controls
-                          className="w-full h-full object-contain"
-                          poster={formatImageUrl(previewMedia.thumbnail_url)}
-                        />
-                      )}
-                    </div>
+                      </div>
+                    ) : (
+                      <AdminVideoPlayerWrapper media={previewMedia} />
+                    )}
                   </div>
 
                   {/* 媒体信息卡片 */}
@@ -1439,6 +1642,8 @@ export default function MediaManagementPage() {
         onClose={handleCloseEditDialog}
         onSave={handleSaveEdit}
       />
+
+
 
       {/* 删除确认对话框 */}
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>

@@ -1,0 +1,628 @@
+/* 
+ * RobustVideoPlayer CSS Modules
+ * 完全隔离的视频播放器样式，不受全局CSS影响
+ */
+
+.videoContainer {
+  position: relative;
+  width: 100%;
+  background-color: #000;
+  border-radius: 8px;
+  overflow: visible;
+  /* 关键：允许控制栏溢出 */
+  isolation: isolate;
+  /* 创建新的堆叠上下文 */
+}
+
+/* 移除所有固定比例和高度约束 - 让容器完全响应式 */
+.aspectLandscape,
+.aspectPortrait,
+.aspectSquare,
+.aspectAuto {
+  /* 不设置任何固定尺寸，让父容器决定大小 */
+}
+
+/* 视频容器：纯粹的响应式容器 */
+.videoContainer {
+  width: 100%;
+  height: 100%;
+  contain: layout style;
+}
+
+
+
+/* Video.js 响应式播放器 - 强制覆盖所有固定尺寸 */
+.videoContainer :global(.video-js) {
+  position: relative !important;
+  width: 100% !important;
+  height: 100% !important;
+  background-color: #000 !important;
+  border-radius: 8px !important;
+  z-index: 1 !important;
+  pointer-events: auto !important;
+  overflow: visible !important;
+  /* 移除flex布局，可能干扰Video.js的布局 */
+}
+
+/* 强制覆盖Video.js可能设置的固定尺寸 */
+.videoContainer :global(.video-js),
+.videoContainer :global(.video-js.vjs-fluid),
+.videoContainer :global(.video-js.vjs-responsive) {
+  width: 100% !important;
+  height: 100% !important;
+  max-width: none !important;
+  max-height: none !important;
+  min-width: auto !important;
+  min-height: auto !important;
+}
+
+/* Video元素实现contain效果 - 使用标准的响应式方案 */
+.videoContainer :global(.video-js video) {
+  position: absolute !important;
+  top: 0 !important;
+  left: 0 !important;
+  width: 100% !important;
+  height: 100% !important;
+  /* 恢复100%高度，让Video.js自己处理控制栏空间 */
+  object-fit: contain !important;
+  /* 关键：让视频内容完整显示并自适应容器 */
+}
+
+
+
+/* 修复 vjs-text-track-display 的尺寸问题 */
+.videoContainer :global(.video-js .vjs-text-track-display) {
+  bottom: 40px !important;
+  /* 固定为控制栏的确切高度 */
+}
+
+.videoContainer :global(.video-js.vjs-user-inactive.vjs-playing .vjs-text-track-display),
+.videoContainer :global(.video-js.vjs-controls-disabled .vjs-text-track-display) {
+  bottom: 40px !important;
+  /* 保持一致，不使用默认的1em */
+}
+
+/* 只重置文本元素的字体，不影响图标 */
+.videoContainer :global(.video-js .vjs-time-control),
+.videoContainer :global(.video-js .vjs-time-divider),
+.videoContainer :global(.video-js .vjs-duration-display),
+.videoContainer :global(.video-js .vjs-current-time-display),
+.videoContainer :global(.video-js .vjs-remaining-time-display) {
+  font-family: inherit !important;
+}
+
+.videoContainer :global(.video-js .vjs-tech) {
+  object-fit: contain !important;
+  width: 100% !important;
+  height: 100% !important;
+  border-radius: 8px 8px 0 0 !important;
+}
+
+/* 控制栏样式 - 隐藏直到布局完成 */
+.videoContainer :global(.video-js .vjs-control-bar) {
+  position: absolute !important;
+  bottom: 0 !important;
+  left: 0 !important;
+  right: 0 !important;
+  width: 100% !important;
+  height: 40px !important;
+  background: linear-gradient(180deg, transparent 0%, rgba(0, 0, 0, 0.85) 100%) !important;
+  z-index: 10 !important;
+  border-radius: 0 0 8px 8px !important;
+  padding: 0 12px !important;
+  box-sizing: border-box !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  margin: 0 !important;
+  border: none !important;
+  outline: none !important;
+  opacity: 0 !important;
+  transition: opacity 0.2s ease !important;
+}
+
+/* 布局完成后显示控制栏 */
+.videoContainer :global(.video-js .vjs-control-bar.vjs-layout-ready) {
+  opacity: 1 !important;
+}
+
+/* 进度条样式 - 完全重写，独立于控制栏显示 */
+.videoContainer :global(.video-js .vjs-progress-control) {
+  position: absolute !important;
+  top: -18px !important;
+  left: 0 !important;
+  right: 0 !important;
+  width: 100% !important;
+  height: 18px !important;
+  margin: 0 !important;
+  padding: 7px 0 !important;
+  background: none !important;
+  z-index: 15 !important;
+  border: none !important;
+  outline: none !important;
+  opacity: 1 !important;
+  /* 确保进度条始终可见 */
+}
+
+.videoContainer :global(.video-js .vjs-progress-holder) {
+  position: relative !important;
+  width: 100% !important;
+  height: 4px !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  background: rgba(255, 255, 255, 0.25) !important;
+  border-radius: 2px !important;
+  cursor: pointer !important;
+  border: none !important;
+  outline: none !important;
+}
+
+.videoContainer :global(.video-js .vjs-play-progress) {
+  position: absolute !important;
+  top: 0 !important;
+  left: 0 !important;
+  height: 100% !important;
+  background: #007bff !important;
+  border-radius: 2px !important;
+  transition: width 0.1s ease !important;
+  border: none !important;
+  outline: none !important;
+}
+
+.videoContainer :global(.video-js .vjs-load-progress) {
+  position: absolute !important;
+  top: 0 !important;
+  left: 0 !important;
+  height: 100% !important;
+  background: rgba(255, 255, 255, 0.35) !important;
+  border-radius: 2px !important;
+  border: none !important;
+  outline: none !important;
+}
+
+/* 控制按钮样式 - 使用更高优先级的选择器 */
+.videoContainer :global(.video-js.vjs-default-skin .vjs-control-bar .vjs-button) {
+  width: auto !important;
+  height: 40px !important;
+  min-width: 40px !important;
+  margin: 0 2px !important;
+  padding: 0 6px !important;
+  color: white !important;
+  background: none !important;
+  border: none !important;
+  outline: none !important;
+  cursor: pointer !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  border-radius: 4px !important;
+  text-align: center !important;
+  vertical-align: middle !important;
+  position: relative !important;
+  /* 为图标居中提供定位上下文 */
+}
+
+/* 修复图标占位符的垂直居中问题 - 这是关键修复！ */
+.videoContainer :global(.video-js.vjs-default-skin .vjs-button > .vjs-icon-placeholder:before) {
+  position: absolute !important;
+  top: 50% !important;
+  /* 改为50%而不是0 */
+  left: 50% !important;
+  /* 也改为50% */
+  transform: translate(-50%, -50%) !important;
+  /* 使用transform居中 */
+  width: auto !important;
+  /* 不强制100%宽度 */
+  height: auto !important;
+  /* 不强制100%高度 */
+  text-align: center !important;
+  line-height: 1 !important;
+  /* 重置line-height */
+}
+
+.videoContainer :global(.video-js .vjs-control-bar .vjs-button:hover) {
+  background: rgba(255, 255, 255, 0.1) !important;
+  border-radius: 4px !important;
+}
+
+/* 时间显示 */
+.videoContainer :global(.video-js .vjs-time-control) {
+  height: 40px !important;
+  line-height: 40px !important;
+  padding: 0 4px !important;
+  color: white !important;
+  font-size: 12px !important;
+  font-weight: 400 !important;
+  font-family: inherit !important;
+  border: none !important;
+  outline: none !important;
+  display: flex !important;
+  align-items: center !important;
+}
+
+/* 音量控制 */
+.videoContainer :global(.video-js .vjs-volume-panel) {
+  height: 40px !important;
+  margin: 0 4px !important;
+  border: none !important;
+  outline: none !important;
+  display: flex !important;
+  align-items: center !important;
+}
+
+/* 音量按钮 */
+.videoContainer :global(.video-js .vjs-volume-panel .vjs-mute-control) {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+}
+
+/* 音量滑块 */
+.videoContainer :global(.video-js .vjs-volume-panel .vjs-volume-control) {
+  display: flex !important;
+  align-items: center !important;
+}
+
+/* 移除错误的flexbox order设置，恢复Video.js默认布局 */
+
+/* 控件分组布局 */
+.videoContainer :global(.video-js .vjs-control-bar > *) {
+  display: flex !important;
+  align-items: center !important;
+}
+
+/* 左侧控件组 */
+.videoContainer :global(.vjs-left-controls) {
+  display: flex !important;
+  align-items: center !important;
+  gap: 8px !important;
+}
+
+/* 右侧控件组 */
+.videoContainer :global(.vjs-right-controls) {
+  display: flex !important;
+  align-items: center !important;
+  gap: 8px !important;
+}
+
+/* 控件样式 */
+.videoContainer :global(.video-js .vjs-control-bar .vjs-play-control) {
+  margin: 0 !important;
+}
+
+.videoContainer :global(.video-js .vjs-control-bar .vjs-volume-panel) {
+  margin: 0 !important;
+}
+
+/* 时间显示紧凑 */
+.videoContainer :global(.video-js .vjs-control-bar .vjs-current-time),
+.videoContainer :global(.video-js .vjs-control-bar .vjs-time-divider),
+.videoContainer :global(.video-js .vjs-control-bar .vjs-duration) {
+  margin: 0 1px !important;
+}
+
+/* 质量选择器样式 */
+.videoContainer :global(.video-js .vjs-control-bar .vjs-quality-selector-button) {
+  margin: 0 !important;
+}
+
+/* 全屏按钮样式 */
+.videoContainer :global(.video-js .vjs-control-bar .vjs-fullscreen-control) {
+  margin: 0 !important;
+}
+
+/* 现代化时间显示 - 更紧凑的布局 */
+.videoContainer :global(.video-js .vjs-control-bar .vjs-current-time),
+.videoContainer :global(.video-js .vjs-control-bar .vjs-time-divider),
+.videoContainer :global(.video-js .vjs-control-bar .vjs-duration) {
+  font-size: 11px !important;
+  font-weight: 400 !important;
+  color: rgba(255, 255, 255, 0.8) !important;
+  margin: 0 1px !important;
+  min-width: auto !important;
+  padding: 0 !important;
+  white-space: nowrap !important;
+}
+
+/* 时间分隔符样式 */
+.videoContainer :global(.video-js .vjs-control-bar .vjs-time-divider) {
+  margin: 0 2px !important;
+  opacity: 0.7 !important;
+}
+
+
+
+/* 时间显示紧凑间距 */
+.videoContainer :global(.video-js .vjs-control-bar .vjs-current-time) {
+  margin-right: 2px !important;
+}
+
+.videoContainer :global(.video-js .vjs-control-bar .vjs-time-divider) {
+  margin: 0 2px !important;
+}
+
+.videoContainer :global(.video-js .vjs-control-bar .vjs-duration) {
+  margin-left: 2px !important;
+  margin-right: 0 !important;
+}
+
+/* 右侧控件组 */
+.videoContainer :global(.video-js .vjs-control-bar .vjs-quality-selector-button),
+.videoContainer :global(.video-js .vjs-control-bar .vjs-fullscreen-control) {
+  order: 2 !important;
+  margin-left: 8px !important;
+}
+
+/* 质量选择器按钮样式 */
+.videoContainer :global(.video-js .vjs-quality-selector-button) {
+  position: relative !important;
+  width: 70px !important;
+  height: 32px !important;
+  padding: 0 8px !important;
+  margin: 0 2px !important;
+  background: rgba(0, 0, 0, 0.3) !important;
+  border: 1px solid rgba(255, 255, 255, 0.2) !important;
+  border-radius: 4px !important;
+  outline: none !important;
+  flex-shrink: 0 !important;
+  cursor: pointer !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  transition: all 0.2s ease !important;
+}
+
+/* 清晰度标签样式 */
+.videoContainer :global(.video-js .vjs-quality-selector-button .quality-label) {
+  font-size: 11px !important;
+  font-weight: 600 !important;
+  color: white !important;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5) !important;
+  white-space: nowrap !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.5px !important;
+}
+
+.videoContainer :global(.video-js .vjs-quality-selector-button:hover) {
+  background: rgba(255, 255, 255, 0.15) !important;
+  border-color: rgba(255, 255, 255, 0.4) !important;
+  transform: translateY(-1px) !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3) !important;
+}
+
+/* 质量选择器菜单 */
+.videoContainer :global(.video-js .vjs-quality-menu) {
+  position: absolute !important;
+  bottom: 100% !important;
+  right: 0 !important;
+  margin-bottom: 8px !important;
+  background: rgba(0, 0, 0, 0.9) !important;
+  border-radius: 4px !important;
+  min-width: 120px !important;
+  z-index: 100 !important;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3) !important;
+}
+
+.videoContainer :global(.video-js .vjs-quality-menu .vjs-menu-content) {
+  background: transparent !important;
+  border-radius: 4px !important;
+  padding: 4px 0 !important;
+}
+
+.videoContainer :global(.video-js .vjs-quality-menu .vjs-menu-item) {
+  padding: 8px 12px !important;
+  color: white !important;
+  cursor: pointer !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1) !important;
+  font-size: 14px !important;
+  line-height: 1.4 !important;
+}
+
+.videoContainer :global(.video-js .vjs-quality-menu .vjs-menu-item:last-child) {
+  border-bottom: none !important;
+}
+
+.videoContainer :global(.video-js .vjs-quality-menu .vjs-menu-item:hover) {
+  background: rgba(255, 255, 255, 0.1) !important;
+}
+
+.videoContainer :global(.video-js .vjs-quality-menu .vjs-menu-item.vjs-selected) {
+  background: rgba(74, 144, 226, 0.3) !important;
+  color: #4a90e2 !important;
+}
+
+/* 彻底隐藏顽固的skip按钮 - 使用精确的class名 */
+.videoContainer :global(.video-js .vjs-skip-backward-undefined),
+.videoContainer :global(.video-js .vjs-skip-forward-undefined) {
+  display: none !important;
+  visibility: hidden !important;
+  width: 0 !important;
+  height: 0 !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  position: absolute !important;
+  left: -9999px !important;
+  pointer-events: none !important;
+}
+
+/* 不强制设置图标字体大小，让Video.js自己处理 */
+
+/* 大播放按钮 */
+.videoContainer :global(.video-js.vjs-default-skin .vjs-big-play-button) {
+  position: absolute !important;
+  top: 50% !important;
+  left: 50% !important;
+  width: 80px !important;
+  height: 80px !important;
+  margin-left: -40px !important;
+  margin-top: -40px !important;
+  border-radius: 50% !important;
+  background: rgba(0, 0, 0, 0.8) !important;
+  border: 3px solid rgba(255, 255, 255, 0.9) !important;
+  color: white !important;
+  z-index: 20 !important;
+  cursor: pointer !important;
+  transition: all 0.3s ease !important;
+  outline: none !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  padding: 0 !important;
+  box-sizing: border-box !important;
+  text-align: center !important;
+}
+
+/* 大播放按钮内的图标居中 - 使用与控制栏按钮相同的方法 */
+.videoContainer :global(.video-js.vjs-default-skin .vjs-big-play-button .vjs-icon-placeholder:before) {
+  position: absolute !important;
+  top: 50% !important;
+  left: 50% !important;
+  transform: translate(-50%, -50%) !important;
+  width: auto !important;
+  height: auto !important;
+  text-align: center !important;
+  line-height: 1 !important;
+}
+
+/* 大播放按钮内的图标 - 让Video.js自己处理图标字体 */
+
+.videoContainer :global(.video-js .vjs-big-play-button:hover) {
+  background: rgba(0, 0, 0, 0.95) !important;
+  border-color: white !important;
+  transform: scale(1.05) !important;
+}
+
+/* 确保播放按钮正确显示/隐藏 */
+.videoContainer :global(.video-js:not(.vjs-has-started) .vjs-big-play-button) {
+  display: flex !important;
+  opacity: 1 !important;
+}
+
+.videoContainer :global(.video-js.vjs-has-started.vjs-playing .vjs-big-play-button) {
+  display: none !important;
+}
+
+/* 暂停时显示大播放按钮 */
+.videoContainer :global(.video-js.vjs-has-started.vjs-paused .vjs-big-play-button) {
+  display: flex !important;
+  opacity: 1 !important;
+}
+
+/* 旧的独立质量选择器样式已删除 - 统一使用控制栏集成的质量选择器 */
+
+/* 加载状态 */
+.loadingOverlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.8);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  z-index: 30;
+  border-radius: 8px;
+  /* 确保加载状态占满整个容器，自动适应不同视频尺寸 */
+}
+
+.loadingSpinner {
+  width: 40px;
+  height: 40px;
+  border: 3px solid rgba(255, 255, 255, 0.3);
+  border-top: 3px solid white;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  0% {
+    transform: rotate(0deg);
+  }
+
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+/* 错误状态 */
+.errorOverlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.9);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  z-index: 30;
+  border-radius: 8px;
+  color: white;
+  text-align: center;
+  padding: 20px;
+}
+
+.errorIcon {
+  font-size: 48px;
+  margin-bottom: 16px;
+  opacity: 0.7;
+}
+
+.errorMessage {
+  font-size: 16px;
+  margin-bottom: 8px;
+}
+
+.errorDetails {
+  font-size: 12px;
+  opacity: 0.7;
+}
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+  .aspectPortrait {
+    min-height: 400px;
+    max-height: 70vh;
+  }
+
+  .videoContainer :global(.video-js .vjs-big-play-button) {
+    width: 60px !important;
+    height: 60px !important;
+    margin-left: -30px !important;
+    margin-top: -30px !important;
+    font-size: 18px !important;
+  }
+
+  .videoContainer :global(.video-js .vjs-control-bar) {
+    height: 36px !important;
+    padding: 0 8px !important;
+  }
+
+  .videoContainer :global(.video-js .vjs-control-bar .vjs-button) {
+    height: 36px !important;
+    padding: 0 6px !important;
+    font-size: 12px !important;
+  }
+
+  .videoContainer :global(.video-js .vjs-time-control) {
+    height: 36px !important;
+    line-height: 36px !important;
+    font-size: 11px !important;
+  }
+
+  .qualitySelector {
+    top: 10px;
+    right: 10px;
+    padding: 6px;
+  }
+
+  .qualitySelector select {
+    padding: 4px 8px;
+    font-size: 11px;
+    min-width: 60px;
+  }
+}

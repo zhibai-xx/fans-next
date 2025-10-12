@@ -413,8 +413,16 @@ export class FileUploader {
     if (task.uploadId) {
       try {
         await uploadService.cancelUpload(task.uploadId);
-      } catch (error) {
-        console.error('取消上传失败:', error);
+      } catch (error: any) {
+        // 如果上传已经完成，忽略取消错误
+        if (error.message?.includes('上传记录不存在或已完成') ||
+          error.message?.includes('upload not found') ||
+          task.status === 'completed') {
+          console.log('上传已完成，无需取消');
+        } else {
+          console.error('取消上传失败:', error);
+          throw error; // 重新抛出其他类型的错误
+        }
       }
     }
 

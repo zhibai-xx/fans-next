@@ -32,9 +32,9 @@ export const userMediaQueryKeys = {
 export function useInfiniteImages(filters?: MediaFilters, pageSize: number = 24) {
   return useInfiniteQuery({
     queryKey: userMediaQueryKeys.images.infinite(filters),
-    queryFn: async ({ pageParam = 0 }) => {
+    queryFn: async ({ pageParam = 1 }) => {
       const response = await MediaService.getMediaList({
-        skip: pageParam * pageSize,
+        skip: (pageParam - 1) * pageSize,
         take: pageSize,
         filters: {
           ...filters,
@@ -44,11 +44,12 @@ export function useInfiniteImages(filters?: MediaFilters, pageSize: number = 24)
       });
       return response;
     },
-    getNextPageParam: (lastPage, pages) => {
-      const { meta } = lastPage;
-      return meta.hasMore ? pages.length : undefined;
+    getNextPageParam: (lastPage) => {
+      const { pagination } = lastPage;
+      if (!pagination) return undefined;
+      return pagination.page < pagination.totalPages ? pagination.page + 1 : undefined;
     },
-    initialPageParam: 0,
+    initialPageParam: 1,
     staleTime: 1000 * 60 * 2, // 2 minutes
     gcTime: 1000 * 60 * 10, // 10 minutes
   });
@@ -58,9 +59,9 @@ export function useInfiniteImages(filters?: MediaFilters, pageSize: number = 24)
 export function useInfiniteVideos(filters?: MediaFilters, pageSize: number = 24) {
   return useInfiniteQuery({
     queryKey: userMediaQueryKeys.videos.infinite(filters),
-    queryFn: async ({ pageParam = 0 }) => {
+    queryFn: async ({ pageParam = 1 }) => {
       const response = await MediaService.getMediaList({
-        skip: pageParam * pageSize,
+        skip: (pageParam - 1) * pageSize,
         take: pageSize,
         filters: {
           ...filters,
@@ -70,11 +71,12 @@ export function useInfiniteVideos(filters?: MediaFilters, pageSize: number = 24)
       });
       return response;
     },
-    getNextPageParam: (lastPage, pages) => {
-      const { meta } = lastPage;
-      return meta.hasMore ? pages.length : undefined;
+    getNextPageParam: (lastPage) => {
+      const { pagination } = lastPage;
+      if (!pagination) return undefined;
+      return pagination.page < pagination.totalPages ? pagination.page + 1 : undefined;
     },
-    initialPageParam: 0,
+    initialPageParam: 1,
     staleTime: 1000 * 60 * 2, // 2 minutes
     gcTime: 1000 * 60 * 10, // 10 minutes
   });

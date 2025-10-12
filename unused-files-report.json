@@ -1,0 +1,274 @@
+{
+  "timestamp": "2025-09-02T05:23:47.603Z",
+  "totalFiles": 172,
+  "unusedFiles": [
+    {
+      "path": "src/app/admin/components/AdminHeader.tsx",
+      "size": 5096
+    },
+    {
+      "path": "src/app/admin/components/AdminSidebar.tsx",
+      "size": 4842
+    },
+    {
+      "path": "src/app/admin/review/components/MediaDetailModal.tsx",
+      "size": 29786
+    },
+    {
+      "path": "src/app/admin/review/components/ModernMediaDetailModal.tsx",
+      "size": 22176
+    },
+    {
+      "path": "src/app/admin/review/components/PerformanceOptimizedGrid.tsx",
+      "size": 4671
+    },
+    {
+      "path": "src/app/admin/review/components/ReviewDashboard.tsx",
+      "size": 26197
+    },
+    {
+      "path": "src/app/api/auth/[...nextauth]/route.ts",
+      "size": 3324
+    },
+    {
+      "path": "src/app/components/RootLayoutClient.tsx",
+      "size": 2434
+    },
+    {
+      "path": "src/app/images/components/GridImageLayout.tsx",
+      "size": 16815
+    },
+    {
+      "path": "src/app/images/components/ImageCard.tsx",
+      "size": 8826
+    },
+    {
+      "path": "src/app/images/components/ImageGrid.tsx",
+      "size": 3800
+    },
+    {
+      "path": "src/app/images/components/ImageSearchBar.tsx",
+      "size": 15976
+    },
+    {
+      "path": "src/app/images/components/MasonryImageGrid.tsx",
+      "size": 18939
+    },
+    {
+      "path": "src/app/login/login-form.tsx",
+      "size": 2497
+    },
+    {
+      "path": "src/app/processed/[...path]/route.ts",
+      "size": 1207
+    },
+    {
+      "path": "src/app/profile/downloads-list.tsx",
+      "size": 5893
+    },
+    {
+      "path": "src/app/profile/favorites-list.tsx",
+      "size": 441
+    },
+    {
+      "path": "src/app/profile/password-form.tsx",
+      "size": 3712
+    },
+    {
+      "path": "src/app/profile/profile-form.tsx",
+      "size": 6416
+    },
+    {
+      "path": "src/app/profile/profile-tabs.tsx",
+      "size": 2291
+    },
+    {
+      "path": "src/app/profile/uploads/components/ResubmitModal.tsx",
+      "size": 7699
+    },
+    {
+      "path": "src/app/profile/weibo-import-tab.tsx",
+      "size": 15197
+    },
+    {
+      "path": "src/app/signup/signup-form.tsx",
+      "size": 4900
+    },
+    {
+      "path": "src/app/videos/[videoId]/page-modern.tsx",
+      "size": 18139
+    },
+    {
+      "path": "src/app/videos/[videoId]/page-old.tsx",
+      "size": 16378
+    },
+    {
+      "path": "src/app/videos/components/CategoryTabs.tsx",
+      "size": 987
+    },
+    {
+      "path": "src/app/videos/components/KeyboardShortcuts.tsx",
+      "size": 2217
+    },
+    {
+      "path": "src/app/videos/components/ModernVideoCard.tsx",
+      "size": 8689
+    },
+    {
+      "path": "src/app/videos/components/ModernVideoGrid.tsx",
+      "size": 2362
+    },
+    {
+      "path": "src/app/videos/components/SearchBar.tsx",
+      "size": 5486
+    },
+    {
+      "path": "src/app/videos/components/VideoActionButtons.tsx",
+      "size": 3562
+    },
+    {
+      "path": "src/app/videos/components/VideoCard.tsx",
+      "size": 2027
+    },
+    {
+      "path": "src/app/videos/components/VideoComments.tsx",
+      "size": 16504
+    },
+    {
+      "path": "src/app/videos/components/VideoGrid.tsx",
+      "size": 1018
+    },
+    {
+      "path": "src/app/weibo-import/components/OptimizedWeiboFileCard.tsx",
+      "size": 11408
+    },
+    {
+      "path": "src/app/weibo-import/components/WeiboFileCard.tsx",
+      "size": 8505
+    },
+    {
+      "path": "src/app/weibo-import/components/WeiboFileGrid.tsx",
+      "size": 5953
+    },
+    {
+      "path": "src/app/weibo-import/components/WeiboFileStats.tsx",
+      "size": 4400
+    },
+    {
+      "path": "src/app/weibo-import/components/WeiboUploadProgress.tsx",
+      "size": 4655
+    },
+    {
+      "path": "src/components/LazyLoad.tsx",
+      "size": 5685
+    },
+    {
+      "path": "src/components/UploadModal.tsx",
+      "size": 957
+    },
+    {
+      "path": "src/components/VideoPlayerDemo.tsx",
+      "size": 9642
+    },
+    {
+      "path": "src/components/VirtualScroll.tsx",
+      "size": 5271
+    },
+    {
+      "path": "src/components/VirtualizedGrid.tsx",
+      "size": 3707
+    },
+    {
+      "path": "src/components/interaction/InteractionButtons.tsx",
+      "size": 7969
+    },
+    {
+      "path": "src/components/interaction/InteractionStats.tsx",
+      "size": 6684
+    },
+    {
+      "path": "src/components/ui/checkbox.tsx",
+      "size": 883
+    },
+    {
+      "path": "src/components/ui/dropdown-menu.tsx",
+      "size": 7616
+    },
+    {
+      "path": "src/components/ui/form.tsx",
+      "size": 4132
+    },
+    {
+      "path": "src/components/ui/scroll-area.tsx",
+      "size": 1656
+    },
+    {
+      "path": "src/components/ui/toast.tsx",
+      "size": 4832
+    },
+    {
+      "path": "src/components/upload/UploadProgress.tsx",
+      "size": 9718
+    },
+    {
+      "path": "src/components/video/ModernVideoPlayer.tsx",
+      "size": 21650
+    },
+    {
+      "path": "src/components/video/index.ts",
+      "size": 399
+    },
+    {
+      "path": "src/hooks/mutations/useUploadMutations.ts",
+      "size": 7366
+    },
+    {
+      "path": "src/hooks/queries/useMedia.ts",
+      "size": 10085
+    },
+    {
+      "path": "src/hooks/queries/useTags.ts",
+      "size": 9576
+    },
+    {
+      "path": "src/hooks/queries/useUploadRecords.ts",
+      "size": 6640
+    },
+    {
+      "path": "src/hooks/queries/useWeiboImport.ts",
+      "size": 5989
+    },
+    {
+      "path": "src/hooks/useDebounce.ts",
+      "size": 882
+    },
+    {
+      "path": "src/hooks/useInfiniteScroll.ts",
+      "size": 1091
+    },
+    {
+      "path": "src/hooks/useSmartPolling.ts",
+      "size": 3130
+    },
+    {
+      "path": "src/hooks/useVideoProcessing.ts",
+      "size": 8580
+    },
+    {
+      "path": "src/services/index.ts",
+      "size": 170
+    },
+    {
+      "path": "src/store/ui.store.ts",
+      "size": 5305
+    },
+    {
+      "path": "src/types/index.ts",
+      "size": 315
+    },
+    {
+      "path": "src/types/review.ts",
+      "size": 1973
+    }
+  ]
+}
