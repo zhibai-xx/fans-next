@@ -13,7 +13,9 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import LoadingSpinner from '@/components/LoadingSpinner';
-import VideoPlayerWrapper from '@/components/video/VideoPlayerWrapper';
+import { resolveMediaImageUrl, resolveMediaVideoUrl } from '@/lib/utils/media-url';
+import { buildVideoSources, getPosterUrl, getVideoContainerStyle } from '@/lib/utils/video-sources';
+import RobustVideoPlayer from '@/components/video/RobustVideoPlayer';
 import {
   Search,
   Filter,
@@ -63,139 +65,24 @@ import {
 import { queryUtils } from '@/lib/query-client';
 import { useIntersectionObserverLegacy } from '@/hooks/useIntersectionObserver';
 
-// URL格式化函数 - 确保URL符合Next.js Image组件要求并指向正确的后端服务
-const formatImageUrl = (url: string | null | undefined): string => {
-  if (!url) return '/placeholder-image.svg'; // 默认占位图
-
-  // 获取后端API基础URL
-  const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000/api';
-  const BASE_URL = API_BASE_URL.replace('/api', ''); // 移除 /api 后缀得到基础URL
-
-  // 如果已经是绝对URL，直接返回
-  if (url.startsWith('http://') || url.startsWith('https://')) {
-    return url;
-  }
-
-  // 如果已经是正确的API路径，直接返回
-  if (url.startsWith('/api/upload/file/')) {
-    return `${BASE_URL}${url}`;
-  }
-
-  // 处理数据库存储的相对路径格式：uploads/image/xxx.jpg -> /api/upload/file/image/xxx.jpg
-  if (url.startsWith('uploads/')) {
-    // 提取文件类型和文件名：'uploads/image/xxx.jpg' -> 'image/xxx.jpg'
-    const pathParts = url.replace('uploads/', '');
-    return `${BASE_URL}/api/upload/file/${pathParts}`;
-  }
-
-  // 如果以/开头，指向后端静态服务
-  if (url.startsWith('/')) {
-    return `${BASE_URL}${url}`;
-  }
-
-  // 其他情况，尝试作为后端API路径
-  return `${BASE_URL}/api/upload/file/${url}`;
-};
-
-// URL格式化函数 - 确保URL符合访问要求并防止无效URL
-const formatVideoUrl = (url: string | null | undefined): string => {
-  if (!url || typeof url !== 'string' || url.trim() === '') {
-    console.warn('⚠️ formatVideoUrl: 无效URL', url);
-    return '';
-  }
-
-  const cleanUrl = url.trim();
-
-  console.log(`🔧 formatVideoUrl处理: ${cleanUrl}`);
-
-  // 如果是绝对URL且指向后端3000端口，转换为相对路径让Next.js代理处理
-  if (cleanUrl.startsWith('http://localhost:3000/')) {
-    const path = cleanUrl.replace('http://localhost:3000/', '');
-    // 如果是API路径，去掉api前缀因为Next.js会自动添加
-    if (path.startsWith('api/')) {
-      const relativePath = `/${path}`;
-      console.log(`   🔄 后端绝对URL转相对路径: ${cleanUrl} -> ${relativePath}`);
-      return relativePath;
-    } else {
-      // processed等静态文件路径，直接转为相对路径
-      const relativePath = `/${path}`;
-      console.log(`   🔄 后端静态文件转相对路径: ${cleanUrl} -> ${relativePath}`);
-      return relativePath;
-    }
-  }
-
-  // 如果是其他绝对URL，直接返回
-  if (cleanUrl.startsWith('http://') || cleanUrl.startsWith('https://')) {
-    console.log(`   ✅ 外部绝对URL: ${cleanUrl}`);
-    return cleanUrl;
-  }
-
-  // 如果已经是相对路径，直接返回
-  if (cleanUrl.startsWith('/')) {
-    console.log(`   ✅ 已是相对路径: ${cleanUrl}`);
-    return cleanUrl;
-  }
-
-  // 处理数据库存储的相对路径格式（如uploads/xxx）
-  if (cleanUrl.startsWith('uploads/')) {
-    const pathParts = cleanUrl.replace('uploads/', '');
-    if (!pathParts) {
-      console.warn('⚠️ formatVideoUrl: uploads/路径无效', cleanUrl);
-      return '';
-    }
-    const relativePath = `/api/upload/file/${pathParts}`;
-    console.log(`   🔄 uploads路径转API路径: ${cleanUrl} -> ${relativePath}`);
-    return relativePath;
-  }
-
-  // 其他情况，作为文件路径处理
-  if (cleanUrl.length > 0) {
-    const relativePath = `/api/upload/file/${cleanUrl}`;
-    console.log(`   🔄 默认路径转API路径: ${cleanUrl} -> ${relativePath}`);
-    return relativePath;
-  }
-
-  console.warn('⚠️ formatVideoUrl: 无法处理的URL', cleanUrl);
-  return '';
-};
+const isDev = process.env.NODE_ENV !== 'production';
 
 // 视频播放器包装组件 - 完全复制审核管理页面的实现
 
 
-// 管理页面视频播放器组件 - 使用新的健壮播放器
+// 管理页面视频播放器组件 - 与审核页面共用逻辑
 function AdminVideoPlayerWrapper({ media }: { media: any }) {
-  // 准备视频源 - 支持多质量源（复制审核页面的逻辑）
-  const videoSources = React.useMemo(() => {
-    const sources = media.video_qualities && media.video_qualities.length > 0
-      ? media.video_qualities.map((quality: any) => {
-        const formattedUrl = formatVideoUrl(quality.url);
-        return {
-          src: formattedUrl,
-          type: 'video/mp4',
-          label: quality.quality || `${quality.height}p`,
-          res: quality.height ? `${quality.height}p` : undefined
-        };
-      }).filter((source: any) => source.src)
-      : (() => {
-        const formattedUrl = formatVideoUrl(media.url);
-        return formattedUrl ? [{ src: formattedUrl, type: 'video/mp4', label: '原画' }] : [];
-      })();
+  const videoSources = React.useMemo(
+    () => buildVideoSources(media, { isAuthenticated: true }),
+    [media],
+  );
 
-    console.log('🎬 AdminVideoPlayerWrapper 视频源详情:', {
-      mediaId: media.id,
-      originalUrl: media.url,
-      videoQualities: media.video_qualities,
-      videoSources: sources,
-      hasMultipleQualities: sources.length > 1
-    });
+  const posterUrl = getPosterUrl(media);
+  const containerStyle = React.useMemo(
+    () => getVideoContainerStyle(media),
+    [media],
+  );
 
-    return sources;
-  }, [media.url, media.video_qualities]);
-
-  // 海报图URL
-  const posterUrl = media.thumbnail_url ? formatVideoUrl(media.thumbnail_url) : undefined;
-
-  // 如果没有有效视频源，显示错误
   if (videoSources.length === 0) {
     return (
       <div className="aspect-video bg-gray-100 rounded-lg flex items-center justify-center">
@@ -208,46 +95,17 @@ function AdminVideoPlayerWrapper({ media }: { media: any }) {
     );
   }
 
-  // 🎯 完全移除比例区分，使用纯粹的比例计算 - 学习主流平台做法
-  const getVideoContainerStyle = () => {
-    if (!media.width || !media.height) {
-      // 未知尺寸，使用16:9作为默认
-      return {
-        aspectRatio: '16/9',
-        maxWidth: '800px',
-        margin: '0 auto'
-      };
-    }
-
-    const ratio = media.width / media.height;
-    console.log(`🎬 视频尺寸: ${media.width}×${media.height}, 比例: ${ratio.toFixed(2)}`);
-
-    // 🎯 不区分横屏/竖屏/方形，统一使用视频原始比例
-    return {
-      aspectRatio: `${media.width}/${media.height}`, // 使用视频的真实比例
-      maxWidth: '800px', // 统一最大宽度限制
-      maxHeight: '70vh', // 统一最大高度限制
-      margin: '0 auto'   // 居中显示
-    };
-  };
-
   return (
-    <div
-      className="bg-black rounded-lg overflow-hidden"
-      style={getVideoContainerStyle()}
-    >
-      <VideoPlayerWrapper
-        key={`robust-video-${media.id}`}
+    <div className="bg-black rounded-lg overflow-hidden" style={containerStyle}>
+      <RobustVideoPlayer
+        key={`admin-robust-video-${media.id}`}
         src={videoSources}
         poster={posterUrl}
         aspectRatio="auto"
-        controls={true}
+        controls
         autoplay={false}
         enableQualitySelector={videoSources.length > 1}
         className="w-full h-full"
-        onError={(error) => {
-          console.error('视频播放错误:', error);
-        }}
       />
     </div>
   );
@@ -339,7 +197,7 @@ const MediaGridItem = React.memo(({
             )}
             {!imageError && (
               <Image
-                src={formatImageUrl(media.thumbnail_url || media.url)}
+                  src={resolveMediaImageUrl(media.thumbnail_url || media.url)}
                 alt={media.title}
                 fill
                 sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
@@ -364,7 +222,7 @@ const MediaGridItem = React.memo(({
             {media.thumbnail_url && !imageError ? (
               <>
                 <Image
-                  src={formatImageUrl(media.thumbnail_url)}
+                  src={resolveMediaImageUrl(media.thumbnail_url)}
                   alt={media.title}
                   fill
                   sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
@@ -678,7 +536,7 @@ const MediaEditDialog: React.FC<MediaEditDialogProps> = ({ isOpen, media, onClos
                     {media.media_type === 'IMAGE' ? (
                       <div className="w-16 h-16 bg-white rounded-xl overflow-hidden shadow-sm group-hover:shadow-md transition-all duration-300 ring-1 ring-gray-200">
                         <Image
-                          src={formatImageUrl(media.url)}
+                          src={resolveMediaImageUrl(media.url)}
                           alt={media.title}
                           width={64}
                           height={64}
@@ -987,7 +845,9 @@ export default function MediaManagementPage() {
   React.useEffect(() => {
     const timer = setTimeout(() => {
       if (searchTerm.trim()) {
+      if (isDev) {
         console.log('🔍 搜索防抖触发:', searchTerm);
+      }
         // TanStack Query会自动重新获取数据，因为queryKey发生了变化
       }
     }, 500);
@@ -1429,7 +1289,7 @@ export default function MediaManagementPage() {
                     {previewMedia.media_type === 'IMAGE' ? (
                       <div className="aspect-video overflow-hidden rounded-xl bg-black">
                         <Image
-                          src={formatImageUrl(previewMedia.url)}
+                          src={resolveMediaImageUrl(previewMedia.url)}
                           alt={previewMedia.title}
                           fill
                           className="object-contain"

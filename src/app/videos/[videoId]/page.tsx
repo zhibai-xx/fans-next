@@ -16,14 +16,11 @@ import {
   Share2,
   Download,
   Eye,
-  ThumbsUp,
   Clock,
   Calendar,
   Users,
   ChevronDown,
   ChevronUp,
-  Play,
-  MoreHorizontal,
   ArrowLeft
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
@@ -85,7 +82,7 @@ export default function ModernVideoDetailPage({ params }: VideoDetailPageProps) 
   const [isFullscreen, setIsFullscreen] = useState(false);
 
   // 查询数据
-  const { data: videoResponse, isLoading, isError } = useVideoDetail(videoId);
+  const { data: videoResponse, isError } = useVideoDetail(videoId);
   const { data: recommendedResponse } = useRecommendedVideos(videoId, 20);
 
   // 从响应中提取视频数据
@@ -125,26 +122,6 @@ export default function ModernVideoDetailPage({ params }: VideoDetailPageProps) 
     return sources;
   })() : [];
 
-  // 使用视频播放器Hook
-  const { playerProps } = useVideoPlayer({
-    src: videoSources,
-    initialVolume: 0.8,
-    rememberSettings: true,
-    onProgress: (currentTime, duration) => {
-      // 播放进度上报
-    },
-    onQualityChange: (quality) => {
-      console.log('画质切换:', quality);
-    },
-    onError: (error) => {
-      toast({
-        title: '播放出错',
-        description: typeof error === 'string' ? error : '播放出现错误',
-        variant: 'destructive',
-      });
-    },
-  });
-
   // Mutations
   const likeMutation = useLikeVideoMutation();
   const favoriteMutation = useFavoriteVideoMutation();
@@ -168,6 +145,7 @@ export default function ModernVideoDetailPage({ params }: VideoDetailPageProps) 
   }
 
   const recommendedVideos = recommendedResponse?.data || [];
+  const downloadUrl = formatVideoUrl(video.original_file_url ?? video.url);
 
   // 处理交互
   const handleLike = () => {
@@ -190,8 +168,8 @@ export default function ModernVideoDetailPage({ params }: VideoDetailPageProps) 
           text: video.description || `来看看这个视频：${video.title}`,
           url: window.location.href,
         });
-      } catch (error) {
-        console.log('分享取消');
+      } catch (shareError) {
+        console.log('分享取消', shareError);
       }
     } else {
       await navigator.clipboard.writeText(window.location.href);
@@ -199,7 +177,10 @@ export default function ModernVideoDetailPage({ params }: VideoDetailPageProps) 
     }
   };
 
-  const formatDuration = (seconds: number) => {
+  const formatDuration = (seconds?: number | null) => {
+    if (typeof seconds !== "number" || Number.isNaN(seconds)) {
+      return "--:--";
+    }
     const mins = Math.floor(seconds / 60);
     const secs = Math.floor(seconds % 60);
     return `${mins}:${secs.toString().padStart(2, '0')}`;
@@ -254,7 +235,20 @@ export default function ModernVideoDetailPage({ params }: VideoDetailPageProps) 
             controls={true}
             className="w-full h-full"
             enableQualitySelector={videoSources.length > 1}
-            onError={(error: any) => console.error('❌ 视频播放错误:', error)}
+            onError={(error: unknown) => {
+              console.error('❌ 视频播放错误:', error);
+              toast({
+                title: '播放出错',
+                description: typeof error === 'string' ? error : '播放出现错误',
+                variant: 'destructive',
+              });
+            }}
+            onRequireAuth={() => {
+              toast({
+                title: '请登录后观看高清画质',
+                description: '登录账号即可播放 1080p 等高清画质内容',
+              });
+            }}
           />
         </motion.div>
 
@@ -280,7 +274,7 @@ export default function ModernVideoDetailPage({ params }: VideoDetailPageProps) 
                     <Eye className="w-4 h-4" />
                     <span>{formatViews(video.views)} 观看</span>
                   </div>
-                  {video.duration && (
+                  {typeof video.duration === 'number' && (
                     <div className="flex items-center gap-1">
                       <Clock className="w-4 h-4" />
                       <span>{formatDuration(video.duration)}</span>
@@ -328,9 +322,9 @@ export default function ModernVideoDetailPage({ params }: VideoDetailPageProps) 
                   <span>分享</span>
                 </Button>
 
-                {video.url && (
+                {downloadUrl && (
                   <Button variant="outline" size="sm" asChild>
-                    <a href={video.url} download target="_blank">
+                    <a href={downloadUrl} download target="_blank">
                       <Download className="w-4 h-4 mr-2" />
                       <span>下载</span>
                     </a>
@@ -441,21 +435,21 @@ export default function ModernVideoDetailPage({ params }: VideoDetailPageProps) 
                   </h3>
 
                   <div className="space-y-4">
-                    {recommendedVideos.slice(0, showMoreVideos).map((video, index) => (
+                    {recommendedVideos.slice(0, showMoreVideos).map((item, index) => (
                       <motion.div
-                        key={video.id}
+                        key={item.id}
                         initial={{ opacity: 0, y: 20 }}
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ delay: 0.1 * index }}
-                        onClick={() => router.push(`/videos/${video.id}`)}
+                        onClick={() => router.push(`/videos/${item.id}`)}
                         className="group cursor-pointer"
                       >
                         <div className="flex gap-3 p-2 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-900/50 transition-colors">
                           <div className="relative flex-shrink-0 w-40 aspect-video rounded-lg overflow-hidden">
                             <VideoCardThumbnail
-                              src={video.thumbnail_url}
-                              alt={video.title}
-                              duration={video.duration}
+                              src={item.thumbnail_url}
+                              alt={item.title}
+                              duration={typeof item.duration === 'number' ? item.duration : undefined}
                               className="w-full h-full"
                               showPlayIcon={false}
                             />
@@ -463,13 +457,14 @@ export default function ModernVideoDetailPage({ params }: VideoDetailPageProps) 
 
                           <div className="flex-1 min-w-0">
                             <h4 className="font-medium text-sm text-gray-900 dark:text-white line-clamp-2 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
-                              {video.title}
+                              {item.title}
                             </h4>
                             <p className="text-xs text-gray-600 dark:text-gray-400 mt-1">
-                              {video.user.username}
+                              {item.user.username}
                             </p>
                             <p className="text-xs text-gray-500 dark:text-gray-500 mt-1">
-                              {formatViews(video.views)} 观看 • {formatDistanceToNow(new Date(video.created_at), { locale: zhCN })}
+                              {formatViews(item.views)} 观看 •{' '}
+                              {formatDistanceToNow(new Date(item.created_at), { locale: zhCN })}
                             </p>
                           </div>
                         </div>

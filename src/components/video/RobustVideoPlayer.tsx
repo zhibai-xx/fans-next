@@ -4,12 +4,14 @@ import React, { useRef, useEffect, useState, useCallback } from 'react';
 import videojs from 'video.js';
 import 'video.js/dist/video-js.css';
 import styles from './RobustVideoPlayer.module.css';
+import { getVideoMimeType } from '@/lib/utils/media-url';
 
 // 确保videojs在全局可用
 if (typeof window !== 'undefined' && !(window as any).videojs) {
   (window as any).videojs = videojs;
 }
 
+const isDev = process.env.NODE_ENV !== 'production';
 
 
 export interface VideoSource {
@@ -19,6 +21,10 @@ export interface VideoSource {
   res?: string;
   width?: number;
   height?: number;
+  quality?: string;
+  requiresAuth?: boolean;
+  displayLabel?: string;
+  isDefault?: boolean;
 }
 
 export interface RobustVideoPlayerProps {
@@ -44,6 +50,8 @@ export interface RobustVideoPlayerProps {
   onProgress?: (currentTime: number, duration: number) => void;
   /** 错误回调 */
   onError?: (error: any) => void;
+  /** 登录提示 */
+  onRequireAuth?: (source: VideoSource) => void;
 }
 
 /**
@@ -68,7 +76,8 @@ export default function RobustVideoPlayer({
   onReady,
   onPlayStateChange,
   onProgress,
-  onError
+  onError,
+  onRequireAuth,
 }: RobustVideoPlayerProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const playerRef = useRef<videojs.Player | null>(null);
@@ -76,7 +85,6 @@ export default function RobustVideoPlayer({
   const [isLoading, setIsLoading] = useState(true); // 恢复内部加载状态
   const [hasError, setHasError] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
-  const [detectedRatio, setDetectedRatio] = useState<string>('auto');
   // 移除客户端检测 - 现在通过动态导入处理SSR
 
   // 准备视频源
@@ -84,29 +92,16 @@ export default function RobustVideoPlayer({
     if (Array.isArray(src)) {
       return src;
     }
-    return [{ src: src as string, type: 'video/mp4' }];
+    return [{ src: src as string, type: getVideoMimeType(src as string) }];
   }, [src]);
-
-  // 检测视频比例
-  const detectVideoRatio = useCallback((videoElement: HTMLVideoElement) => {
-    const { videoWidth, videoHeight } = videoElement;
-    if (videoWidth && videoHeight) {
-      const ratio = videoWidth / videoHeight;
-      if (ratio > 1.5) {
-        setDetectedRatio('landscape');
-      } else if (ratio < 0.7) {
-        setDetectedRatio('portrait');
-      } else {
-        setDetectedRatio('square');
-      }
-    }
-  }, []);
 
   // 创建质量选择器按钮 - 返回按钮元素
   const createQualityButton = useCallback((player: videojs.Player) => {
     if (!enableQualitySelector || videoSources.length <= 1) return;
 
-    console.log('Creating quality selector with sources:', videoSources);
+    if (isDev) {
+      console.log('Creating quality selector with sources:', videoSources);
+    }
 
     // 创建质量选择器按钮
     const qualityButton = document.createElement('div');
@@ -114,8 +109,22 @@ export default function RobustVideoPlayer({
     qualityButton.setAttribute('title', '画质选择');
 
     // 获取默认清晰度标签
-    const defaultSource = videoSources[0];
-    const defaultLabel = defaultSource.label || defaultSource.res || `${defaultSource.width || ''}p` || 'HD';
+    const defaultIndex = videoSources.findIndex(
+      (source) => source.isDefault && !source.requiresAuth,
+    );
+    const initialIndex =
+      defaultIndex >= 0
+        ? defaultIndex
+        : videoSources.findIndex((source) => !source.requiresAuth) >= 0
+        ? videoSources.findIndex((source) => !source.requiresAuth)
+        : 0;
+    const defaultSource = videoSources[initialIndex];
+    const defaultLabel =
+      defaultSource.displayLabel ||
+      defaultSource.label ||
+      defaultSource.res ||
+      `${defaultSource.width || ''}p` ||
+      'HD';
 
     qualityButton.innerHTML = `
       <span class="vjs-icon-placeholder quality-label" aria-hidden="true">${defaultLabel}</span>
@@ -134,17 +143,29 @@ export default function RobustVideoPlayer({
     videoSources.forEach((source, index) => {
       const menuItem = document.createElement('div');
       menuItem.className = 'vjs-menu-item';
-      if (index === 0) menuItem.classList.add('vjs-selected');
+      if (index === initialIndex) menuItem.classList.add('vjs-selected');
 
-      const label = source.label || source.res || `${source.width || ''}p` || `质量${index + 1}`;
-      menuItem.textContent = label;
+      const baseLabel =
+        source.label || source.res || `${source.width || ''}p` || `质量${index + 1}`;
+      const displayLabel = source.displayLabel || baseLabel;
+      menuItem.textContent = displayLabel;
       menuItem.setAttribute('data-index', index.toString());
+
+      if (source.requiresAuth) {
+        menuItem.classList.add('vjs-disabled');
+      }
 
       menuItem.addEventListener('click', (e) => {
         e.stopPropagation();
 
+        if (source.requiresAuth) {
+          onRequireAuth?.(source);
+          qualityMenu.style.display = 'none';
+          return;
+        }
+
         // 更新选中状态
-        menuContent.querySelectorAll('.vjs-menu-item').forEach(item => {
+        menuContent.querySelectorAll('.vjs-menu-item').forEach((item) => {
           item.classList.remove('vjs-selected');
         });
         menuItem.classList.add('vjs-selected');
@@ -152,7 +173,7 @@ export default function RobustVideoPlayer({
         // 更新按钮显示
         const qualityLabel = qualityButton.querySelector('.quality-label');
         if (qualityLabel) {
-          qualityLabel.textContent = label;
+          qualityLabel.textContent = displayLabel;
         }
 
         // 切换视频源
@@ -191,9 +212,11 @@ export default function RobustVideoPlayer({
     });
 
     // 返回按钮元素，不直接插入
-    console.log('质量选择器按钮创建完成');
+    if (isDev) {
+      console.log('质量选择器按钮创建完成');
+    }
     return qualityButton;
-  }, [videoSources, enableQualitySelector]);
+  }, [videoSources, enableQualitySelector, onRequireAuth]);
 
   // 初始化播放器 - 使用更好的方法
   useEffect(() => {
@@ -222,7 +245,9 @@ export default function RobustVideoPlayer({
       const uniqueId = `vjs_video_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
       videoRef.current.id = uniqueId;
 
-      console.log('🎬 RobustVideoPlayer 开始初始化...');
+      if (isDev) {
+        console.log('🎬 RobustVideoPlayer 开始初始化...');
+      }
       setHasError(false);
 
       try {
@@ -307,7 +332,9 @@ export default function RobustVideoPlayer({
 
         // 播放器准备就绪
         player.ready(() => {
-          console.log('✅ RobustVideoPlayer 初始化完成');
+          if (isDev) {
+            console.log('✅ RobustVideoPlayer 初始化完成');
+          }
           setIsLoading(false);
 
           // 🎯 强制移除Video.js可能设置的固定尺寸
@@ -319,7 +346,9 @@ export default function RobustVideoPlayer({
             playerEl.style.maxHeight = '';
             playerEl.style.minWidth = '';
             playerEl.style.minHeight = '';
-            console.log('🎯 已移除Video.js的固定尺寸设置');
+            if (isDev) {
+              console.log('🎯 已移除Video.js的固定尺寸设置');
+            }
           }
 
           // 双重保险：API移除 + DOM移除
@@ -345,7 +374,9 @@ export default function RobustVideoPlayer({
               const control = controlBar.getChild(controlName);
               if (control) {
                 controlBar.removeChild(control);
-                console.log(`🗑️ API移除了控件: ${controlName}`);
+                if (isDev) {
+                  console.log(`🗑️ API移除了控件: ${controlName}`);
+                }
               }
             } catch (e) {
               // 控件不存在，忽略错误
@@ -364,7 +395,9 @@ export default function RobustVideoPlayer({
           setTimeout(() => {
             const controlBarElement = (player as any).controlBar?.el();
             if (controlBarElement && !controlBarElement.querySelector('.vjs-left-controls')) {
-              console.log('🔧 开始重新组织控制栏布局...');
+              if (isDev) {
+                console.log('🔧 开始重新组织控制栏布局...');
+              }
 
               // 创建左右两个组
               const leftGroup = document.createElement('div');
@@ -382,15 +415,17 @@ export default function RobustVideoPlayer({
               const fullscreenButton = controlBarElement.querySelector('.vjs-fullscreen-control');
               const progressControl = controlBarElement.querySelector('.vjs-progress-control');
 
-              console.log('📍 找到的控件:', {
-                playButton: !!playButton,
-                volumePanel: !!volumePanel,
-                currentTime: !!currentTime,
-                timeDivider: !!timeDivider,
-                duration: !!duration,
-                fullscreenButton: !!fullscreenButton,
-                progressControl: !!progressControl
-              });
+              if (isDev) {
+                console.log('📍 找到的控件:', {
+                  playButton: !!playButton,
+                  volumePanel: !!volumePanel,
+                  currentTime: !!currentTime,
+                  timeDivider: !!timeDivider,
+                  duration: !!duration,
+                  fullscreenButton: !!fullscreenButton,
+                  progressControl: !!progressControl
+                });
+              }
 
               // 移动到左侧组
               if (playButton) leftGroup.appendChild(playButton);
@@ -425,7 +460,9 @@ export default function RobustVideoPlayer({
               // 布局完成，显示控制栏
               controlBarElement.classList.add('vjs-layout-ready');
 
-              console.log('✅ 控制栏布局重组完成，现在显示');
+              if (isDev) {
+                console.log('✅ 控制栏布局重组完成，现在显示');
+              }
             }
           }, 100); // 减少延迟提升体验
 
@@ -434,17 +471,11 @@ export default function RobustVideoPlayer({
             const controlBarElement = (player as any).controlBar?.el();
             if (controlBarElement && !controlBarElement.classList.contains('vjs-layout-ready')) {
               controlBarElement.classList.add('vjs-layout-ready');
-              console.log('⚠️ 后备方案：强制显示控制栏');
+              if (isDev) {
+                console.log('⚠️ 后备方案：强制显示控制栏');
+              }
             }
           }, 3000);
-
-          // 检测视频比例
-          const videoElement = (player as any).tech().el() as HTMLVideoElement;
-          if (videoElement) {
-            videoElement.addEventListener('loadedmetadata', () => {
-              detectVideoRatio(videoElement);
-            });
-          }
 
           if (player) onReady?.(player);
         });

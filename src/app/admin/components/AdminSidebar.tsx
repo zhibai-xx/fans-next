@@ -3,18 +3,7 @@
 import React from 'react';
 import { usePathname } from 'next/navigation';
 import Link from 'next/link';
-import {
-  Users,
-  Image,
-  Tag,
-  FolderOpen,
-  FileCheck,
-  Activity,
-  Settings,
-  BarChart3,
-  ChevronLeft,
-  ChevronRight
-} from 'lucide-react';
+import { Users, Image, Tag, FileCheck, Trash2, Activity, Settings, BarChart3, ChevronLeft, ChevronRight } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface AdminSidebarProps {
@@ -49,6 +38,12 @@ const menuItems: MenuItem[] = [
     title: '内容管理',
     icon: Image,
     href: '/admin/media',
+  },
+  {
+    id: 'recycle',
+    title: '回收站',
+    icon: Trash2,
+    href: '/admin/media/recycle',
   },
   {
     id: 'review',
@@ -116,7 +111,15 @@ export function AdminSidebar({ collapsed, onToggle }: AdminSidebarProps) {
       <nav className="mt-6">
         <ul className="space-y-1 px-3">
           {menuItems.map((item) => {
-            const isActive = pathname === item.href || pathname.startsWith(item.href + '/');
+            const baseMatch =
+              pathname === item.href || pathname.startsWith(`${item.href}/`);
+            const hasMoreSpecificMatch = menuItems.some(
+              (other) =>
+                other.id !== item.id &&
+                pathname.startsWith(other.href) &&
+                other.href.length > item.href.length,
+            );
+            const isActive = baseMatch && !hasMoreSpecificMatch;
             const Icon = item.icon;
 
             return (

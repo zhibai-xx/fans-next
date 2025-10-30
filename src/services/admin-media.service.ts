@@ -22,6 +22,7 @@ export interface Media {
   url: string;
   filename?: string;
   thumbnail_url?: string;
+  original_file_url?: string;
   size: number;
   media_type: 'IMAGE' | 'VIDEO';
   duration?: number;
@@ -88,6 +89,15 @@ export interface ApiResponse<T = any> {
   message?: string;
 }
 
+export interface ApiResponseWithPagination<T = any> extends ApiResponse<T> {
+  pagination?: {
+    limit: number;
+    total: number;
+    totalPages?: number;
+    page?: number;
+  };
+}
+
 export interface PaginatedResponse<T> {
   success: boolean;
   data: T[];
@@ -98,6 +108,42 @@ export interface PaginatedResponse<T> {
     totalPages: number;
   };
   message?: string;
+}
+
+export interface RecycleMediaItem extends Media {
+  deleted_at: string;
+  deleted_reason?: string | null;
+  deleted_by?: number | null;
+  cleanup_scheduled_at?: string | null;
+}
+
+export interface PendingCleanupItem {
+  id: string;
+  cleanup_scheduled_at: string | null;
+}
+
+export interface DeletionSummary {
+  totalRequested: number;
+  successfulDeletions: number;
+  failedDeletions: number;
+  filesCleanedUp: number;
+  spaceFree: number;
+  results: Array<{
+    success: boolean;
+    mediaId: string;
+    message: string;
+    filesDeleted: {
+      mainFile: boolean;
+      thumbnail: boolean;
+      processedFiles: boolean;
+      qualityFiles: number;
+      originalFile: boolean;
+      extraFiles: number;
+    };
+    spaceFreed: number;
+    backupCreated?: boolean;
+    error?: string;
+  }>;
 }
 
 // 媒体管理API
@@ -122,6 +168,86 @@ export class AdminMediaService {
 
     const response = await apiClient.get('/admin/media', { params });
     return response as PaginatedResponse<Media>; // 返回完整响应对象
+  }
+
+  /**
+   * 获取回收站媒体列表
+   */
+  static async getRecycleBin(params: {
+    page?: number;
+    limit?: number;
+    search?: string;
+  } = {}): Promise<PaginatedResponse<RecycleMediaItem>> {
+    const response = await apiClient.get('/admin/media/recycle/bin', {
+      params: {
+        page: params.page ?? 1,
+        limit: params.limit ?? 20,
+        search: params.search?.trim() || undefined,
+      },
+    });
+    return response as PaginatedResponse<RecycleMediaItem>;
+  }
+
+  /**
+   * 恢复回收站媒体
+   */
+  static async restoreMedia(
+    mediaIds: string[],
+  ): Promise<ApiResponse<{ id: string; success: boolean; message?: string }[]>> {
+    const response = await apiClient.post('/admin/media/recycle/restore', {
+      mediaIds,
+    });
+    return response as ApiResponse<{ id: string; success: boolean; message?: string }[]>;
+  }
+
+  /**
+   * 彻底删除回收站媒体
+   */
+  static async hardDeleteMedia(
+    mediaIds: string[],
+    options: {
+      reason?: string;
+      forceDelete?: boolean;
+      createBackup?: boolean;
+    } = {},
+  ): Promise<ApiResponse<DeletionSummary>> {
+    const response = await apiClient.post('/admin/media/recycle/hard-delete', {
+      mediaIds,
+      reason: options.reason,
+      forceDelete: options.forceDelete ?? true,
+      createBackup: options.createBackup ?? false,
+    });
+    return response as ApiResponse<DeletionSummary>;
+  }
+
+  /**
+   * 手动触发回收站清理
+   */
+  static async cleanupRecycleBin(
+    options: {
+      limit?: number;
+      reason?: string;
+      createBackup?: boolean;
+    } = {},
+  ): Promise<ApiResponse<DeletionSummary>> {
+    const response = await apiClient.post('/admin/media/recycle/cleanup', {
+      limit: options.limit,
+      reason: options.reason,
+      createBackup: options.createBackup ?? false,
+    });
+    return response as ApiResponse<DeletionSummary>;
+  }
+
+  /**
+   * 获取待硬删媒体列表
+   */
+  static async getPendingCleanup(
+    limit: number = 50
+  ): Promise<ApiResponseWithPagination<PendingCleanupItem[]>> {
+    const response = await apiClient.get('/admin/media/recycle/pending', {
+      params: { limit },
+    });
+    return response as ApiResponseWithPagination<PendingCleanupItem[]>;
   }
 
   /**

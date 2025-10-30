@@ -87,7 +87,12 @@ export const authOptions: NextAuthOptions = {
           };
         } catch (error) {
           console.error('登录错误:', error);
-          return null;
+
+          if (error instanceof Error) {
+            throw new Error(error.message || '登录失败，请稍后重试');
+          }
+
+          throw new Error('登录失败，请稍后重试');
         }
       },
     }),

@@ -1,4 +1,4 @@
-import React, { memo, useCallback, useMemo } from 'react';
+import React, { memo, useMemo } from 'react';
 import { CheckCircle } from 'lucide-react';
 import { MediaItem } from '@/services/media.service';
 import { Button } from '@/components/ui/button';

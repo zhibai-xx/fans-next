@@ -9,11 +9,13 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
-import { X, Eye, Edit3, Check, AlertCircle } from 'lucide-react';
-import { MediaItem } from '@/services/media.service';
+import { Eye, Edit3, AlertCircle } from 'lucide-react';
+import { MediaItem, MediaTag } from '@/services/media.service';
 import { ReviewService } from '@/services/review.service';
 import { handleApiError } from '@/lib/utils/error-handler';
 import RobustVideoPlayer from '@/components/video/RobustVideoPlayer';
+import { resolveMediaImageUrl } from '@/lib/utils/media-url';
+import { buildVideoSources, getPosterUrl, getVideoContainerStyle } from '@/lib/utils/video-sources';
 
 interface MediaDetailModalProps {
   media: MediaItem | null;
@@ -36,66 +38,20 @@ interface TagOption {
   usage_count: number;
 }
 
-// URL格式化函数 - 确保URL符合访问要求并防止无效URL
-const formatVideoUrl = (url: string | null | undefined): string => {
-  if (!url || typeof url !== 'string' || url.trim() === '') {
-    console.warn('⚠️ formatVideoUrl: 无效URL', url);
-    return '';
+const isDev = process.env.NODE_ENV !== 'production';
+
+const extractMediaTags = (media: MediaItem | null): MediaTag[] => {
+  if (!media) return [];
+  if (Array.isArray(media.media_tags) && media.media_tags.length > 0) {
+    return media.media_tags
+      .map((item) => item?.tag)
+      .filter((tag): tag is MediaTag => Boolean(tag));
   }
+  return Array.isArray(media?.tags) ? media.tags : [];
+};
 
-  const cleanUrl = url.trim();
-
-  console.log(`🔧 formatVideoUrl处理: ${cleanUrl}`);
-
-  // 如果是绝对URL且指向后端3000端口，转换为相对路径让Next.js代理处理
-  if (cleanUrl.startsWith('http://localhost:3000/')) {
-    const path = cleanUrl.replace('http://localhost:3000/', '');
-    // 如果是API路径，去掉api前缀因为Next.js会自动添加
-    if (path.startsWith('api/')) {
-      const relativePath = `/${path}`;
-      console.log(`   🔄 后端绝对URL转相对路径: ${cleanUrl} -> ${relativePath}`);
-      return relativePath;
-    } else {
-      // processed等静态文件路径，直接转为相对路径
-      const relativePath = `/${path}`;
-      console.log(`   🔄 后端静态文件转相对路径: ${cleanUrl} -> ${relativePath}`);
-      return relativePath;
-    }
-  }
-
-  // 如果是其他绝对URL，直接返回
-  if (cleanUrl.startsWith('http://') || cleanUrl.startsWith('https://')) {
-    console.log(`   ✅ 外部绝对URL: ${cleanUrl}`);
-    return cleanUrl;
-  }
-
-  // 如果已经是相对路径，直接返回
-  if (cleanUrl.startsWith('/')) {
-    console.log(`   ✅ 已是相对路径: ${cleanUrl}`);
-    return cleanUrl;
-  }
-
-  // 处理数据库存储的相对路径格式（如uploads/xxx）
-  if (cleanUrl.startsWith('uploads/')) {
-    const pathParts = cleanUrl.replace('uploads/', '');
-    if (!pathParts) {
-      console.warn('⚠️ formatVideoUrl: uploads/路径无效', cleanUrl);
-      return '';
-    }
-    const relativePath = `/api/upload/file/${pathParts}`;
-    console.log(`   🔄 uploads路径转API路径: ${cleanUrl} -> ${relativePath}`);
-    return relativePath;
-  }
-
-  // 其他情况，作为文件路径处理
-  if (cleanUrl.length > 0) {
-    const relativePath = `/api/upload/file/${cleanUrl}`;
-    console.log(`   🔄 默认路径转API路径: ${cleanUrl} -> ${relativePath}`);
-    return relativePath;
-  }
-
-  console.warn('⚠️ formatVideoUrl: 无法处理的URL', cleanUrl);
-  return '';
+const extractTagIds = (media: MediaItem | null): string[] => {
+  return extractMediaTags(media).map((tag) => tag.id);
 };
 
 // 视频播放器包装组件 - 使用React.memo避免不必要的重新渲染
@@ -105,20 +61,28 @@ const VideoPlayerWrapper = React.memo(function VideoPlayerWrapper({ media }: { m
 
   // 等待Modal完全打开后再初始化Video.js
   useEffect(() => {
-    console.log('🎬 VideoPlayerWrapper 组件挂载，准备延迟初始化...');
+    if (isDev) {
+      console.log('🎬 VideoPlayerWrapper 组件挂载，准备延迟初始化...');
+    }
 
     // 使用requestAnimationFrame确保DOM完全渲染
     const checkDOMReady = () => {
       if (containerRef.current && document.contains(containerRef.current)) {
-        console.log('✅ DOM容器已准备好');
+        if (isDev) {
+          console.log('✅ DOM容器已准备好');
+        }
         const timer = setTimeout(() => {
-          console.log('🎬 Modal动画完成，准备初始化Video.js...');
+          if (isDev) {
+            console.log('🎬 Modal动画完成，准备初始化Video.js...');
+          }
           setIsModalReady(true);
         }, 600); // 增加延迟时间确保Modal完全稳定
 
         return () => clearTimeout(timer);
       } else {
-        console.log('⏳ 等待DOM容器准备...');
+        if (isDev) {
+          console.log('⏳ 等待DOM容器准备...');
+        }
         const retryTimer = setTimeout(checkDOMReady, 100);
         return () => clearTimeout(retryTimer);
       }
@@ -131,47 +95,39 @@ const VideoPlayerWrapper = React.memo(function VideoPlayerWrapper({ media }: { m
     });
 
     return () => {
-      console.log('🧹 VideoPlayerWrapper 清理');
+      if (isDev) {
+        console.log('🧹 VideoPlayerWrapper 清理');
+      }
       cancelAnimationFrame(frameId);
     };
   }, []); // 空依赖数组，只在组件挂载时运行
   // 使用useMemo缓存视频源，避免每次渲染都重新创建导致无限重试
   const videoSources = useMemo(() => {
-    const sources = media.video_qualities && media.video_qualities.length > 0
-      ? media.video_qualities.map(quality => {
-        const formattedUrl = formatVideoUrl(quality.url);
-        return {
-          src: formattedUrl,
-          type: 'video/mp4',
-          label: quality.quality || `${quality.height}p`,
-          res: quality.height ? `${quality.height}p` : undefined
-        };
-      }).filter(source => source.src) // 过滤掉空的src
-      : (() => {
-        const formattedUrl = formatVideoUrl(media.url);
-        return formattedUrl ? [{ src: formattedUrl, type: 'video/mp4', label: '原画' }] : [];
-      })();
+    const sources = buildVideoSources(media, { isAuthenticated: true });
 
-    // 调试：打印视频源信息
-    console.log('🎬 MediaDetailModal 视频源详情:', {
-      mediaId: media.id,
-      originalUrl: media.url,
-      thumbnailUrl: media.thumbnail_url,
-      videoQualities: media.video_qualities,
-      videoSources: sources.map(source => ({
-        src: source.src,
-        label: source.label,
-        type: source.type
-      })),
-      hasValidSources: sources.length > 0,
-      mediaType: media.media_type
-    });
+    if (isDev) {
+      console.log('🎬 MediaDetailModal 视频源详情:', {
+        mediaId: media.id,
+        originalUrl: media.url,
+        thumbnailUrl: media.thumbnail_url,
+        videoQualities: media.video_qualities,
+        videoSources: sources.map(source => ({
+          src: source.src,
+          label: source.label,
+          type: source.type
+        })),
+        hasValidSources: sources.length > 0,
+        mediaType: media.media_type
+      });
+    }
 
     return sources;
-  }, [media.id, media.url, media.video_qualities]);
+  }, [media]);
+
+  const containerStyle = useMemo((): React.CSSProperties => getVideoContainerStyle(media), [media]);
 
   // 缓存海报URL
-  const posterUrl = useMemo(() => formatVideoUrl(media.thumbnail_url), [media.thumbnail_url]);
+  const posterUrl = useMemo(() => getPosterUrl(media), [media]);
 
   // 如果没有有效的视频源，显示错误信息而不是播放器
   if (videoSources.length === 0) {
@@ -191,68 +147,26 @@ const VideoPlayerWrapper = React.memo(function VideoPlayerWrapper({ media }: { m
     );
   }
 
-  // 如果Modal还没准备好，显示加载状态
   if (!isModalReady) {
     return (
-      <div ref={containerRef} className="aspect-video bg-black rounded-lg flex items-center justify-center">
+      <div
+        ref={containerRef}
+        className="relative w-full rounded-lg bg-black overflow-hidden"
+        style={containerStyle}
+      >
         <div className="text-white text-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white mx-auto mb-2"></div>
+          <div className="mx-auto mb-2 h-8 w-8 animate-spin rounded-full border-b-2 border-white"></div>
           <p className="text-sm">正在初始化播放器...</p>
         </div>
       </div>
     );
   }
 
-  // 根据视频尺寸确定容器样式
-  const getVideoContainerClass = () => {
-    if (!media.width || !media.height) return "aspect-video"; // 默认16:9
-
-    const ratio = media.width / media.height;
-    if (ratio > 1.5) {
-      return "aspect-video"; // 横屏视频
-    } else if (ratio < 0.8) {
-      return ""; // 竖屏视频不固定比例，让播放器自适应
-    } else {
-      return "aspect-square"; // 正方形视频
-    }
-  };
-
-  const getVideoContainerStyle = () => {
-    if (!media.width || !media.height) return { minHeight: '300px' };
-
-    const ratio = media.width / media.height;
-    if (ratio > 1.5) {
-      // 横屏视频
-      return {
-        minHeight: '300px',
-        maxHeight: '500px'
-      };
-    } else if (ratio < 0.8) {
-      // 竖屏视频 - 给足够的高度
-      return {
-        minHeight: '500px',
-        maxHeight: '70vh',
-        width: '100%',
-        maxWidth: '400px',
-        margin: '0 auto'
-      };
-    } else {
-      // 正方形视频
-      return {
-        minHeight: '400px',
-        maxHeight: '500px',
-        width: '100%',
-        maxWidth: '500px',
-        margin: '0 auto'
-      };
-    }
-  };
-
   return (
     <div
       ref={containerRef}
-      className={`bg-black rounded-lg overflow-hidden ${getVideoContainerClass()}`}
-      style={getVideoContainerStyle()}
+      className="relative w-full rounded-lg bg-black overflow-hidden"
+      style={containerStyle}
     >
       <RobustVideoPlayer
         key={`robust-video-${media.id}`}
@@ -262,7 +176,6 @@ const VideoPlayerWrapper = React.memo(function VideoPlayerWrapper({ media }: { m
         controls={true}
         autoplay={false}
         enableQualitySelector={videoSources.length > 1}
-        className="w-full h-full"
         onError={(error) => {
           console.error('审核页面视频播放错误:', error);
         }}
@@ -274,23 +187,35 @@ const VideoPlayerWrapper = React.memo(function VideoPlayerWrapper({ media }: { m
   return prevProps.media.id === nextProps.media.id;
 });
 
+type ReviewStatus = 'PENDING' | 'APPROVED' | 'REJECTED' | 'PRIVATE';
+
+interface MediaFormState {
+  title: string;
+  description: string;
+  category_id: string;
+  status: ReviewStatus;
+  tag_ids: string[];
+}
+
 export function MediaDetailModal({ media, isOpen, onClose, onUpdate }: MediaDetailModalProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   // 编辑表单状态
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<MediaFormState>({
     title: '',
     description: '',
     category_id: '',
-    status: 'PENDING' as 'PENDING' | 'APPROVED' | 'REJECTED' | 'PRIVATE',
-    tag_ids: [] as string[]
+    status: 'PENDING',
+    tag_ids: []
   });
 
   // 选项数据
   const [categories, setCategories] = useState<CategoryOption[]>([]);
   const [tags, setTags] = useState<TagOption[]>([]);
+
+  const currentMediaTags = useMemo(() => extractMediaTags(media), [media]);
 
   // 初始化表单数据
   useEffect(() => {
@@ -300,7 +225,7 @@ export function MediaDetailModal({ media, isOpen, onClose, onUpdate }: MediaDeta
         description: media.description || '',
         category_id: media.category?.id || '',
         status: media.status,
-        tag_ids: media.media_tags?.map(tag => tag.tag.id) || []
+        tag_ids: extractTagIds(media)
       });
     }
   }, [media]);
@@ -327,10 +252,13 @@ export function MediaDetailModal({ media, isOpen, onClose, onUpdate }: MediaDeta
     }
   };
 
-  const handleInputChange = useCallback((field: string, value: any) => {
-    setFormData(prev => ({
+  const handleInputChange = useCallback(<K extends keyof MediaFormState>(
+    field: K,
+    value: MediaFormState[K],
+  ) => {
+    setFormData((prev) => ({
       ...prev,
-      [field]: value
+      [field]: value,
     }));
   }, []);
 
@@ -511,22 +439,6 @@ export function MediaDetailModal({ media, isOpen, onClose, onUpdate }: MediaDeta
     }
   };
 
-  // 根据视频比例确定模态框布局
-  const getModalLayoutClass = () => {
-    if (!media || media.media_type !== 'VIDEO' || !media.width || !media.height) {
-      return 'grid-cols-1 lg:grid-cols-2'; // 默认布局
-    }
-
-    const ratio = media.width / media.height;
-    if (ratio < 0.8) {
-      // 竖屏视频：使用单列布局，让视频和信息垂直排列
-      return 'grid-cols-1 max-w-4xl mx-auto';
-    } else {
-      // 横屏或正方形视频：使用双列布局
-      return 'grid-cols-1 lg:grid-cols-2';
-    }
-  };
-
   const getStatusHint = (status: string) => {
     switch (status) {
       case 'APPROVED': return '已通过的内容请在媒体管理页面进行管理';
@@ -536,6 +448,45 @@ export function MediaDetailModal({ media, isOpen, onClose, onUpdate }: MediaDeta
     }
   };
 
+  const previewContainerStyle = useMemo((): React.CSSProperties => {
+    if (!media) {
+      return {
+        aspectRatio: '16 / 9',
+        width: '100%',
+        maxWidth: '800px',
+        maxHeight: '70vh',
+        margin: '0 auto'
+      };
+    }
+
+    if (media.width && media.height) {
+      const ratio = media.width / media.height;
+      const isPortrait = ratio < 0.8;
+      if (!isPortrait) {
+        return {
+          aspectRatio: `${media.width} / ${media.height}`,
+          width: '100%',
+          maxWidth: '800px',
+          maxHeight: '70vh',
+          margin: '0 auto'
+        };
+      }
+
+      return {
+        aspectRatio: `${media.width} / ${media.height}`,
+        width: 'min(100%, 420px)',
+        margin: '0 auto'
+      };
+    }
+
+    return {
+      aspectRatio: '16 / 9',
+      width: '100%',
+      maxWidth: '800px',
+      maxHeight: '70vh',
+      margin: '0 auto'
+    };
+  }, [media]);
   if (!media) return null;
 
   return (
@@ -583,68 +534,60 @@ export function MediaDetailModal({ media, isOpen, onClose, onUpdate }: MediaDeta
           </div>
         )}
 
-        <div className={`grid gap-6 ${getModalLayoutClass()}`}>
-          {/* 媒体预览 */}
-          <div className="space-y-4">
-            <Card>
-              <CardContent className="p-4">
-                <div className="bg-gray-100 rounded-lg overflow-hidden flex items-center justify-center">
-                  {media.media_type === 'IMAGE' ? (
-                    <img
-                      src={media.thumbnail_url || media.url}
-                      alt={media.title}
-                      className="max-w-full max-h-[600px] object-contain block"
-                      style={{
-                        maxWidth: '100%',
-                        height: 'auto',
-                        minHeight: '200px'
-                      }}
-                    />
-                  ) : (
-                    // 只有当Modal打开且是视频时才渲染VideoPlayerWrapper
-                    isOpen && <VideoPlayerWrapper key={media.id} media={media} />
-                  )}
-                </div>
-              </CardContent>
-            </Card>
+        <div className="space-y-6">
+          <Card>
+            <CardContent className="p-0">
+              <div
+                className="relative flex w-full items-center justify-center rounded-lg bg-black"
+                style={previewContainerStyle}
+              >
+                {media.media_type === 'IMAGE' ? (
+                  <img
+                    src={resolveMediaImageUrl(media.thumbnail_url || media.url)}
+                    alt={media.title}
+                    className="h-full w-full object-contain"
+                    loading="lazy"
+                  />
+                ) : (
+                  isOpen && <VideoPlayerWrapper key={media.id} media={media} />
+                )}
+              </div>
+            </CardContent>
+          </Card>
 
-            {/* 基本信息 */}
-            <Card>
-              <CardContent className="p-4 space-y-2">
-                <div className="grid grid-cols-2 gap-4 text-sm">
-                  <div className="whitespace-nowrap">
-                    <span className="font-medium text-gray-600">文件大小:</span>
-                    <span className="ml-2">{(media.size / 1024 / 1024).toFixed(2)} MB</span>
-                  </div>
-                  <div className="whitespace-nowrap">
-                    <span className="font-medium text-gray-600">上传者:</span>
-                    <span className="ml-2">{media.user.username}</span>
-                  </div>
-                  {media.width && media.height && (
-                    <div className="whitespace-nowrap">
-                      <span className="font-medium text-gray-600">尺寸:</span>
-                      <span className="ml-2">{media.width} × {media.height}</span>
-                    </div>
-                  )}
-                  {media.duration && (
-                    <div className="whitespace-nowrap">
-                      <span className="font-medium text-gray-600">时长:</span>
-                      <span className="ml-2">{Math.floor(media.duration / 60)}:{(media.duration % 60).toString().padStart(2, '0')}</span>
-                    </div>
-                  )}
-                  <div className="whitespace-nowrap">
-                    <span className="font-medium text-gray-600">上传时间:</span>
-                    <span className="ml-2">{new Date(media.created_at).toLocaleString()}</span>
-                  </div>
+          <Card>
+            <CardContent className="p-4 space-y-2">
+              <div className="grid grid-cols-1 gap-4 text-sm sm:grid-cols-2">
+                <div className="whitespace-nowrap">
+                  <span className="font-medium text-gray-600">文件大小:</span>
+                  <span className="ml-2">{(media.size / 1024 / 1024).toFixed(2)} MB</span>
                 </div>
-              </CardContent>
-            </Card>
-          </div>
+                <div className="whitespace-nowrap">
+                  <span className="font-medium text-gray-600">上传者:</span>
+                  <span className="ml-2">{media.user.username}</span>
+                </div>
+                {media.width && media.height && (
+                  <div className="whitespace-nowrap">
+                    <span className="font-medium text-gray-600">尺寸:</span>
+                    <span className="ml-2">{media.width} × {media.height}</span>
+                  </div>
+                )}
+                {media.duration && (
+                  <div className="whitespace-nowrap">
+                    <span className="font-medium text-gray-600">时长:</span>
+                    <span className="ml-2">{Math.floor(media.duration / 60)}:{(media.duration % 60).toString().padStart(2, '0')}</span>
+                  </div>
+                )}
+                <div className="whitespace-nowrap">
+                  <span className="font-medium text-gray-600">上传时间:</span>
+                  <span className="ml-2">{new Date(media.created_at).toLocaleString()}</span>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
 
-          {/* 编辑表单 */}
-          <div className="space-y-4">
-            <div className="space-y-4">
-              {/* 标题 */}
+          <Card>
+            <CardContent className="p-4 space-y-4">
               <div>
                 <Label htmlFor="title">标题</Label>
                 {isEditing && canEdit ? (
@@ -655,11 +598,10 @@ export function MediaDetailModal({ media, isOpen, onClose, onUpdate }: MediaDeta
                     placeholder="请输入标题"
                   />
                 ) : (
-                  <p className="mt-2 p-2 bg-gray-50 rounded-md">{formData.title || '无标题'}</p>
+                  <p className="mt-2 rounded-md bg-gray-50 p-2">{formData.title || '无标题'}</p>
                 )}
               </div>
 
-              {/* 描述 */}
               <div>
                 <Label htmlFor="description">描述</Label>
                 {isEditing && canEdit ? (
@@ -671,21 +613,22 @@ export function MediaDetailModal({ media, isOpen, onClose, onUpdate }: MediaDeta
                     rows={3}
                   />
                 ) : (
-                  <p className="mt-2 p-2 bg-gray-50 rounded-md min-h-[80px]">
+                  <p className="mt-2 min-h-[80px] rounded-md bg-gray-50 p-2">
                     {formData.description || '无描述'}
                   </p>
                 )}
               </div>
 
-              {/* 分类 */}
               <div>
                 <Label htmlFor="category">分类</Label>
                 {isEditing && canEdit ? (
                   <Select
-                    value={formData.category_id || "none"}
-                    onValueChange={(value) => handleInputChange('category_id', value === "none" ? "" : value)}
+                    value={formData.category_id || 'none'}
+                    onValueChange={(value) =>
+                      handleInputChange('category_id', value === 'none' ? '' : value)
+                    }
                   >
-                    <SelectTrigger>
+                    <SelectTrigger className="mt-2">
                       <SelectValue placeholder="选择分类" />
                     </SelectTrigger>
                     <SelectContent>
@@ -698,22 +641,23 @@ export function MediaDetailModal({ media, isOpen, onClose, onUpdate }: MediaDeta
                     </SelectContent>
                   </Select>
                 ) : (
-                  <p className="mt-2 p-2 bg-gray-50 rounded-md">
+                  <p className="mt-2 rounded-md bg-gray-50 p-2">
                     {media.category?.name || '无分类'}
                   </p>
                 )}
               </div>
 
-              {/* 状态 - 只有待审核状态才显示状态选择 */}
               <div>
                 <Label htmlFor="status">状态</Label>
                 {isEditing && canEdit ? (
                   <Select
                     value={formData.status}
-                    onValueChange={(value) => handleInputChange('status', value)}
+                    onValueChange={(value) =>
+                      handleInputChange('status', value as ReviewStatus)
+                    }
                   >
-                    <SelectTrigger>
-                      <SelectValue />
+                    <SelectTrigger className="mt-2">
+                      <SelectValue placeholder="选择状态" />
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="PENDING">待审核</SelectItem>
@@ -729,16 +673,15 @@ export function MediaDetailModal({ media, isOpen, onClose, onUpdate }: MediaDeta
                 )}
               </div>
 
-              {/* 标签 */}
               <div>
                 <Label>标签</Label>
                 {isEditing && canEdit ? (
                   <div className="mt-2 space-y-2">
-                    <div className="flex flex-wrap gap-2 max-h-32 overflow-y-auto p-2 border rounded-md">
+                    <div className="flex max-h-32 flex-wrap gap-2 overflow-y-auto rounded-md border p-2">
                       {tags.map((tag) => (
                         <Badge
                           key={tag.id}
-                          variant={formData.tag_ids.includes(tag.id) ? "default" : "outline"}
+                          variant={formData.tag_ids.includes(tag.id) ? 'default' : 'outline'}
                           className="cursor-pointer"
                           onClick={() => handleTagToggle(tag.id)}
                         >
@@ -749,20 +692,20 @@ export function MediaDetailModal({ media, isOpen, onClose, onUpdate }: MediaDeta
                   </div>
                 ) : (
                   <div className="mt-2 flex flex-wrap gap-2">
-                    {media.media_tags?.length > 0 ? (
-                      media.media_tags.map((mediaTag) => (
-                        <Badge key={mediaTag.tag.id} variant="secondary">
-                          {mediaTag.tag.name}
+                    {currentMediaTags.length > 0 ? (
+                      currentMediaTags.map((tag) => (
+                        <Badge key={tag.id} variant="secondary">
+                          {tag.name}
                         </Badge>
                       ))
                     ) : (
-                      <span className="text-gray-500 text-sm">无标签</span>
+                      <span className="text-sm text-gray-500">无标签</span>
                     )}
                   </div>
                 )}
               </div>
-            </div>
-          </div>
+            </CardContent>
+          </Card>
         </div>
 
         <DialogFooter className="flex justify-between">
@@ -826,7 +769,7 @@ export function MediaDetailModal({ media, isOpen, onClose, onUpdate }: MediaDeta
                         description: media.description || '',
                         category_id: media.category?.id || '',
                         status: media.status,
-                        tag_ids: media.media_tags?.map(tag => tag.tag.id) || []
+                        tag_ids: extractTagIds(media)
                       });
                     }
                   }}

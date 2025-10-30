@@ -51,6 +51,7 @@ export interface VideoItem {
     sprite?: string;
     spriteVtt?: string;
   };
+  original_file_url?: string | null;
 }
 
 export interface VideoFilters {

@@ -71,6 +71,11 @@ export const queryKeys = {
     detail: (id: string) => ['media', 'detail', id] as const,
     stats: () => ['media', 'stats'] as const,
   },
+  recycle: {
+    all: ['recycle'] as const,
+    list: (params?: any) => ['recycle', 'list', params] as const,
+    pending: (limit?: number) => ['recycle', 'pending', limit] as const,
+  },
   // 管理面板相关
   dashboard: {
     all: ['dashboard'] as const,
@@ -122,6 +127,7 @@ export const queryUtils = {
   // 使特定类型的查询失效
   invalidateUsers: () => queryClient.invalidateQueries({ queryKey: queryKeys.users.all }),
   invalidateMedia: () => queryClient.invalidateQueries({ queryKey: queryKeys.media.all }),
+  invalidateRecycle: () => queryClient.invalidateQueries({ queryKey: queryKeys.recycle.all }),
   invalidateDashboard: () => queryClient.invalidateQueries({ queryKey: queryKeys.dashboard.all }),
   invalidateTags: () => queryClient.invalidateQueries({ queryKey: queryKeys.tags.all }),
   invalidateCategories: () => queryClient.invalidateQueries({ queryKey: queryKeys.categories.all }),

@@ -23,6 +23,7 @@ export interface MediaItem {
   description?: string;
   url: string;
   thumbnail_url?: string;
+  original_file_url?: string;
   size: number;
   media_type: 'IMAGE' | 'VIDEO';
   duration?: number;
@@ -40,6 +41,16 @@ export interface MediaItem {
   user: MediaUser;
   category?: MediaCategory;
   tags: MediaTag[];
+  media_tags?: Array<{
+    tag: MediaTag;
+  }>;
+  video_qualities?: Array<{
+    url: string;
+    quality?: string;
+    height?: number;
+    width?: number;
+  }>;
+  hls_url?: string;
 }
 
 export interface MediaListResponse {
@@ -181,14 +192,19 @@ export class MediaService {
 
       // 分页处理
       const paginatedData = filteredData.slice(skip, skip + take);
+      const limit = take;
+      const total = filteredData.length;
+      const page = limit > 0 ? Math.floor(skip / limit) + 1 : 1;
+      const totalPages = limit > 0 ? Math.ceil(total / limit) : 0;
 
       return {
+        success: true,
         data: paginatedData,
-        meta: {
-          total: filteredData.length,
-          skip,
-          take,
-          hasMore: skip + take < filteredData.length
+        pagination: {
+          page,
+          limit,
+          total,
+          totalPages
         }
       };
     } catch (error) {
@@ -239,14 +255,19 @@ export class MediaService {
 
       // 分页处理
       const paginatedData = filteredData.slice(skip, skip + take);
+      const limit = take;
+      const total = filteredData.length;
+      const page = limit > 0 ? Math.floor(skip / limit) + 1 : 1;
+      const totalPages = limit > 0 ? Math.ceil(total / limit) : 0;
 
       return {
+        success: true,
         data: paginatedData,
-        meta: {
-          total: filteredData.length,
-          skip,
-          take,
-          hasMore: skip + take < filteredData.length
+        pagination: {
+          page,
+          limit,
+          total,
+          totalPages
         }
       };
     } catch (error) {

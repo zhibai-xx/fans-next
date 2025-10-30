@@ -16,7 +16,6 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { ModernMediaDetailModal } from './ModernMediaDetailModal';
-import { VideoThumbnail, VideoCardThumbnail } from '@/components/VideoThumbnail';
 import {
   BarChart3,
   Clock,
@@ -29,11 +28,13 @@ import {
   Settings,
   ImageIcon,
   VideoIcon,
-  Trash2
+  Trash2,
+  Play
 } from 'lucide-react';
 import { ReviewService } from '@/services/review.service';
+import { resolveMediaImageUrl } from '@/lib/utils/media-url';
 
-// 极简高性能的媒体项组件 - 使用优化的CSS类
+// 审核媒体项 - 对齐内容管理页面的封面逻辑
 const MediaItem = memo(({ media, isSelected, viewMode, onToggle, onViewDetail }: {
   media: any;
   isSelected: boolean;
@@ -41,129 +42,95 @@ const MediaItem = memo(({ media, isSelected, viewMode, onToggle, onViewDetail }:
   onToggle: (id: string) => void;
   onViewDetail: (media: any) => void;
 }) => {
-  // 使用预定义的CSS类，避免运行时计算
-  const containerClass = `media-item border rounded-lg overflow-hidden cursor-pointer ${isSelected ? "media-item-selected" : "media-item-unselected"
-    }`;
+  const [thumbnailLoaded, setThumbnailLoaded] = useState(false);
+  const [thumbnailError, setThumbnailError] = useState(false);
+  const previewUrl = resolveMediaImageUrl(media.thumbnail_url || media.url);
+  const isVideo = media.media_type === 'VIDEO';
 
-  // 直接的点击处理
-  const handleClick = () => onToggle(media.id);
-
-  // 查看详情处理（阻止事件冒泡）
-  const handleViewDetail = (e: React.MouseEvent) => {
+  const handleToggleSelection = (e: React.MouseEvent) => {
     e.stopPropagation();
-    onViewDetail(media);
+    onToggle(media.id);
   };
+
+  const handleViewDetail = () => onViewDetail(media);
+
+  const renderThumbnail = (wrapperClass: string) => (
+    <div className={`relative ${wrapperClass} bg-gray-100 flex items-center justify-center`}>
+      {!thumbnailLoaded && !thumbnailError && <ImageIcon className="h-10 w-10 text-gray-300" />}
+      {!thumbnailError ? (
+        <img
+          src={previewUrl}
+          alt={media.title}
+          className={`h-full w-full object-contain transition-opacity duration-200 ${thumbnailLoaded ? 'opacity-100' : 'opacity-0'}`}
+          loading="lazy"
+          onLoad={() => setThumbnailLoaded(true)}
+          onError={() => setThumbnailError(true)}
+        />
+      ) : (
+        <div className="text-center text-xs text-gray-400">封面加载失败</div>
+      )}
+      {isVideo && !thumbnailError && (
+        <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+          <div className="bg-black/50 rounded-full p-3 shadow-md">
+            <Play className="h-8 w-8 text-white" />
+          </div>
+        </div>
+      )}
+      {isVideo && media.duration && (
+        <div className="absolute bottom-2 right-2 bg-black/80 text-white text-xs px-2 py-1 rounded-md backdrop-blur-sm">
+          {`${Math.floor(media.duration / 60)}:${(media.duration % 60).toString().padStart(2, '0')}`}
+        </div>
+      )}
+    </div>
+  );
+
+  const containerClass = `media-item border rounded-lg overflow-hidden cursor-pointer ${
+    isSelected ? 'media-item-selected' : 'media-item-unselected'
+  }`;
 
   if (viewMode === 'grid') {
     return (
-      <div className={containerClass} onClick={handleClick}>
-        <div className="aspect-square relative group rounded-lg overflow-hidden">
-          {media.media_type === 'VIDEO' ? (
-            <VideoCardThumbnail
-              src={media.thumbnail_url}
-              alt={media.title}
-              duration={media.duration}
-              className="w-full h-full"
-              showPlayIcon={false}
-              loading={!media.thumbnail_url}
-              smartAspectRatio={true}
-            />
-          ) : (
-            <div className="bg-gray-100 flex items-center justify-center h-full">
-              <img
-                src={media.thumbnail_url || media.url}
-                alt=""
-                className="media-image max-w-full max-h-full object-contain"
-                loading="lazy"
-                decoding="async"
-                sizes="(max-width: 768px) 100vw, (max-width: 1024px) 50vw, 25vw"
-                style={{
-                  maxWidth: '100%',
-                  maxHeight: '100%'
-                }}
-              />
-            </div>
-          )}
-          {/* 选中状态 */}
-          {isSelected && (
-            <div className="absolute top-2 right-2" style={{ transform: 'translateZ(0)' }}>
-              <CheckCircle className="h-6 w-6 text-blue-500 bg-white rounded-full" />
-            </div>
-          )}
-          {/* 查看详情按钮 - hover时显示 */}
-          <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-30 transition-all duration-200 flex items-center justify-center">
-            <Button
-              size="sm"
-              variant="secondary"
-              className="opacity-0 group-hover:opacity-100 transition-opacity duration-200"
-              onClick={handleViewDetail}
-            >
-              <Eye className="h-4 w-4 mr-1" />
-              详情
-            </Button>
-          </div>
+      <div className={containerClass} onClick={handleViewDetail}>
+        <div className="relative overflow-hidden rounded-lg">
+          <button
+            type="button"
+            className="absolute top-2 left-2 z-10 flex h-7 w-7 items-center justify-center rounded-md bg-white/80 hover:bg-white transition"
+            onClick={handleToggleSelection}
+          >
+            {isSelected ? <CheckCircle className="h-4 w-4 text-blue-600" /> : <div className="h-4 w-4 rounded-sm border border-gray-400" />}
+          </button>
+          {renderThumbnail('aspect-video')}
         </div>
-        <div className="p-3">
-          <h4 className="font-medium text-sm truncate">{media.title}</h4>
-          <p className="text-xs text-gray-600 mt-1">
-            {media.user.username} • {media.media_type}
-          </p>
+        <div className="p-3 space-y-1">
+          <h4 className="font-medium text-sm truncate">{media.title || '未命名媒体'}</h4>
+          <p className="text-xs text-gray-600 truncate">{media.user.username} • {media.media_type}</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className={containerClass} onClick={handleClick}>
+    <div className={containerClass} onClick={handleViewDetail}>
       <div className="flex items-center p-3 space-x-3">
-        <div className="w-16 h-16 rounded overflow-hidden flex-shrink-0">
-          {media.media_type === 'VIDEO' ? (
-            <VideoCardThumbnail
-              src={media.thumbnail_url}
-              alt={media.title}
-              duration={media.duration}
-              className="w-full h-full"
-              showPlayIcon={false}
-              loading={!media.thumbnail_url}
-              smartAspectRatio={true}
-            />
-          ) : (
-            <div className="bg-gray-100 flex items-center justify-center h-full">
-              <img
-                src={media.thumbnail_url || media.url}
-                alt=""
-                className="media-image w-full h-full object-contain"
-                loading="lazy"
-                decoding="async"
-                sizes="64px"
-              />
-            </div>
-          )}
+        <button
+          type="button"
+          className="flex-shrink-0 h-7 w-7 bg-white border border-gray-300 rounded-md flex items-center justify-center"
+          onClick={handleToggleSelection}
+        >
+          {isSelected ? <CheckCircle className="h-4 w-4 text-blue-600" /> : <div className="h-4 w-4 rounded-sm border border-gray-400" />}
+        </button>
+        <div className="w-24 h-16 rounded overflow-hidden flex-shrink-0 bg-gray-100">
+          {renderThumbnail('w-full h-full')}
         </div>
         <div className="flex-1 min-w-0">
-          <h4 className="font-medium text-sm truncate">{media.title}</h4>
-          <p className="text-xs text-gray-600 mt-1">
-            {media.user.username} • {media.media_type} • {media.status}
-          </p>
+          <h4 className="font-medium text-sm truncate">{media.title || '未命名媒体'}</h4>
+          <p className="text-xs text-gray-600 mt-1 truncate">{media.user.username} • {media.media_type} • {media.status}</p>
         </div>
-        <div className="flex items-center gap-2">
-          <Button
-            size="sm"
-            variant="ghost"
-            onClick={handleViewDetail}
-            className="p-1 h-8 w-8"
-          >
-            <Eye className="h-4 w-4" />
-          </Button>
-          {isSelected && (
-            <CheckCircle className="h-5 w-5 text-blue-500" style={{ transform: 'translateZ(0)' }} />
-          )}
-        </div>
+        {isSelected && <CheckCircle className="h-5 w-5 text-blue-500" />}
       </div>
     </div>
   );
 });
-
 MediaItem.displayName = 'MediaItem';
 
 // 优化的媒体网格组件
