@@ -5,11 +5,11 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { IconRenderer } from '@/components/icons/IconRenderer';
-import { WeiboFile } from '@/services/weibo-import.service';
+import { SystemIngestFile } from '@/services/system-ingest.service';
 import { useSession } from 'next-auth/react';
 
-interface WeiboFileCardProps {
-  file: WeiboFile;
+interface SystemIngestFileCardProps {
+  file: SystemIngestFile;
   isSelected: boolean;
   onToggleSelection: () => void;
 }
@@ -60,7 +60,7 @@ class RequestQueue {
 // 全局请求队列实例
 const requestQueue = new RequestQueue();
 
-export const WeiboFileCard: React.FC<WeiboFileCardProps> = ({
+export const SystemIngestFileCard: React.FC<SystemIngestFileCardProps> = ({
   file,
   isSelected,
   onToggleSelection,
@@ -94,7 +94,7 @@ export const WeiboFileCard: React.FC<WeiboFileCardProps> = ({
               return;
             }
 
-            const apiUrl = `${API_BASE_URL}/upload/weibo-preview/${file.id}`;
+            const apiUrl = `${API_BASE_URL}/upload/system-ingest/preview/${file.id}`;
 
             console.log('正在获取图片预览:', apiUrl);
             console.log('认证令牌:', session.accessToken ? '已提供' : '未提供');

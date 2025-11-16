@@ -2,23 +2,23 @@ import { apiClient } from '@/lib/api-client';
 
 // 类型定义
 export interface UserProfile {
-  id: string;
+  id: number;
+  uuid: string;
   username: string;
   nickname?: string;
-  email?: string;
+  email: string;
   phoneNumber?: string;
-  avatar?: string;
   avatar_url?: string;
-  // bio?: string;
+  role: 'USER' | 'ADMIN';
+  status: 'ACTIVE' | 'SUSPENDED';
   created_at: string;
+  updated_at: string;
 }
 
 export interface UpdateProfileRequest {
   nickname?: string;
   email?: string;
   phoneNumber?: string;
-  // bio?: string;
-  avatar?: string;
 }
 
 export interface ChangePasswordRequest {
@@ -38,11 +38,14 @@ export interface Favorite {
 
 export interface Download {
   id: string;
-  type: 'image' | 'video' | 'document';
+  media_id: string;
+  media_type: 'IMAGE' | 'VIDEO';
   title: string;
-  fileSize: string;
-  downloadedAt: string;
-  url?: string;
+  thumbnail_url?: string;
+  file_size?: number;
+  file_type?: string;
+  downloaded_at: string;
+  download_path: string;
 }
 
 /**
@@ -60,7 +63,7 @@ export const userService = {
    * 更新用户个人资料
    */
   updateProfile: (data: UpdateProfileRequest) => {
-    return apiClient.put<{ user: UserProfile }>('/users/profile', data);
+    return apiClient.put<UserProfile>('/users/profile', data);
   },
 
   /**
@@ -94,7 +97,17 @@ export const userService = {
   /**
    * 获取下载记录
    */
-  getDownloads: () => {
-    return apiClient.get<{ downloads: Download[] }>('/user/downloads');
+  getDownloads: (params: { page?: number; limit?: number } = {}) => {
+    return apiClient.get<{ success: boolean; data: Download[]; pagination: { page: number; limit: number; total: number; totalPages: number } }>(
+      '/user/downloads',
+      { params }
+    );
   },
-}; 
+
+  /**
+   * 上传头像
+   */
+  uploadAvatar: (formData: FormData) => {
+    return apiClient.post<UserProfile>('/users/profile/avatar', formData);
+  },
+};

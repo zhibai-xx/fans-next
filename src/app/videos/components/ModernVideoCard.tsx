@@ -1,13 +1,13 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { VideoItem, VideoService } from '@/services/video.service';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { UserAvatar } from '@/components/avatar/UserAvatar';
 import {
   Heart,
   Eye,
@@ -17,7 +17,12 @@ import {
   Share2,
   MoreHorizontal
 } from 'lucide-react';
-import { useLikeVideoMutation, useFavoriteVideoMutation, useIncrementViewsMutation } from '@/hooks/useVideos';
+import {
+  useLikeVideoMutation,
+  useFavoriteVideoMutation,
+  useVideoInteractionStatus
+} from '@/hooks/useVideos';
+import { useToast } from '@/hooks/use-toast';
 
 interface ModernVideoCardProps {
   video: VideoItem;
@@ -26,21 +31,59 @@ interface ModernVideoCardProps {
 }
 
 export function ModernVideoCard({ video, className, showActions = true }: ModernVideoCardProps) {
+  const { toast } = useToast();
   const [isHovered, setIsHovered] = useState(false);
   const [isLiked, setIsLiked] = useState(false);
   const [isFavorited, setIsFavorited] = useState(false);
+  const [likeCount, setLikeCount] = useState(video.likes_count || 0);
 
   // Mutations
   const likeMutation = useLikeVideoMutation();
   const favoriteMutation = useFavoriteVideoMutation();
-  const incrementViewsMutation = useIncrementViewsMutation();
+  const { data: interactionStatus } = useVideoInteractionStatus(video.id);
+
+  const tags = useMemo(() => {
+    if (video.tags?.length) {
+      return video.tags;
+    }
+    const legacyTags = (video as any).media_tags?.map((item: any) => item.tag);
+    return legacyTags || [];
+  }, [video]);
+
+  useEffect(() => {
+    if (interactionStatus?.data) {
+      setIsLiked(interactionStatus.data.isLiked);
+      setIsFavorited(interactionStatus.data.isFavorited);
+      setLikeCount(
+        interactionStatus.data.likesCount ?? video.likes_count ?? 0
+      );
+      return;
+    }
+
+    // 默认回退到视频原始统计
+    setIsLiked(false);
+    setIsFavorited(false);
+    setLikeCount(video.likes_count || 0);
+  }, [interactionStatus?.data, video.id, video.likes_count]);
 
   const handleLike = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
     const newLikedState = !isLiked;
+    const delta = newLikedState ? 1 : -1;
+
     setIsLiked(newLikedState);
-    likeMutation.mutate({ videoId: video.id, isLiked: newLikedState });
+    setLikeCount((prev) => Math.max(0, (prev || 0) + delta));
+
+    likeMutation.mutate(
+      { videoId: video.id, isLiked: newLikedState },
+      {
+        onError: () => {
+          setIsLiked(!newLikedState);
+          setLikeCount((prev) => Math.max(0, (prev || 0) - delta));
+        },
+      }
+    );
   };
 
   const handleFavorite = (e: React.MouseEvent) => {
@@ -48,7 +91,14 @@ export function ModernVideoCard({ video, className, showActions = true }: Modern
     e.stopPropagation();
     const newFavoritedState = !isFavorited;
     setIsFavorited(newFavoritedState);
-    favoriteMutation.mutate({ videoId: video.id, isFavorited: newFavoritedState });
+    favoriteMutation.mutate(
+      { videoId: video.id, isFavorited: newFavoritedState },
+      {
+        onError: () => {
+          setIsFavorited(!newFavoritedState);
+        },
+      }
+    );
   };
 
   const handleShare = async (e: React.MouseEvent) => {
@@ -68,15 +118,20 @@ export function ModernVideoCard({ video, className, showActions = true }: Modern
       // 备用分享方案：复制到剪贴板
       try {
         await navigator.clipboard.writeText(`${window.location.origin}/videos/${video.id}`);
-        // TODO: 显示复制成功提示
+        toast({
+          title: '链接已复制',
+          description: '快邀请朋友一起来看吧～',
+          duration: 2000,
+        });
       } catch (err) {
         console.log('复制失败');
+        toast({
+          title: '复制失败',
+          description: '请稍后再试',
+          variant: 'destructive',
+        });
       }
     }
-  };
-
-  const handleVideoClick = () => {
-    incrementViewsMutation.mutate(video.id);
   };
 
   // 获取缩略图URL
@@ -97,11 +152,11 @@ export function ModernVideoCard({ video, className, showActions = true }: Modern
 
   return (
     <Card
-      className={`group overflow-hidden transition-all duration-300 hover:shadow-xl hover:-translate-y-1 bg-white dark:bg-gray-800 ${className}`}
+      className={`group overflow-hidden transition-all duration-300 hover:shadow-xl hover:-translate-y-1 bg-white dark:bg-gray-800 flex flex-col h-full ${className}`}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
     >
-      <Link href={`/videos/${video.id}`} onClick={handleVideoClick}>
+      <Link href={`/videos/${video.id}`}>
         <div className="relative aspect-video overflow-hidden bg-gray-100 dark:bg-gray-700">
           <Image
             src={thumbnailUrl}
@@ -143,8 +198,8 @@ export function ModernVideoCard({ video, className, showActions = true }: Modern
         </div>
       </Link>
 
-      <CardContent className="p-4">
-        <Link href={`/videos/${video.id}`} onClick={handleVideoClick}>
+      <CardContent className="flex flex-col flex-1 p-4">
+        <Link href={`/videos/${video.id}`}>
           <h3 className="font-semibold text-base line-clamp-2 group-hover:text-blue-600 transition-colors mb-3">
             {video.title}
           </h3>
@@ -152,15 +207,11 @@ export function ModernVideoCard({ video, className, showActions = true }: Modern
 
         {/* 用户信息 */}
         <div className="flex items-center space-x-3 mb-3">
-          <Avatar className="w-8 h-8">
-            <AvatarImage
-              src={video.user.avatar_url || '/assets/default-avatar.png'}
-              alt={video.user.username}
-            />
-            <AvatarFallback>
-              {video.user.username.charAt(0).toUpperCase()}
-            </AvatarFallback>
-          </Avatar>
+          <UserAvatar
+            src={video.user.avatar_url}
+            name={video.user.nickname || video.user.username}
+            size="sm"
+          />
           <div className="flex-1 min-w-0">
             <p className="text-sm font-medium text-gray-900 dark:text-gray-100 truncate">
               {video.user.username}
@@ -180,23 +231,21 @@ export function ModernVideoCard({ video, className, showActions = true }: Modern
         </div>
 
         {/* 标签 */}
-        {video.tags && video.tags.length > 0 && (
-          <div className="flex flex-wrap gap-1 mb-3">
-            {video.tags.slice(0, 3).map((tag) => (
-              <Badge
-                key={tag.id}
-                variant="outline"
-                className="text-xs px-2 py-0.5"
-              >
-                {tag.name}
-              </Badge>
-            ))}
-          </div>
-        )}
+        <div className="flex flex-wrap gap-1 mb-3 min-h-[1.5rem]">
+          {tags.slice(0, 3).map((tag) => (
+            <Badge
+              key={tag.id}
+              variant="outline"
+              className="text-xs px-2 py-0.5"
+            >
+              {tag.name}
+            </Badge>
+          ))}
+        </div>
 
         {/* 操作按钮 */}
         {showActions && (
-          <div className="flex items-center justify-between pt-3 border-t border-gray-100 dark:border-gray-700">
+          <div className="mt-auto flex items-center justify-between pt-3 border-t border-gray-100 dark:border-gray-700">
             <div className="flex items-center space-x-1">
               <Button
                 variant="ghost"
@@ -206,7 +255,7 @@ export function ModernVideoCard({ video, className, showActions = true }: Modern
                 disabled={likeMutation.isPending}
               >
                 <Heart className={`w-4 h-4 ${isLiked ? 'fill-current' : ''}`} />
-                <span className="ml-1 text-xs">{video.likes_count}</span>
+                <span className="ml-1 text-xs">{likeCount}</span>
               </Button>
 
               <Button
@@ -242,4 +291,3 @@ export function ModernVideoCard({ video, className, showActions = true }: Modern
     </Card>
   );
 }
-

@@ -4,14 +4,14 @@ import React from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { IconRenderer } from '@/components/icons/IconRenderer';
-import { ScanResult } from '@/services/weibo-import.service';
+import { SystemIngestScanResult } from '@/services/system-ingest.service';
 
-interface WeiboFileStatsProps {
-  scanResult: ScanResult;
+interface SystemIngestFileStatsProps {
+  scanResult: SystemIngestScanResult;
   selectedCount: number;
 }
 
-export const WeiboFileStats: React.FC<WeiboFileStatsProps> = ({
+export const SystemIngestFileStats: React.FC<SystemIngestFileStatsProps> = ({
   scanResult,
   selectedCount,
 }) => {

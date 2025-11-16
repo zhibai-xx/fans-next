@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { useAuth } from '@/hooks/useAuth';
 import { useLogoutMutation } from '@/hooks/mutations/useAuthMutations';
 import LoadingSpinner from '@/components/LoadingSpinner';
+import { UserAvatar } from '@/components/avatar/UserAvatar';
 
 export function AuthNavButtons() {
   const { user, isAuthenticated, isLoading, isAdmin } = useAuth();
@@ -39,19 +40,12 @@ export function AuthNavButtons() {
           variant="secondary"
           className="w-full py-2 px-4 bg-gray-800 flex items-center justify-center space-x-2 rounded-full hover:bg-gray-700 transition text-white"
         >
-          {user.avatar_url ? (
-            <img
-              src={user.avatar_url}
-              alt={user.nickname || user.username || "用户头像"}
-              className="w-5 h-5 rounded-full"
-            />
-          ) : (
-            <div className="w-5 h-5 bg-white text-gray-800 rounded-full flex items-center justify-center text-xs font-bold">
-              {user.nickname?.charAt(0) ||
-                user.username?.charAt(0) ||
-                "U"}
-            </div>
-          )}
+          <UserAvatar
+            src={user.avatar_url}
+            name={user.nickname || user.username || '用户'}
+            size="sm"
+            className="mr-2 h-5 w-5"
+          />
           <span className="text-sm truncate">
             {user.nickname || user.username || "用户"}
           </span>

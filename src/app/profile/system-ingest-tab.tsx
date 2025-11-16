@@ -10,28 +10,29 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import { Spinner } from '@/components/Spinner';
-import { weiboImportService } from '@/services/weibo-import.service';
-import OptimizedWeiboFileCard from '../weibo-import/components/OptimizedWeiboFileCard';
+import { systemIngestService } from '@/services/system-ingest.service';
+import OptimizedSystemIngestFileCard from '../system-ingest/components/OptimizedSystemIngestFileCard';
 import { PermissionGuard } from '@/components/auth/PermissionGuard';
 
-interface WeiboFile {
+interface SystemIngestFile {
   id: string;
   name: string;
   path: string;
   size: number;
   type: 'image' | 'video' | 'gif';
   lastModified: string;
+  userId?: string;
 }
 
-interface WeiboUser {
+interface SystemIngestUser {
   userId: string;
   userName: string;
   totalFiles: number;
-  files: WeiboFile[];
+  files: SystemIngestFile[];
 }
 
 interface ScanResult {
-  users: WeiboUser[];
+  users: SystemIngestUser[];
   totalFiles: number;
   totalSize: number;
 }
@@ -64,7 +65,7 @@ const PaginationInfo = React.memo<{
 
 PaginationInfo.displayName = 'PaginationInfo';
 
-export default function WeiboImportTab() {
+export default function SystemIngestTab() {
   const { hasPermission, isAdmin, isLoading: authLoading } = useAuth();
   const { toast } = useToast();
 
@@ -82,7 +83,7 @@ export default function WeiboImportTab() {
   const allFiles = useMemo(() => {
     if (!scanResult) return [];
 
-    const files: (WeiboFile & { userId: string })[] = [];
+    const files: (SystemIngestFile & { userId: string })[] = [];
     scanResult.users.forEach(user => {
       user.files.forEach(file => {
         files.push({ ...file, userId: user.userId });
@@ -132,7 +133,7 @@ export default function WeiboImportTab() {
     setIsScanning(true);
     try {
       const scanPath = customScanPath.trim() || undefined;
-      const result = await weiboImportService.scanWeiboFiles(scanPath);
+      const result = await systemIngestService.scanDirectory(scanPath);
       setScanResult(result);
       setCurrentPage(1);
       toast({
@@ -142,7 +143,7 @@ export default function WeiboImportTab() {
     } catch (error: any) {
       toast({
         title: '扫描失败',
-        description: error.message || '扫描weibo文件夹失败',
+        description: error.message || '扫描系统导入目录失败',
         variant: 'destructive',
       });
     } finally {
@@ -175,7 +176,7 @@ export default function WeiboImportTab() {
     setIsUploading(true);
     try {
       const selectedFilePaths = Array.from(selectedFiles);
-      const results = await weiboImportService.batchUploadFiles(selectedFilePaths);
+      const results = await systemIngestService.batchUploadFiles(selectedFilePaths);
       setUploadResults(results);
 
       const successCount = results.filter(r => r.success).length;
@@ -203,7 +204,7 @@ export default function WeiboImportTab() {
   }
 
   return (
-    <PermissionGuard permission="weibo-import">
+    <PermissionGuard permission="system-ingest">
       <div className="space-y-6">
         {/* 功能说明 */}
         <Card className="border-orange-200 bg-orange-50">
@@ -212,12 +213,12 @@ export default function WeiboImportTab() {
               <Badge variant="outline" className="bg-orange-100 text-orange-800">
                 管理员功能
               </Badge>
-              微博文件导入
+              系统导入
             </CardTitle>
           </CardHeader>
           <CardContent>
             <p className="text-orange-700 text-sm">
-              此功能允许管理员扫描并导入weibo-crawler下载的媒体文件。仅管理员可见和使用。
+              此功能允许管理员扫描并导入系统渠道自动采集的媒体文件。仅管理员可见和使用。
             </p>
           </CardContent>
         </Card>
@@ -359,7 +360,7 @@ export default function WeiboImportTab() {
               <CardContent className="p-4">
                 <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
                   {paginationData.paginatedFiles.map((file) => (
-                    <OptimizedWeiboFileCard
+                    <OptimizedSystemIngestFileCard
                       key={file.id}
                       file={file}
                       isSelected={selectedFiles.has(file.path)}

@@ -14,6 +14,7 @@ declare module 'next-auth' {
       name?: string | null;
       email?: string | null;
       image?: string | null;
+      avatar_url?: string | null;
       role?: string;
       status?: string;
     }
@@ -26,6 +27,7 @@ declare module 'next-auth' {
     name?: string | null;
     email?: string | null;
     image?: string | null;
+    avatar_url?: string | null;
     accessToken?: string;
     role?: string;
     status?: string;
@@ -39,6 +41,7 @@ declare module 'next-auth/jwt' {
     accessToken?: string;
     role?: string;
     status?: string;
+    avatar_url?: string | null;
   }
 }
 
@@ -81,6 +84,7 @@ export const authOptions: NextAuthOptions = {
             username: user.username,
             email: user.email,
             image: user.avatar_url, // 使用 avatar_url 作为 image
+            avatar_url: user.avatar_url,
             role: user.role,
             status: user.status,
             accessToken, // 保存从后端获取的访问令牌
@@ -98,13 +102,22 @@ export const authOptions: NextAuthOptions = {
     }),
   ],
   callbacks: {
-    async jwt({ token, user }) {
+    async jwt({ token, user, trigger, session }) {
       if (user) {
         token.id = user.id;
         token.username = user.username;
         token.accessToken = user.accessToken;
         token.role = user.role;
         token.status = user.status;
+        token.avatar_url = (user as any).avatar_url || user.image || token.avatar_url || null;
+      }
+
+      if (trigger === 'update' && session?.user) {
+        token.avatar_url =
+          (session.user as any).avatar_url ||
+          session.user.image ||
+          token.avatar_url ||
+          null;
       }
       return token;
     },
@@ -114,6 +127,8 @@ export const authOptions: NextAuthOptions = {
         session.user.username = token.username;
         session.user.role = token.role;
         session.user.status = token.status;
+        session.user.avatar_url = (token as any).avatar_url || session.user.image || null;
+        session.user.image = (token as any).avatar_url || session.user.image || null;
         session.accessToken = token.accessToken;
 
         // 添加调试日志

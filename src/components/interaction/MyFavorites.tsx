@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { Heart, Bookmark, Eye, Calendar, Filter, Search, Grid, List } from 'lucide-react';
+import { Heart, Bookmark, Eye, Calendar, Filter, Search, Grid, List, Play } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -22,6 +22,10 @@ import type {
 } from '@/types/interaction';
 import type { MediaItem } from '@/services/media.service';
 import { cn } from '@/lib/utils';
+import { useRouter } from 'next/navigation';
+import VideoPlayerWrapper from '@/components/video/VideoPlayerWrapper';
+import { buildVideoSources } from '@/lib/utils/video-sources';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 
 // 图片URL规范化函数
 const normalizeImageUrl = (imageUrl: string): string => {
@@ -62,6 +66,7 @@ export const MyFavorites: React.FC<MyFavoritesProps> = ({
   itemsPerPage = 20,
 }) => {
   const { toast } = useToast();
+  const router = useRouter();
 
   // 状态管理
   const [favorites, setFavorites] = useState<FavoriteItem[]>([]);
@@ -80,6 +85,8 @@ export const MyFavorites: React.FC<MyFavoritesProps> = ({
   // 详情模态框状态
   const [selectedImage, setSelectedImage] = useState<MediaItem | null>(null);
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
+  const [previewVideo, setPreviewVideo] = useState<MediaItem | null>(null);
+  const [isPreviewOpen, setIsPreviewOpen] = useState(false);
   const [interactionStatuses, setInteractionStatuses] = useState<Record<string, MediaInteractionStatus>>({});
 
   // Mutation hooks for API calls
@@ -101,41 +108,43 @@ export const MyFavorites: React.FC<MyFavoritesProps> = ({
 
       if (response.success && response.data && response.pagination) {
         // 转换数据格式
-        const transformedFavorites: FavoriteItem[] = response.data.map((media: any) => ({
-          id: `favorite-${media.id}`,
+        const transformedFavorites: FavoriteItem[] = response.data.map((favorite: any) => ({
+          id: favorite.id,
           media: {
-            id: media.id,
-            title: media.title,
-            description: media.description,
-            url: media.url,
-            thumbnail_url: media.thumbnail_url,
-            size: media.size, // 🎯 修复：添加文件大小
-            media_type: media.media_type,
-            duration: media.duration, // 🎯 修复：添加视频时长
-            width: media.width, // 🎯 修复：添加图片宽度
-            height: media.height, // 🎯 修复：添加图片高度
-            status: media.status, // 🎯 修复：添加状态
-            views: media.views,
-            likes_count: media.likes_count,
-            favorites_count: media.favorites_count,
-            source: media.source, // 🎯 修复：添加来源
-            original_created_at: media.original_created_at, // 🎯 修复：添加原创建时间
-            source_metadata: media.source_metadata, // 🎯 修复：添加来源元数据
-            created_at: media.created_at,
-            updated_at: media.updated_at, // 🎯 修复：添加更新时间
+            id: favorite.media.id,
+            title: favorite.media.title,
+            description: favorite.media.description,
+            url: favorite.media.url,
+            thumbnail_url: favorite.media.thumbnail_url,
+            size: favorite.media.size,
+            media_type: favorite.media.media_type,
+            duration: favorite.media.duration,
+            width: favorite.media.width,
+            height: favorite.media.height,
+            status: favorite.media.status,
+            views: favorite.media.views,
+            likes_count: favorite.media.likes_count,
+            favorites_count: favorite.media.favorites_count,
+            source: favorite.media.source,
+            original_created_at: favorite.media.original_created_at,
+            source_metadata: favorite.media.source_metadata,
+            created_at: favorite.media.created_at,
+            updated_at: favorite.media.updated_at,
             user: {
-              id: media.user.id,
-              uuid: media.user.uuid,
-              username: media.user.username,
-              avatar_url: media.user.avatar_url
+              id: favorite.media.user.id,
+              uuid: favorite.media.user.uuid,
+              username: favorite.media.user.username,
+              avatar_url: favorite.media.user.avatar_url,
             },
-            category: media.category,
-            tags: media.media_tags?.map((mediaTag: any) => ({
-              id: mediaTag.tag.id,
-              name: mediaTag.tag.name,
-            })) || [],
+            category: favorite.media.category,
+            tags:
+              favorite.media.media_tags?.map((mediaTag: any) => ({
+                id: mediaTag.tag.id,
+                name: mediaTag.tag.name,
+              })) || [],
+            video_qualities: favorite.media.video_qualities || [],
           },
-          created_at: new Date().toISOString(), // 收藏时间，这里暂时使用当前时间
+          created_at: favorite.created_at,
         }));
 
         setFavorites(transformedFavorites);
@@ -262,44 +271,64 @@ export const MyFavorites: React.FC<MyFavoritesProps> = ({
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }, []);
 
-  /**
- * 处理图片点击事件
- */
-  const handleImageClick = useCallback((item: FavoriteItem) => {
-    // 转换为 MediaItem 格式
-    const mediaItem: MediaItem = {
-      id: item.media.id,
-      title: item.media.title,
-      description: item.media.description || '',
-      url: normalizeImageUrl(item.media.url),
-      thumbnail_url: normalizeImageUrl(item.media.thumbnail_url || ''),
-      size: item.media.size, // 🎯 修复：使用实际文件大小
-      media_type: item.media.media_type,
-      duration: item.media.duration, // 🎯 修复：添加视频时长
-      width: item.media.width, // 🎯 修复：使用实际图片宽度
-      height: item.media.height, // 🎯 修复：使用实际图片高度
-      status: item.media.status, // 🎯 修复：添加状态
-      views: item.media.views,
-      likes_count: item.media.likes_count,
-      favorites_count: item.media.favorites_count,
-      source: item.media.source, // 🎯 修复：添加来源
-      original_created_at: item.media.original_created_at, // 🎯 修复：添加原创建时间
-      source_metadata: item.media.source_metadata, // 🎯 修复：添加来源元数据
-      created_at: item.media.created_at,
-      updated_at: item.media.updated_at, // 🎯 修复：添加更新时间
+  const convertFavoriteMediaToMediaItem = useCallback(
+    (media: FavoriteItem['media']): MediaItem => ({
+      id: media.id,
+      title: media.title,
+      description: media.description || '',
+      url:
+        media.media_type === 'VIDEO'
+          ? media.url
+          : normalizeImageUrl(media.url),
+      thumbnail_url: normalizeImageUrl(media.thumbnail_url || media.url),
+      size: media.size,
+      media_type: media.media_type,
+      duration: media.duration,
+      width: media.width,
+      height: media.height,
+      status: media.status,
+      views: media.views,
+      likes_count: media.likes_count,
+      favorites_count: media.favorites_count,
+      source: media.source,
+      original_created_at: media.original_created_at,
+      source_metadata: media.source_metadata,
+      created_at: media.created_at,
+      updated_at: media.updated_at,
       user: {
-        id: item.media.user?.id || 0,
-        uuid: item.media.user?.uuid || '',
-        username: item.media.user?.username || '未知用户',
-        avatar_url: item.media.user?.avatar_url || '/placeholder-image.svg'
+        id: media.user?.id || 0,
+        uuid: media.user?.uuid || '',
+        username: media.user?.username || '未知用户',
+        avatar_url: media.user?.avatar_url || undefined,
       },
-      tags: item.media.tags || [],
-      category: item.media.category || null
-    };
+      tags: media.tags || [],
+      category: media.category || null,
+      video_qualities: media.video_qualities || [],
+    }),
+    [],
+  );
 
-    setSelectedImage(mediaItem);
-    setIsDetailModalOpen(true);
-  }, []);
+  const handleMediaClick = useCallback(
+    (item: FavoriteItem) => {
+      if (item.media.media_type === 'VIDEO') {
+        router.push(`/videos/${item.media.id}`);
+        return;
+      }
+      const mediaItem = convertFavoriteMediaToMediaItem(item.media);
+      setSelectedImage(mediaItem);
+      setIsDetailModalOpen(true);
+    },
+    [convertFavoriteMediaToMediaItem, router],
+  );
+
+  const handlePreviewVideo = useCallback(
+    (media: FavoriteItem['media']) => {
+      const mediaItem = convertFavoriteMediaToMediaItem(media);
+      setPreviewVideo(mediaItem);
+      setIsPreviewOpen(true);
+    },
+    [convertFavoriteMediaToMediaItem],
+  );
 
   /**
    * 关闭详情模态框
@@ -307,6 +336,11 @@ export const MyFavorites: React.FC<MyFavoritesProps> = ({
   const handleCloseModal = useCallback(() => {
     setSelectedImage(null);
     setIsDetailModalOpen(false);
+  }, []);
+
+  const handleClosePreview = useCallback(() => {
+    setPreviewVideo(null);
+    setIsPreviewOpen(false);
   }, []);
 
   /**
@@ -475,7 +509,7 @@ export const MyFavorites: React.FC<MyFavoritesProps> = ({
               <div className="flex-shrink-0">
                 <div
                   className="relative w-32 h-24 bg-gray-200 rounded-lg overflow-hidden cursor-pointer"
-                  onClick={() => handleImageClick(item)}
+                  onClick={() => handleMediaClick(item)}
                 >
                   <img
                     src={normalizeImageUrl(media.thumbnail_url || media.url)}
@@ -486,11 +520,18 @@ export const MyFavorites: React.FC<MyFavoritesProps> = ({
                     }}
                   />
                   {media.media_type === 'VIDEO' && (
-                    <div className="absolute inset-0 bg-black bg-opacity-30 flex items-center justify-center">
-                      <div className="w-8 h-8 bg-white bg-opacity-80 rounded-full flex items-center justify-center">
-                        <div className="w-0 h-0 border-l-2 border-r-0 border-t-2 border-b-2 border-transparent border-l-gray-700 ml-1"></div>
-                      </div>
-                    </div>
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      className="absolute top-2 right-2 h-7 rounded-full bg-white/90 text-gray-800 shadow-sm hover:bg-white"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handlePreviewVideo(media);
+                      }}
+                    >
+                      <Play className="h-3 w-3 mr-1" />
+                      预览
+                    </Button>
                   )}
                 </div>
               </div>
@@ -562,7 +603,7 @@ export const MyFavorites: React.FC<MyFavoritesProps> = ({
 
     // 网格视图
     return (
-      <Card key={item.id} className="overflow-hidden cursor-pointer" onClick={() => handleImageClick(item)}>
+      <Card key={item.id} className="overflow-hidden cursor-pointer" onClick={() => handleMediaClick(item)}>
         <div className="relative aspect-square">
           <img
             src={normalizeImageUrl(media.thumbnail_url || media.url)}
@@ -573,13 +614,20 @@ export const MyFavorites: React.FC<MyFavoritesProps> = ({
             }}
           />
           {media.media_type === 'VIDEO' && (
-            <div className="absolute inset-0 bg-black bg-opacity-30 flex items-center justify-center">
-              <div className="w-12 h-12 bg-white bg-opacity-80 rounded-full flex items-center justify-center">
-                <div className="w-0 h-0 border-l-4 border-r-0 border-t-4 border-b-4 border-transparent border-l-gray-700 ml-1"></div>
-              </div>
-            </div>
+            <Button
+              variant="secondary"
+              size="sm"
+              className="absolute top-2 right-2 h-7 rounded-full bg-white/90 text-gray-800 shadow-sm hover:bg-white z-10"
+              onClick={(e) => {
+                e.stopPropagation();
+                handlePreviewVideo(media);
+              }}
+            >
+              <Play className="h-3 w-3 mr-1" />
+              预览
+            </Button>
           )}
-          <div className="absolute top-2 right-2">
+          <div className="absolute top-2 left-2">
             <Badge variant="secondary" className="text-xs">
               {media.media_type === 'IMAGE' ? '图片' : '视频'}
             </Badge>
@@ -626,6 +674,15 @@ export const MyFavorites: React.FC<MyFavoritesProps> = ({
       </Card>
     );
   };
+
+  const previewSources = useMemo(() => {
+    if (!previewVideo) return [];
+    return buildVideoSources(previewVideo, { isAuthenticated: true });
+  }, [previewVideo]);
+
+  const previewPoster = previewVideo
+    ? normalizeImageUrl(previewVideo.thumbnail_url || previewVideo.url)
+    : undefined;
 
   return (
     <div className={cn('max-w-7xl mx-auto p-6', className)}>
@@ -754,6 +811,34 @@ export const MyFavorites: React.FC<MyFavoritesProps> = ({
         onFavorite={handleFavorite}
         interactionStatus={selectedImage ? interactionStatuses[selectedImage.id] : undefined}
       />
+
+      <Dialog
+        open={isPreviewOpen && !!previewVideo}
+        onOpenChange={(open) => {
+          if (!open) {
+            handleClosePreview();
+          }
+        }}
+      >
+        <DialogContent className="max-w-4xl">
+          <DialogHeader>
+            <DialogTitle>{previewVideo?.title || '视频预览'}</DialogTitle>
+          </DialogHeader>
+          {previewVideo && previewSources.length > 0 ? (
+            <VideoPlayerWrapper
+              src={previewSources}
+              poster={previewPoster}
+              controls
+              enableQualitySelector={previewSources.length > 1}
+              className="w-full"
+            />
+          ) : (
+            <div className="py-10 text-center text-sm text-gray-500">
+              暂无可预览的视频源
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

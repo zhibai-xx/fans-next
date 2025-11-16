@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import Image from 'next/image';
-import { Heart, Bookmark, Download, Eye, Calendar, User } from 'lucide-react';
+import { Heart, Bookmark, Download, Eye, Calendar } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import LoadingSpinner from '@/components/LoadingSpinner';
 import { Badge } from '@/components/ui/badge';
@@ -11,23 +11,8 @@ import { useToast } from '@/hooks/use-toast';
 import { MediaItem } from '@/services/media.service';
 import { InteractionService } from '@/services/interaction.service';
 import type { MediaInteractionStatus } from '@/types/interaction';
-
-// 头像URL规范化函数
-const normalizeAvatarUrl = (avatarUrl?: string): string => {
-  if (!avatarUrl || avatarUrl === 'default_avatar.png') {
-    return '/assets/zjy3.png';
-  }
-
-  if (avatarUrl.startsWith('http://') || avatarUrl.startsWith('https://')) {
-    return avatarUrl;
-  }
-
-  if (avatarUrl.startsWith('/')) {
-    return avatarUrl;
-  }
-
-  return `/${avatarUrl}`;
-};
+import { requestMediaDownload } from '@/lib/utils/media-download';
+import { UserAvatar } from '@/components/avatar/UserAvatar';
 
 // 图片URL规范化函数
 const normalizeImageUrl = (imageUrl: string): string => {
@@ -237,14 +222,7 @@ const OptimizedImageCard: React.FC<ImageCardProps> = ({
   const handleDownload = async (e: React.MouseEvent) => {
     e.stopPropagation();
     try {
-      const link = document.createElement('a');
-      link.href = normalizeImageUrl(image.url);
-      link.download = image.title || `image-${image.id}`;
-      link.target = '_blank';
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-
+      await requestMediaDownload(image.id, image.title || `image-${image.id}`);
       toast({
         title: '下载开始',
         description: '图片下载已开始',
@@ -341,20 +319,12 @@ const OptimizedImageCard: React.FC<ImageCardProps> = ({
             {/* 底部信息 */}
             <div className="absolute bottom-3 left-3 right-3">
               <div className="flex items-center gap-2 text-white text-sm">
-                <div className="w-6 h-6 bg-white/20 rounded-full flex items-center justify-center overflow-hidden">
-                  {image.user.avatar_url ? (
-                    <Image
-                      src={normalizeAvatarUrl(image.user.avatar_url)}
-                      alt={image.user.username}
-                      width={24}
-                      height={24}
-                      className="object-cover w-auto h-auto"
-                      style={{ width: '100%', height: '100%' }}
-                    />
-                  ) : (
-                    <User className="w-3 h-3" />
-                  )}
-                </div>
+                <UserAvatar
+                  src={image.user.avatar_url}
+                  name={image.user.nickname || image.user.username}
+                  size="sm"
+                  className="h-6 w-6 bg-white/20"
+                />
                 <span className="truncate font-medium">
                   {image.user.username}
                 </span>

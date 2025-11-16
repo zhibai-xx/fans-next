@@ -81,6 +81,16 @@ export interface VideoDetailResponse {
   data: VideoItem;
 }
 
+export interface VideoInteractionStatusResponse {
+  success: boolean;
+  data: {
+    isLiked: boolean;
+    isFavorited: boolean;
+    likesCount: number;
+    favoritesCount: number;
+  } | null;
+}
+
 export interface VideoProcessingStatus {
   mediaId: string;
   status: 'pending' | 'processing' | 'completed' | 'failed';
@@ -107,6 +117,13 @@ export interface VideoProcessingStatus {
       spriteVtt?: string;
     };
   };
+}
+
+export interface IncrementViewPayload {
+  mediaId: string;
+  sessionId?: string | null;
+  mediaType?: 'IMAGE' | 'VIDEO';
+  event?: 'play' | 'detail' | 'preview' | 'open';
 }
 
 /**
@@ -148,21 +165,40 @@ export class VideoService {
     const queryString = params.toString();
     const url = `/media?${queryString}`;
 
-    return apiClient.get(url);
+    return apiClient.get(url, { withAuth: false });
   }
 
   /**
    * 获取视频详情
    */
   static async getVideoById(videoId: string): Promise<VideoDetailResponse> {
-    return apiClient.get(`/media/${videoId}`);
+    const response = await apiClient.get<any>(
+      `/media/${videoId}`,
+      { withAuth: false }
+    );
+
+    if (response && typeof response === 'object' && 'success' in response && 'data' in response) {
+      return response as VideoDetailResponse;
+    }
+
+    return {
+      success: true,
+      data: response as unknown as VideoItem,
+    };
   }
 
   /**
    * 增加视频观看次数
    */
-  static async incrementViews(videoId: string): Promise<{ success: boolean }> {
-    return apiClient.post(`/media/${videoId}/view`);
+  static async incrementViews(
+    videoId: string,
+    payload?: Omit<IncrementViewPayload, 'mediaId'>,
+  ): Promise<{ success: boolean; data?: any }> {
+    return apiClient.post(`/media/${videoId}/view`, {
+      sessionId: payload?.sessionId,
+      mediaType: payload?.mediaType ?? 'VIDEO',
+      event: payload?.event ?? 'play',
+    });
   }
 
   /**
@@ -170,10 +206,10 @@ export class VideoService {
    */
   static async likeVideo(videoId: string, isLiked: boolean): Promise<{ success: boolean }> {
     if (isLiked) {
-      return apiClient.post(`/media/interaction/like`, { mediaId: videoId });
-    } else {
-      return apiClient.delete(`/media/interaction/like`, { data: { mediaId: videoId } });
+      return apiClient.post(`/media/interaction/like`, { media_id: videoId });
     }
+
+    return apiClient.delete(`/media/interaction/like/${videoId}`);
   }
 
   /**
@@ -181,23 +217,45 @@ export class VideoService {
    */
   static async favoriteVideo(videoId: string, isFavorited: boolean): Promise<{ success: boolean }> {
     if (isFavorited) {
-      return apiClient.post(`/media/interaction/favorite`, { mediaId: videoId });
-    } else {
-      return apiClient.delete(`/media/interaction/favorite`, { data: { mediaId: videoId } });
+      return apiClient.post(`/media/interaction/favorite`, { media_id: videoId });
     }
+
+    return apiClient.delete(`/media/interaction/favorite/${videoId}`);
   }
 
   /**
    * 获取用户的视频互动状态
    */
-  static async getInteractionStatus(videoId: string): Promise<{
-    success: boolean;
-    data: {
-      isLiked: boolean;
-      isFavorited: boolean;
-    };
-  }> {
-    return apiClient.get(`/media/interaction/status?mediaIds=${videoId}`);
+  static async getInteractionStatus(videoId: string): Promise<VideoInteractionStatusResponse> {
+    try {
+      const response = await apiClient.get<{
+        success: boolean;
+        data: {
+          is_liked: boolean;
+          is_favorited: boolean;
+          likes_count: number;
+          favorites_count: number;
+        };
+      }>(`/media/interaction/status/${videoId}`, {
+        withAuth: true,
+      });
+
+      return {
+        success: response.success,
+        data: {
+          isLiked: response.data.is_liked,
+          isFavorited: response.data.is_favorited,
+          likesCount: response.data.likes_count,
+          favoritesCount: response.data.favorites_count,
+        },
+      };
+    } catch (error) {
+      console.warn('获取视频互动状态失败，使用默认值:', error);
+      return {
+        success: false,
+        data: null,
+      };
+    }
   }
 
   /**
@@ -229,7 +287,7 @@ export class VideoService {
     params.append('sortBy', 'views');
     params.append('sortOrder', 'desc');
 
-    return apiClient.get(`/media?${params.toString()}`);
+    return apiClient.get(`/media?${params.toString()}`, { withAuth: false });
   }
 
   /**

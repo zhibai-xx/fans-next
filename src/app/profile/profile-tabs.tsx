@@ -9,8 +9,8 @@ import { useAuth } from '@/hooks/useAuth';
 import { AdminOnly } from '@/components/auth/PermissionGuard';
 import dynamic from 'next/dynamic';
 
-// 动态导入微博导入组件，避免不必要的代码加载
-const WeiboImportTab = dynamic(() => import('./weibo-import-tab'), {
+// 动态导入系统导入组件，避免不必要的代码加载
+const SystemIngestTab = dynamic(() => import('./system-ingest-tab'), {
   loading: () => <div className="animate-pulse bg-gray-200 rounded-md h-40" />,
 });
 
@@ -31,8 +31,8 @@ export default function ProfileTabs() {
         <TabsTrigger value="downloads">下载记录</TabsTrigger>
         <TabsTrigger value="uploads">上传记录</TabsTrigger>
         <AdminOnly showFallback={false}>
-          <TabsTrigger value="weibo-import" className="text-orange-600 font-semibold">
-            微博导入
+          <TabsTrigger value="system-ingest" className="text-orange-600 font-semibold">
+            系统导入
           </TabsTrigger>
         </AdminOnly>
       </TabsList>
@@ -58,11 +58,10 @@ export default function ProfileTabs() {
       </TabsContent>
 
       <AdminOnly showFallback={false}>
-        <TabsContent value="weibo-import" className="mt-6">
-          <WeiboImportTab />
+        <TabsContent value="system-ingest" className="mt-6">
+          <SystemIngestTab />
         </TabsContent>
       </AdminOnly>
     </Tabs>
   );
 }
-

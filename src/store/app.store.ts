@@ -35,7 +35,7 @@ interface AppConfig {
 
   // 功能开关
   features: {
-    weiboImport: boolean;
+    systemIngest: boolean;
     videoUpload: boolean;
     adminPanel: boolean;
     performanceMonitor: boolean;
@@ -108,7 +108,7 @@ const defaultConfig: AppConfig = {
   lazyLoading: true,
 
   features: {
-    weiboImport: true,
+    systemIngest: true,
     videoUpload: true,
     adminPanel: true,
     performanceMonitor: process.env.NODE_ENV === 'development',

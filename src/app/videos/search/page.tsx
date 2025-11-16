@@ -1,55 +1,56 @@
 'use client'
 
+import { useMemo } from 'react'
 import { useSearchParams } from 'next/navigation'
-import { useEffect, useState } from 'react'
-import { VideoGrid } from '../components/VideoGrid'
 import { SearchBar } from '../components/SearchBar'
-import { VideoItem } from '@/types/video'
-import { searchVideos } from '@/lib/video'
+import { ModernVideoGrid } from '../components/ModernVideoGrid'
+import { useSearchVideos } from '@/hooks/useVideos'
 
 export default function SearchPage() {
   const searchParams = useSearchParams()
-  const query = searchParams.get('q') || ''
-  const [results, setResults] = useState<VideoItem[]>([])
-  const [loading, setLoading] = useState(true)
+  const query = searchParams.get('q')?.trim() || ''
 
-  useEffect(() => {
-    const fetchResults = async () => {
-      setLoading(true)
-      try {
-        if (query) {
-          const data = await searchVideos(query)
-          setResults(data)
-        } else {
-          setResults([])
-        }
-      } catch (error) {
-        console.error('搜索失败:', error)
-      } finally {
-        setLoading(false)
-      }
-    }
+  const {
+    data,
+    isLoading,
+    isFetching,
+    isError
+  } = useSearchVideos(query, { status: 'APPROVED' })
 
-    fetchResults()
-  }, [query])
+  const videos = useMemo(() => data?.data ?? [], [data])
+  const total = data?.pagination?.total ?? videos.length
 
   return (
     <div className="max-w-7xl mx-auto space-y-6 p-4">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <h1 className="text-2xl font-bold">搜索结果: {query}</h1>
-        <SearchBar />
+        <h1 className="text-2xl font-bold">搜索结果{query ? `：${query}` : ''}</h1>
+        <SearchBar defaultValue={query} autoFocus />
       </div>
-      
-      {loading ? (
+
+      {query.length === 0 ? (
+        <div className="p-12 text-center text-gray-500 bg-white/70 dark:bg-gray-900/40 rounded-2xl shadow-sm">
+          输入关键词开始探索更多精彩视频
+        </div>
+      ) : isError ? (
+        <div className="p-12 text-center text-red-500 bg-red-50 dark:bg-red-900/20 rounded-2xl">
+          搜索出错，请稍后再试
+        </div>
+      ) : isLoading || isFetching ? (
         <div className="flex justify-center py-16">
-          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
+          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500" />
+        </div>
+      ) : videos.length === 0 ? (
+        <div className="p-12 text-center text-gray-500 bg-white/70 dark:bg-gray-900/40 rounded-2xl shadow-sm">
+          未找到与 <span className="font-semibold text-gray-700 dark:text-gray-300">{query}</span> 相关的视频
         </div>
       ) : (
         <>
-          <p className="text-gray-500">找到 {results.length} 个结果</p>
-          <VideoGrid videos={results} />
+          <p className="text-gray-500">
+            共找到 <span className="font-semibold text-gray-900 dark:text-gray-100">{total}</span> 个结果
+          </p>
+          <ModernVideoGrid videos={videos} />
         </>
       )}
     </div>
   )
-} 
+}

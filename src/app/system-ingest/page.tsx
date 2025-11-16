@@ -12,18 +12,18 @@ import { useToast } from '@/hooks/use-toast';
 import { Spinner } from '@/components/Spinner';
 import { useAuth } from '@/hooks/useAuth';
 import { queryClient } from '@/lib/query-client';
-import OptimizedWeiboFileCard from './components/OptimizedWeiboFileCard';
+import OptimizedSystemIngestFileCard from './components/OptimizedSystemIngestFileCard';
 import {
-  useScanWeiboFiles,
-  useWeiboUserFiles,
+  useScanSystemIngestFiles,
+  useSystemIngestUserFiles,
   useBatchUploadMutation,
   useUploadSingleFileMutation,
   useDeleteFileMutation,
   usePreviewFileMutation,
-  weiboImportQueryUtils
-} from '@/hooks/queries/useWeiboImport';
+  systemIngestQueryUtils
+} from '@/hooks/queries/useSystemIngest';
 
-interface WeiboFile {
+interface SystemIngestFile {
   id: string;
   name: string;
   path: string;
@@ -32,15 +32,15 @@ interface WeiboFile {
   lastModified: string;
 }
 
-interface WeiboUser {
+interface SystemIngestUser {
   userId: string;
   userName: string;
   totalFiles: number;
-  files: WeiboFile[];
+  files: SystemIngestFile[];
 }
 
 interface ScanResult {
-  users: WeiboUser[];
+  users: SystemIngestUser[];
   totalFiles: number;
   totalSize: number;
 }
@@ -73,7 +73,7 @@ const PaginationInfo = React.memo<{
 
 PaginationInfo.displayName = 'PaginationInfo';
 
-export default function WeiboImportPage() {
+export default function SystemIngestPage() {
   const { user } = useAuth();
   const router = useRouter();
   const { toast } = useToast();
@@ -96,12 +96,12 @@ export default function WeiboImportPage() {
     isLoading: isScanning,
     refetch: refetchScan,
     error: scanError
-  } = useScanWeiboFiles();
+  } = useScanSystemIngestFiles();
 
   const {
     data: userFilesData,
     isLoading: isLoadingFiles
-  } = useWeiboUserFiles(filterUser !== 'all' ? filterUser : undefined, currentPage, ITEMS_PER_PAGE);
+  } = useSystemIngestUserFiles(filterUser !== 'all' ? filterUser : undefined, currentPage, ITEMS_PER_PAGE);
 
   // Mutation hooks
   const batchUploadMutation = useBatchUploadMutation();
@@ -121,7 +121,7 @@ export default function WeiboImportPage() {
   const allFiles = useMemo(() => {
     if (!scanResult) return [];
 
-    const files: (WeiboFile & { userId: string })[] = [];
+    const files: (SystemIngestFile & { userId: string })[] = [];
     scanResult.users.forEach(user => {
       user.files.forEach(file => {
         files.push({ ...file, userId: user.userId });
@@ -182,8 +182,8 @@ export default function WeiboImportPage() {
 
     const filesToUpload = Array.from(selectedFiles).map(fileId => {
       const file = filteredFiles.find(f => f.id === fileId);
-      return file ? { id: file.id, path: file.path, name: file.name } : null;
-    }).filter(Boolean) as Array<{ id: string; path: string; name: string }>;
+      return file ? { id: file.id, path: file.path, name: file.name, userId: file.userId } : null;
+    }).filter(Boolean) as Array<{ id: string; path: string; name: string; userId?: string }>;
 
     batchUploadMutation.mutate({
       files: filesToUpload,
@@ -194,7 +194,7 @@ export default function WeiboImportPage() {
   }, [selectedFiles, filteredFiles, batchUploadMutation]);
 
   // 单个文件上传
-  const handleSingleUpload = useCallback((file: WeiboFile & { userId: string }) => {
+  const handleSingleUpload = useCallback((file: SystemIngestFile & { userId: string }) => {
     uploadSingleMutation.mutate({
       filePath: file.path,
       fileName: file.name,
@@ -213,8 +213,8 @@ export default function WeiboImportPage() {
   }, [deleteFileMutation]);
 
   // 预览文件
-  const handlePreviewFile = useCallback((filePath: string) => {
-    previewFileMutation.mutate(filePath);
+  const handlePreviewFile = useCallback((fileId: string) => {
+    previewFileMutation.mutate(fileId);
   }, [previewFileMutation]);
 
   // 文件选择处理
@@ -241,7 +241,7 @@ export default function WeiboImportPage() {
 
   // 刷新数据
   const handleRefresh = useCallback(() => {
-    weiboImportQueryUtils.invalidateAll(queryClient);
+    systemIngestQueryUtils.invalidateAll(queryClient);
   }, []);
 
   if (!user) {
@@ -255,10 +255,10 @@ export default function WeiboImportPage() {
         <div className="flex flex-col sm:flex-row items-center justify-between mb-8">
           <div className="mb-4 sm:mb-0">
             <h1 className="text-3xl font-bold text-gray-900 mb-2">
-              微博文件导入
+              系统导入
             </h1>
             <p className="text-gray-600">
-              扫描并导入微博下载的图片和视频文件
+              扫描并导入系统渠道采集的图片和视频文件
             </p>
           </div>
           <div className="flex items-center space-x-4">
@@ -486,14 +486,14 @@ export default function WeiboImportPage() {
               ) : paginatedFiles.length > 0 ? (
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
                   {paginatedFiles.map(file => (
-                    <OptimizedWeiboFileCard
+                    <OptimizedSystemIngestFileCard
                       key={file.id}
                       file={file}
                       isSelected={selectedFiles.has(file.id)}
                       onSelect={(selected) => handleFileSelect(file.id, selected)}
                       onUpload={() => handleSingleUpload(file)}
                       onDelete={() => handleDeleteFile(file.path)}
-                      onPreview={() => handlePreviewFile(file.path)}
+                      onPreview={() => handlePreviewFile(file.id)}
                       isUploading={uploadSingleMutation.isPending}
                       isDeleting={deleteFileMutation.isPending}
                     />

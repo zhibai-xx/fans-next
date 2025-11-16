@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { InteractionService } from '@/services/interaction.service';
 import type { MediaInteractionStatus } from '@/types/interaction';
 import { useToast } from '@/hooks/use-toast';
+import { requestMediaDownload } from '@/lib/utils/media-download';
 
 interface ImageCardProps {
   image: ImageItem;
@@ -164,15 +165,7 @@ export const ImageCard: React.FC<ImageCardProps> = ({
    */
   const handleDownload = async () => {
     try {
-      // 创建一个临时链接来下载图片
-      const link = document.createElement('a');
-      link.href = image.url;
-      link.download = image.title || `image-${image.id}`;
-      link.target = '_blank';
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-
+      await requestMediaDownload(image.id, image.title || `image-${image.id}`);
       toast({
         title: '下载开始',
         description: '图片下载已开始',

@@ -11,6 +11,7 @@ export interface User {
   status: 'ACTIVE' | 'SUSPENDED';
   avatar_url?: string;
   nickname?: string;
+  phoneNumber?: string;
   created_at: string;
   updated_at: string;
 }

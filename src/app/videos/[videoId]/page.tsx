@@ -1,69 +1,46 @@
 'use client';
 
-import { use, useState, useEffect } from 'react';
+import { use, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { notFound, useRouter } from 'next/navigation';
-import { motion, AnimatePresence } from 'framer-motion';
-import { useVideoDetail, useRecommendedVideos, useLikeVideoMutation, useFavoriteVideoMutation } from '@/hooks/useVideos';
-import RobustVideoPlayer from '@/components/video/RobustVideoPlayer';
-import { VideoCardThumbnail } from '@/components/VideoThumbnail';
+import {
+  useVideoDetail,
+  useLikeVideoMutation,
+  useFavoriteVideoMutation,
+  useVideoInteractionStatus,
+  useIncrementViewsMutation,
+} from '@/hooks/useVideos';
+import { VideoComments } from '../components/VideoComments';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Separator } from '@/components/ui/separator';
-import {
-  Heart,
-  Bookmark,
-  Share2,
-  Download,
-  Eye,
-  Clock,
-  Calendar,
-  Users,
-  ChevronDown,
-  ChevronUp,
-  ArrowLeft
-} from 'lucide-react';
+import { UserAvatar } from '@/components/avatar/UserAvatar';
+import { Heart, Bookmark, Share2, Download, Eye, Clock, Calendar, Users, Link2, ArrowLeft } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { formatDistanceToNow } from 'date-fns';
 import { zhCN } from 'date-fns/locale';
+import { buildVideoSources, getPosterUrl, getVideoContainerStyle } from '@/lib/utils/video-sources';
+import { resolveMediaVideoUrl } from '@/lib/utils/media-url';
+import RobustVideoPlayer from '@/components/video/RobustVideoPlayer';
+import { getViewSessionId } from '@/lib/view-session';
+import { requestMediaDownload } from '@/lib/utils/media-download';
 
-// URL格式化函数 - 确保视频URL可以正确访问
-const formatVideoUrl = (url: string | null | undefined): string => {
-  if (!url) return '';
-
-  // 获取后端API基础URL
-  const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000/api';
-  const BASE_URL = API_BASE_URL.replace('/api', ''); // 移除 /api 后缀得到基础URL
-
-  // 如果已经是绝对URL，直接返回
-  if (url.startsWith('http://') || url.startsWith('https://')) {
-    return url;
+const formatDuration = (seconds?: number | null) => {
+  if (typeof seconds !== 'number' || Number.isNaN(seconds)) {
+    return '--:--';
   }
-
-  // 如果已经是正确的API路径，直接返回
-  if (url.startsWith('/api/upload/file/')) {
-    return `${BASE_URL}${url}`;
-  }
-
-  // 处理processed路径（视频处理后的文件）
-  if (url.startsWith('/processed/')) {
-    return `${BASE_URL}${url}`;
-  }
-
-  // 处理数据库存储的相对路径格式
-  if (url.startsWith('uploads/')) {
-    const pathParts = url.replace('uploads/', '');
-    return `${BASE_URL}/api/upload/file/${pathParts}`;
-  }
-
-  // 如果以/开头，指向后端静态服务
-  if (url.startsWith('/')) {
-    return `${BASE_URL}${url}`;
-  }
-
-  // 其他情况，尝试作为后端API路径
-  return `${BASE_URL}/api/upload/file/${url}`;
+  const mins = Math.floor(seconds / 60);
+  const secs = Math.floor(seconds % 60);
+  return `${mins}:${secs.toString().padStart(2, '0')}`;
 };
+
+const formatViews = (views: number) => {
+  if (views >= 10000) {
+    return `${(views / 10000).toFixed(1)}万`;
+  }
+  return views.toString();
+};
+
+const formatCompactNumber = (value: number) =>
+  new Intl.NumberFormat('zh-CN').format(Math.max(0, value || 0));
 
 interface VideoDetailPageProps {
   params: Promise<{ videoId: string }>;
@@ -74,67 +51,87 @@ export default function ModernVideoDetailPage({ params }: VideoDetailPageProps) 
   const { toast } = useToast();
   const router = useRouter();
 
-  // 本地状态
   const [isLiked, setIsLiked] = useState(false);
   const [isFavorited, setIsFavorited] = useState(false);
-  const [showDescription, setShowDescription] = useState(false);
-  const [showMoreVideos, setShowMoreVideos] = useState(8);
-  const [isFullscreen, setIsFullscreen] = useState(false);
+  const [likeCount, setLikeCount] = useState(0);
+  const [favoriteCount, setFavoriteCount] = useState(0);
+  const [showDescription, setShowDescription] = useState(true);
+  const [isDownloading, setIsDownloading] = useState(false);
 
-  // 查询数据
   const { data: videoResponse, isError } = useVideoDetail(videoId);
-  const { data: recommendedResponse } = useRecommendedVideos(videoId, 20);
+  const { data: interactionStatus } = useVideoInteractionStatus(videoId);
+  const incrementViewsMutation = useIncrementViewsMutation();
+  const hasTrackedViewRef = useRef(false);
 
-  // 从响应中提取视频数据
   const video = videoResponse?.data;
+  const videoSources = useMemo(() => {
+    if (!video) return [];
 
-  // 准备视频源数据 - 使用格式化URL
-  const videoSources = video ? (() => {
-    const sources = [];
-    if (video.hls_url) {
-      sources.push({ src: formatVideoUrl(video.hls_url), type: 'application/x-mpegURL', label: 'HLS' });
-    }
-    if (video.video_qualities && video.video_qualities.length > 0) {
-      video.video_qualities.forEach(quality => {
-        sources.push({
-          src: formatVideoUrl(quality.url),
-          type: 'video/mp4',
-          label: quality.quality || `${quality.height}p`,
-          res: quality.height ? `${quality.height}p` : undefined
-        });
-      });
-    } else if (video.url) {
-      sources.push({ src: formatVideoUrl(video.url), type: 'video/mp4', label: '原画' });
+    const fallbackUrl =
+      video.url ||
+      video.hls_url ||
+      (Array.isArray(video.video_qualities) && video.video_qualities.length > 0
+        ? video.video_qualities[0].url
+        : null);
+
+    if (!fallbackUrl) {
+      return [];
     }
 
-    // 调试：打印视频源信息
-    console.log('🎬 VideoDetail 视频源:', {
-      videoId: video.id,
-      originalUrl: video.url,
-      hlsUrl: video.hls_url,
-      sources: sources.map(source => ({
-        src: source.src,
-        label: source.label,
-        type: source.type
-      }))
+    const mediaForSource = {
+      ...video,
+      url: fallbackUrl,
+    } as any;
+
+    return buildVideoSources(mediaForSource, {
+      isAuthenticated: true,
     });
+  }, [video]);
 
-    return sources;
-  })() : [];
+  const posterUrl = useMemo(() => (video ? getPosterUrl(video) : undefined), [video]);
+  const containerStyle = useMemo(
+    () => (video ? getVideoContainerStyle(video) : undefined),
+    [video],
+  );
 
-  // Mutations
+  useEffect(() => {
+    if (!video) return;
+    setLikeCount(video.likes_count || 0);
+    setFavoriteCount(video.favorites_count || 0);
+    setIsLiked(false);
+    setIsFavorited(false);
+    hasTrackedViewRef.current = false;
+  }, [video?.id, video?.likes_count, video?.favorites_count]);
+
+  useEffect(() => {
+    if (!video || !interactionStatus?.data) return;
+    setIsLiked(interactionStatus.data.isLiked);
+    setIsFavorited(interactionStatus.data.isFavorited);
+
+    if (typeof interactionStatus.data.likesCount === 'number') {
+      setLikeCount(interactionStatus.data.likesCount);
+    }
+    if (typeof interactionStatus.data.favoritesCount === 'number') {
+      setFavoriteCount(interactionStatus.data.favoritesCount);
+    }
+  }, [interactionStatus?.data, video?.id]);
+
+  const handlePlayStateChange = useCallback((isPlaying: boolean) => {
+    if (!video || !isPlaying || hasTrackedViewRef.current) {
+      return;
+    }
+    hasTrackedViewRef.current = true;
+    const sessionId = getViewSessionId();
+    incrementViewsMutation.mutate({
+      mediaId: video.id,
+      sessionId: sessionId ?? undefined,
+      mediaType: 'VIDEO',
+      event: 'play',
+    });
+  }, [video, incrementViewsMutation]);
+
   const likeMutation = useLikeVideoMutation();
   const favoriteMutation = useFavoriteVideoMutation();
-
-  // 监听全屏状态
-  useEffect(() => {
-    const handleFullscreenChange = () => {
-      setIsFullscreen(!!document.fullscreenElement);
-    };
-
-    document.addEventListener('fullscreenchange', handleFullscreenChange);
-    return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
-  }, []);
 
   if (isError) {
     notFound();
@@ -144,20 +141,89 @@ export default function ModernVideoDetailPage({ params }: VideoDetailPageProps) 
     return <VideoDetailSkeleton />;
   }
 
-  const recommendedVideos = recommendedResponse?.data || [];
-  const downloadUrl = formatVideoUrl(video.original_file_url ?? video.url);
+  if (videoSources.length === 0) {
+    return (
+      <div className="min-h-screen bg-slate-50 dark:bg-slate-950">
+        <div className="mx-auto flex h-[60vh] max-w-3xl flex-col items-center justify-center gap-4 px-4 text-center text-slate-500 dark:text-slate-400">
+          <p className="text-lg font-semibold">视频资源暂时不可用</p>
+          <p className="text-sm">请稍后刷新重试或联系管理员处理</p>
+        </div>
+      </div>
+    );
+  }
 
-  // 处理交互
+  const commentsTotal = (video as any)?.comments_count ?? 0;
+  const tags =
+    video.tags && video.tags.length > 0
+      ? video.tags
+      : ((video as any)?.media_tags ?? [])
+          .map((item: any) => item?.tag)
+          .filter(Boolean);
+
+  const stats = [
+    { label: '观看', icon: Eye, value: `${formatViews(video.views)} 次` },
+    { label: '点赞', icon: Heart, value: `${formatCompactNumber(likeCount)} 次` },
+    { label: '收藏', icon: Bookmark, value: `${formatCompactNumber(favoriteCount)} 位` },
+    {
+      label: '发布',
+      icon: Calendar,
+      value: formatDistanceToNow(new Date(video.created_at), { addSuffix: true, locale: zhCN }),
+    },
+  ];
+
   const handleLike = () => {
-    const newState = !isLiked;
-    setIsLiked(newState);
-    likeMutation.mutate({ videoId: video.id, isLiked: newState });
+    const next = !isLiked;
+    const delta = next ? 1 : -1;
+    setIsLiked(next);
+    setLikeCount((prev) => Math.max(0, (prev || 0) + delta));
+
+    likeMutation.mutate(
+      { videoId: video.id, isLiked: next },
+      {
+        onError: () => {
+          setIsLiked(!next);
+          setLikeCount((prev) => Math.max(0, (prev || 0) - delta));
+        },
+      }
+    );
   };
 
   const handleFavorite = () => {
-    const newState = !isFavorited;
-    setIsFavorited(newState);
-    favoriteMutation.mutate({ videoId: video.id, isFavorited: newState });
+    const next = !isFavorited;
+    const delta = next ? 1 : -1;
+    setIsFavorited(next);
+    setFavoriteCount((prev) => Math.max(0, (prev || 0) + delta));
+
+    favoriteMutation.mutate(
+      { videoId: video.id, isFavorited: next },
+      {
+        onError: () => {
+          setIsFavorited(!next);
+          setFavoriteCount((prev) => Math.max(0, (prev || 0) - delta));
+        },
+      }
+    );
+  };
+
+  const handleVideoDownload = async () => {
+    if (!video) return;
+    try {
+      setIsDownloading(true);
+      await requestMediaDownload(video.id, `${video.title || 'video'}.mp4`);
+      toast({
+        title: '下载开始',
+        description: '视频正在下载',
+      });
+    } catch (error) {
+      console.error('下载失败', error);
+      toast({
+        title: '下载失败',
+        description: '无法下载该视频，请稍后重试',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsDownloading(false);
+    }
   };
 
   const handleShare = async () => {
@@ -168,356 +234,228 @@ export default function ModernVideoDetailPage({ params }: VideoDetailPageProps) 
           text: video.description || `来看看这个视频：${video.title}`,
           url: window.location.href,
         });
-      } catch (shareError) {
-        console.log('分享取消', shareError);
+      } catch (error) {
+        console.log('分享取消', error);
       }
     } else {
+      handleCopyLink();
+    }
+  };
+
+  const handleCopyLink = async () => {
+    try {
       await navigator.clipboard.writeText(window.location.href);
-      toast({ title: '链接已复制到剪贴板' });
+      toast({
+        title: '链接已复制',
+        description: '快邀请朋友一起来看吧～',
+        duration: 2000,
+      });
+    } catch (error) {
+      console.error('复制失败', error);
+      toast({
+        title: '复制失败',
+        description: '请稍后再试',
+        variant: 'destructive',
+      });
     }
-  };
-
-  const formatDuration = (seconds?: number | null) => {
-    if (typeof seconds !== "number" || Number.isNaN(seconds)) {
-      return "--:--";
-    }
-    const mins = Math.floor(seconds / 60);
-    const secs = Math.floor(seconds % 60);
-    return `${mins}:${secs.toString().padStart(2, '0')}`;
-  };
-
-  const formatViews = (views: number) => {
-    if (views >= 10000) {
-      return `${(views / 10000).toFixed(1)}万`;
-    }
-    return views.toString();
   };
 
   return (
-    <div className="min-h-screen bg-white dark:bg-black">
-      {/* 顶部导航 - 仅在非全屏时显示 */}
-      <AnimatePresence>
-        {!isFullscreen && (
-          <motion.div
-            initial={{ opacity: 0, y: -20 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -20 }}
-            className="sticky top-0 z-50 bg-white/80 dark:bg-black/80 backdrop-blur-md border-b border-gray-200/20"
-          >
-            <div className="max-w-7xl mx-auto px-4 py-3">
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => router.back()}
-                className="hover:bg-gray-100/50"
-              >
-                <ArrowLeft className="w-4 h-4 mr-2" />
-                返回
-              </Button>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      {/* 主容器 */}
-      <div className="max-w-7xl mx-auto">
-        {/* 视频播放器区域 */}
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          className={`relative ${isFullscreen ? 'fixed inset-0 z-50' : 'aspect-video'} bg-black`}
+    <div className="min-h-screen bg-slate-50 pb-10 dark:bg-slate-950">
+      <div className="mx-auto max-w-6xl px-4 py-6 lg:px-6">
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => router.back()}
+          className="mb-4 text-slate-600 hover:bg-slate-100 dark:text-slate-200 dark:hover:bg-slate-800/70"
         >
-          <RobustVideoPlayer
-            src={videoSources}
-            poster={formatVideoUrl(video.thumbnail_url)}
-            autoplay={false}
-            aspectRatio="auto"
-            controls={true}
-            className="w-full h-full"
-            enableQualitySelector={videoSources.length > 1}
-            onError={(error: unknown) => {
-              console.error('❌ 视频播放错误:', error);
-              toast({
-                title: '播放出错',
-                description: typeof error === 'string' ? error : '播放出现错误',
-                variant: 'destructive',
-              });
-            }}
-            onRequireAuth={() => {
-              toast({
-                title: '请登录后观看高清画质',
-                description: '登录账号即可播放 1080p 等高清画质内容',
-              });
-            }}
-          />
-        </motion.div>
+          <ArrowLeft className="mr-2 h-4 w-4" />
+          返回
+        </Button>
 
-        {/* 内容区域 */}
-        <div className="px-4 py-6">
-          <div className="grid grid-cols-1 xl:grid-cols-4 gap-8">
-            {/* 主要内容 */}
-            <div className="xl:col-span-3">
-              {/* 视频标题和统计 */}
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.1 }}
-                className="mb-6"
-              >
-                <h1 className="text-2xl md:text-3xl font-bold text-gray-900 dark:text-white mb-4 leading-tight">
-                  {video.title}
-                </h1>
+        <div className="grid gap-6 lg:grid-cols-[minmax(0,2fr)_minmax(320px,1fr)]">
+          <div className="space-y-6">
+            <div
+              className="overflow-hidden rounded-xl border border-slate-200 bg-black shadow-sm dark:border-slate-800"
+              style={containerStyle}
+            >
+              <RobustVideoPlayer
+                key={video.id}
+                src={videoSources}
+                poster={posterUrl}
+                autoplay={false}
+                aspectRatio="auto"
+                controls
+                className="h-full w-full"
+                enableQualitySelector={videoSources.length > 1}
+                onPlayStateChange={handlePlayStateChange}
+                onError={(error: unknown) => {
+                  console.error('❌ 视频播放错误:', error);
+                  toast({
+                    title: '播放出错',
+                    description: typeof error === 'string' ? error : '播放出现错误',
+                    variant: 'destructive',
+                  });
+                }}
+                onRequireAuth={() => {
+                  toast({
+                    title: '请登录后观看高清画质',
+                    description: '登录账号即可播放 1080p 等高清画质内容',
+                  });
+                }}
+              />
+            </div>
 
-                {/* 统计信息 */}
-                <div className="flex flex-wrap items-center gap-4 text-sm text-gray-600 dark:text-gray-400">
-                  <div className="flex items-center gap-1">
-                    <Eye className="w-4 h-4" />
-                    <span>{formatViews(video.views)} 观看</span>
-                  </div>
-                  {typeof video.duration === 'number' && (
-                    <div className="flex items-center gap-1">
-                      <Clock className="w-4 h-4" />
-                      <span>{formatDuration(video.duration)}</span>
+            <section className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+              <h1 className="text-2xl font-semibold text-slate-900 dark:text-white md:text-3xl">{video.title}</h1>
+              <div className="mt-4 grid gap-4 text-sm text-slate-600 dark:text-slate-300 sm:grid-cols-4">
+                {stats.map((item) => (
+                  <div key={item.label} className="flex items-center gap-2">
+                    <item.icon className="h-4 w-4 text-slate-400 dark:text-slate-500" />
+                    <div>
+                      <p className="text-xs text-slate-500 dark:text-slate-400">{item.label}</p>
+                      <p className="text-sm font-semibold text-slate-900 dark:text-white">{item.value}</p>
                     </div>
-                  )}
-                  <div className="flex items-center gap-1">
-                    <Calendar className="w-4 h-4" />
-                    <span>{formatDistanceToNow(new Date(video.created_at), { addSuffix: true, locale: zhCN })}</span>
                   </div>
-                </div>
-              </motion.div>
+                ))}
+                {typeof video.duration === 'number' && (
+                  <div className="flex items-center gap-2">
+                    <Clock className="h-4 w-4 text-slate-400 dark:text-slate-500" />
+                    <div>
+                      <p className="text-xs text-slate-500 dark:text-slate-400">时长</p>
+                      <p className="text-sm font-semibold text-slate-900 dark:text-white">
+                        {formatDuration(video.duration)}
+                      </p>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </section>
 
-              {/* 交互按钮 */}
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.2 }}
-                className="flex items-center gap-2 mb-8"
-              >
+            <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+              <div className="flex flex-wrap gap-3">
                 <Button
-                  variant={isLiked ? "default" : "outline"}
+                  variant={isLiked ? 'default' : 'outline'}
                   size="sm"
                   onClick={handleLike}
-                  className="transition-all duration-200"
+                  disabled={likeMutation.isPending}
+                  className={isLiked ? 'bg-rose-500 hover:bg-rose-600 text-white' : ''}
                 >
-                  <Heart className={`w-4 h-4 mr-2 ${isLiked ? 'fill-current' : ''}`} />
-                  <span>喜欢</span>
-                  {video.likes_count > 0 && (
-                    <span className="ml-1 text-xs">({video.likes_count})</span>
-                  )}
+                  <Heart className={`mr-2 h-4 w-4 ${isLiked ? 'fill-current' : ''}`} />
+                  喜欢
+                  {likeCount > 0 && <span className="ml-1 text-xs opacity-80">({formatCompactNumber(likeCount)})</span>}
                 </Button>
-
                 <Button
-                  variant={isFavorited ? "default" : "outline"}
+                  variant={isFavorited ? 'default' : 'outline'}
                   size="sm"
                   onClick={handleFavorite}
-                  className="transition-all duration-200"
+                  disabled={favoriteMutation.isPending}
+                  className={isFavorited ? 'bg-blue-500 hover:bg-blue-600 text-white' : ''}
                 >
-                  <Bookmark className={`w-4 h-4 mr-2 ${isFavorited ? 'fill-current' : ''}`} />
-                  <span>收藏</span>
+                  <Bookmark className={`mr-2 h-4 w-4 ${isFavorited ? 'fill-current' : ''}`} />
+                  收藏
+                  {favoriteCount > 0 && (
+                    <span className="ml-1 text-xs opacity-80">({formatCompactNumber(favoriteCount)})</span>
+                  )}
                 </Button>
-
                 <Button variant="outline" size="sm" onClick={handleShare}>
-                  <Share2 className="w-4 h-4 mr-2" />
-                  <span>分享</span>
+                  <Share2 className="mr-2 h-4 w-4" />
+                  分享
                 </Button>
+                <Button variant="outline" size="sm" onClick={handleVideoDownload} disabled={isDownloading}>
+                  <Download className="mr-2 h-4 w-4" />
+                  {isDownloading ? '下载中...' : '下载'}
+                </Button>
+                <Button variant="ghost" size="sm" onClick={handleCopyLink}>
+                  <Link2 className="mr-2 h-4 w-4" />
+                  复制链接
+                </Button>
+              </div>
+            </section>
 
-                {downloadUrl && (
-                  <Button variant="outline" size="sm" asChild>
-                    <a href={downloadUrl} download target="_blank">
-                      <Download className="w-4 h-4 mr-2" />
-                      <span>下载</span>
-                    </a>
-                  </Button>
-                )}
-              </motion.div>
-
-              <Separator className="mb-8" />
-
-              {/* 创作者信息 */}
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.3 }}
-                className="flex items-center justify-between mb-8 p-4 rounded-xl bg-gray-50 dark:bg-gray-900/50"
-              >
-                <div className="flex items-center gap-4">
-                  <Avatar className="w-12 h-12">
-                    <AvatarImage src={video.user.avatar_url} alt={video.user.username} />
-                    <AvatarFallback className="bg-gradient-to-br from-blue-500 to-purple-500 text-white">
-                      {video.user.username.charAt(0).toUpperCase()}
-                    </AvatarFallback>
-                  </Avatar>
-                  <div>
-                    <h3 className="font-semibold text-gray-900 dark:text-white">{video.user.username}</h3>
-                    <p className="text-sm text-gray-600 dark:text-gray-400 flex items-center gap-1">
-                      <Users className="w-3 h-3" />
-                      创作者
-                    </p>
-                  </div>
+            <section className="flex items-center justify-between gap-4 rounded-xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+              <div className="flex items-center gap-3">
+                <UserAvatar
+                  src={video.user.avatar_url}
+                  name={video.user.nickname || video.user.username}
+                  size="lg"
+                  withBorder
+                />
+                <div>
+                  <p className="text-sm font-semibold text-slate-900 dark:text-white">{video.user.username}</p>
+                  <p className="flex items-center gap-1 text-xs text-slate-500 dark:text-slate-400">
+                    <Users className="h-3 w-3" />
+                    创作者
+                  </p>
                 </div>
+              </div>
+              <Button size="sm">关注</Button>
+            </section>
 
-                <Button variant="default" size="sm" className="bg-red-600 hover:bg-red-700 text-white">
-                  关注
-                </Button>
-              </motion.div>
-
-              {/* 视频描述 */}
-              {video.description && (
-                <motion.div
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.4 }}
-                  className="mb-8"
+            {video.description && (
+              <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+                <button
+                  type="button"
+                  onClick={() => setShowDescription((prev) => !prev)}
+                  className="flex w-full items-center justify-between text-left text-sm font-semibold text-slate-900 dark:text-white"
                 >
-                  <Button
-                    variant="ghost"
-                    onClick={() => setShowDescription(!showDescription)}
-                    className="p-0 h-auto font-medium text-gray-900 dark:text-white hover:bg-transparent"
-                  >
-                    <span className="mr-2">描述</span>
-                    {showDescription ?
-                      <ChevronUp className="w-4 h-4" /> :
-                      <ChevronDown className="w-4 h-4" />
-                    }
-                  </Button>
+                  <span>视频简介</span>
+                  {showDescription ? <Clock className="h-4 w-4 rotate-90" /> : <Clock className="h-4 w-4 -rotate-90" />}
+                </button>
+                {showDescription && (
+                  <p className="mt-3 whitespace-pre-wrap text-sm leading-relaxed text-slate-600 dark:text-slate-300">
+                    {video.description}
+                  </p>
+                )}
+              </section>
+            )}
 
-                  <AnimatePresence>
-                    {showDescription && (
-                      <motion.div
-                        initial={{ opacity: 0, height: 0 }}
-                        animate={{ opacity: 1, height: 'auto' }}
-                        exit={{ opacity: 0, height: 0 }}
-                        transition={{ duration: 0.3 }}
-                        className="mt-4 p-4 rounded-xl bg-gray-50 dark:bg-gray-900/50"
-                      >
-                        <p className="text-gray-700 dark:text-gray-300 whitespace-pre-wrap leading-relaxed">
-                          {video.description}
-                        </p>
-                      </motion.div>
-                    )}
-                  </AnimatePresence>
-                </motion.div>
-              )}
-
-              {/* 标签 */}
-              {video.tags && video.tags.length > 0 && (
-                <motion.div
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.5 }}
-                  className="flex flex-wrap gap-2 mb-8"
-                >
-                  {video.tags.map((tag) => (
-                    <Badge
-                      key={tag.id}
-                      variant="secondary"
-                      className="hover:bg-blue-100 dark:hover:bg-blue-900 cursor-pointer transition-colors"
-                    >
+            {tags.length > 0 && (
+              <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+                <h2 className="text-sm font-semibold text-slate-900 dark:text-white">相关标签</h2>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  {tags.map((tag: any) => (
+                    <Badge key={tag.id ?? tag.name} variant="secondary" className="rounded-full">
                       #{tag.name}
                     </Badge>
                   ))}
-                </motion.div>
-              )}
-            </div>
-
-            {/* 侧边栏 - 推荐视频 */}
-            <div className="xl:col-span-1">
-              {recommendedVideos.length > 0 && (
-                <motion.div
-                  initial={{ opacity: 0, x: 20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ delay: 0.3 }}
-                  className="sticky top-24"
-                >
-                  <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-6">
-                    推荐视频
-                  </h3>
-
-                  <div className="space-y-4">
-                    {recommendedVideos.slice(0, showMoreVideos).map((item, index) => (
-                      <motion.div
-                        key={item.id}
-                        initial={{ opacity: 0, y: 20 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ delay: 0.1 * index }}
-                        onClick={() => router.push(`/videos/${item.id}`)}
-                        className="group cursor-pointer"
-                      >
-                        <div className="flex gap-3 p-2 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-900/50 transition-colors">
-                          <div className="relative flex-shrink-0 w-40 aspect-video rounded-lg overflow-hidden">
-                            <VideoCardThumbnail
-                              src={item.thumbnail_url}
-                              alt={item.title}
-                              duration={typeof item.duration === 'number' ? item.duration : undefined}
-                              className="w-full h-full"
-                              showPlayIcon={false}
-                            />
-                          </div>
-
-                          <div className="flex-1 min-w-0">
-                            <h4 className="font-medium text-sm text-gray-900 dark:text-white line-clamp-2 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
-                              {item.title}
-                            </h4>
-                            <p className="text-xs text-gray-600 dark:text-gray-400 mt-1">
-                              {item.user.username}
-                            </p>
-                            <p className="text-xs text-gray-500 dark:text-gray-500 mt-1">
-                              {formatViews(item.views)} 观看 •{' '}
-                              {formatDistanceToNow(new Date(item.created_at), { locale: zhCN })}
-                            </p>
-                          </div>
-                        </div>
-                      </motion.div>
-                    ))}
-                  </div>
-
-                  {recommendedVideos.length > showMoreVideos && (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setShowMoreVideos(prev => prev + 8)}
-                      className="w-full mt-4"
-                    >
-                      查看更多
-                    </Button>
-                  )}
-                </motion.div>
-              )}
-            </div>
+                </div>
+              </section>
+            )}
           </div>
+
+          <aside className="flex h-[720px] flex-col rounded-xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+            <VideoComments
+              videoId={video.id}
+              commentsCount={commentsTotal}
+              variant="panel"
+              className="flex h-full flex-col"
+            />
+          </aside>
         </div>
       </div>
     </div>
   );
 }
 
-// 加载骨架组件
 function VideoDetailSkeleton() {
   return (
-    <div className="min-h-screen bg-white dark:bg-black">
-      <div className="aspect-video bg-gray-200 dark:bg-gray-800 animate-pulse" />
-      <div className="max-w-7xl mx-auto px-4 py-6">
-        <div className="grid grid-cols-1 xl:grid-cols-4 gap-8">
-          <div className="xl:col-span-3 space-y-6">
-            <div className="h-8 bg-gray-200 dark:bg-gray-800 rounded animate-pulse" />
-            <div className="flex gap-4">
-              <div className="h-4 w-20 bg-gray-200 dark:bg-gray-800 rounded animate-pulse" />
-              <div className="h-4 w-24 bg-gray-200 dark:bg-gray-800 rounded animate-pulse" />
-            </div>
-            <div className="flex gap-2">
-              {Array.from({ length: 4 }).map((_, i) => (
-                <div key={i} className="h-8 w-20 bg-gray-200 dark:bg-gray-800 rounded animate-pulse" />
-              ))}
-            </div>
+    <div className="min-h-screen bg-white dark:bg-slate-950">
+      <div className="aspect-video animate-pulse bg-slate-200 dark:bg-slate-800" />
+      <div className="mx-auto max-w-6xl px-4 py-6">
+        <div className="grid gap-6 lg:grid-cols-[minmax(0,2fr)_minmax(320px,1fr)]">
+          <div className="space-y-6">
+            <div className="h-56 animate-pulse rounded-xl bg-slate-200 dark:bg-slate-800" />
+            <div className="h-32 animate-pulse rounded-xl bg-slate-200 dark:bg-slate-800" />
+            <div className="h-24 animate-pulse rounded-xl bg-slate-200 dark:bg-slate-800" />
           </div>
-          <div className="xl:col-span-1 space-y-4">
-            {Array.from({ length: 5 }).map((_, i) => (
-              <div key={i} className="flex gap-3">
-                <div className="w-40 aspect-video bg-gray-200 dark:bg-gray-800 rounded animate-pulse" />
+          <div className="space-y-4">
+            {Array.from({ length: 5 }).map((_, index) => (
+              <div key={index} className="flex gap-3">
+                <div className="h-20 w-32 animate-pulse rounded-md bg-slate-200 dark:bg-slate-800" />
                 <div className="flex-1 space-y-2">
-                  <div className="h-4 bg-gray-200 dark:bg-gray-800 rounded animate-pulse" />
-                  <div className="h-3 w-24 bg-gray-200 dark:bg-gray-800 rounded animate-pulse" />
+                  <div className="h-4 w-3/4 animate-pulse rounded bg-slate-200 dark:bg-slate-800" />
+                  <div className="h-3 w-1/2 animate-pulse rounded bg-slate-200 dark:bg-slate-800" />
                 </div>
               </div>
             ))}

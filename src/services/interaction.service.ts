@@ -108,10 +108,9 @@ export class InteractionService {
    */
   static async getMyFavorites(params: FavoriteListQuery = {}): Promise<FavoriteListResponse> {
     const { page = 1, limit = 20 } = params;
-    const response = await apiClient.get(`${this.BASE_URL}/favorites/my`, {
-      params: { page, limit }
+    return apiClient.get(`${this.BASE_URL}/favorites/my`, {
+      params: { page, limit },
     });
-    return response;
   }
 
   // ===========================================

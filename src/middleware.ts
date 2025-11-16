@@ -10,7 +10,7 @@ const protectedPaths = [
 // 需要管理员权限的路径
 const adminOnlyPaths = [
   '/admin',      // 后台管理系统根路径
-  '/weibo-import',
+  '/system-ingest',
 ];
 
 // 检查路径是否受保护

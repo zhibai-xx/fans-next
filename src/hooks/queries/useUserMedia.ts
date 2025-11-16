@@ -1,5 +1,6 @@
 import { useQuery, useInfiniteQuery, useMutation } from '@tanstack/react-query';
 import { MediaService, MediaItem, MediaTag, MediaCategory, MediaFilters } from '@/services/media.service';
+import { VideoService, IncrementViewPayload } from '@/services/video.service';
 import { InteractionService } from '@/services/interaction.service';
 import { useToast } from '@/hooks/use-toast';
 
@@ -169,12 +170,9 @@ export function useFavoriteImageMutation() {
 // TODO: 增加媒体查看次数 - 待实现
 export function useIncrementViewsMutation() {
   return useMutation({
-    mutationFn: async (mediaId: string) => {
-      // TODO: 实现查看次数功能
-      console.log('查看次数功能待实现:', mediaId);
-      return Promise.resolve();
+    mutationFn: async (payload: IncrementViewPayload) => {
+      return VideoService.incrementViews(payload.mediaId, payload);
     },
-    // 静默操作，不显示toast
   });
 }
 

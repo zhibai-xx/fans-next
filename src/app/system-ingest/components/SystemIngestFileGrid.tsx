@@ -5,9 +5,9 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { IconRenderer } from '@/components/icons/IconRenderer';
-import { WeiboFileCard } from './WeiboFileCard';
+import { SystemIngestFileCard } from './SystemIngestFileCard';
 
-interface WeiboFile {
+interface SystemIngestFile {
   id: string;
   name: string;
   path: string;
@@ -22,27 +22,27 @@ interface WeiboFile {
   selected?: boolean;
 }
 
-interface WeiboUser {
+interface SystemIngestUser {
   userId: string;
   userName: string;
   totalFiles: number;
-  files: WeiboFile[];
+  files: SystemIngestFile[];
 }
 
 interface ScanResult {
-  users: WeiboUser[];
+  users: SystemIngestUser[];
   totalFiles: number;
   totalSize: number;
 }
 
-interface WeiboFileGridProps {
+interface SystemIngestFileGridProps {
   scanResult: ScanResult;
   selectedFiles: Set<string>;
   onToggleSelection: (fileId: string) => void;
   onSelectAll: (userId?: string) => void;
 }
 
-export const WeiboFileGrid: React.FC<WeiboFileGridProps> = ({
+export const SystemIngestFileGrid: React.FC<SystemIngestFileGridProps> = ({
   scanResult,
   selectedFiles,
   onToggleSelection,
@@ -62,7 +62,7 @@ export const WeiboFileGrid: React.FC<WeiboFileGridProps> = ({
   };
 
   // 获取文件类型统计
-  const getFileTypeStats = (files: WeiboFile[]) => {
+  const getFileTypeStats = (files: SystemIngestFile[]) => {
     const stats = files.reduce((acc, file) => {
       acc[file.type] = (acc[file.type] || 0) + 1;
       return acc;
@@ -72,7 +72,7 @@ export const WeiboFileGrid: React.FC<WeiboFileGridProps> = ({
   };
 
   // 获取选中文件统计
-  const getSelectedStats = (files: WeiboFile[]) => {
+  const getSelectedStats = (files: SystemIngestFile[]) => {
     const selectedUserFiles = files.filter(f => selectedFiles.has(f.id));
     return selectedUserFiles.length;
   };
@@ -159,7 +159,7 @@ export const WeiboFileGrid: React.FC<WeiboFileGridProps> = ({
               <CardContent className="pt-0">
                 <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
                   {user.files.map(file => (
-                    <WeiboFileCard
+                    <SystemIngestFileCard
                       key={file.id}
                       file={file}
                       isSelected={selectedFiles.has(file.id)}

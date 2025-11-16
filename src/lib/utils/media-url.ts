@@ -1,5 +1,5 @@
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000/api';
-const API_BASE_ORIGIN = API_BASE_URL.replace(/\/api$/, '');
+export const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000/api';
+export const API_BASE_ORIGIN = API_BASE_URL.replace(/\/api$/, '');
 const isDev = process.env.NODE_ENV !== 'production';
 
 const isAbsoluteUrl = (url: string): boolean => {
@@ -109,6 +109,15 @@ export const resolveMediaVideoUrl = (url: string | null | undefined): string => 
     return cleanUrl;
   }
 
+  if (cleanUrl.startsWith('uploads/processed/')) {
+    const pathParts = cleanUrl.replace('uploads/processed/', '');
+    return `/processed/${pathParts}`;
+  }
+
+  if (cleanUrl.startsWith('/uploads/processed/')) {
+    return cleanUrl.replace('/uploads', '');
+  }
+
   if (cleanUrl.startsWith('processed/')) {
     const pathParts = cleanUrl.replace('processed/', '');
     return `/processed/${pathParts}`;
@@ -165,4 +174,15 @@ export const getVideoMimeType = (url: string | null | undefined): string => {
   if (cleanUrl.endsWith('.mpd')) return 'application/dash+xml';
 
   return 'video/mp4';
+};
+
+export const buildAbsoluteMediaUrl = (path: string | null | undefined): string => {
+  if (!path) return '';
+  if (path.startsWith('http://') || path.startsWith('https://')) {
+    return path;
+  }
+  if (path.startsWith('/')) {
+    return `${API_BASE_ORIGIN}${path}`;
+  }
+  return `${API_BASE_ORIGIN}/${path}`;
 };

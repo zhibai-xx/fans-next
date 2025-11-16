@@ -1,0 +1,26 @@
+# 2025-11-10
+- 站内“微博导入”入口全面改名为“系统导入”，路由改为 `/system-ingest` 并对应个人中心 Tab/权限项
+- 前端服务与 hooks 迁移至 `system-ingest.service.ts`，所有 UI/枚举/徽章使用 SYSTEM_INGEST 语义并清理旧字段
+
+# 2025-11-09
+- 新增 `UserAvatar` 组件（浅色渐变+昵称首字母），统一替换导航、资料页、视频/图片列表与评论中所有头像展示
+- 上线头像占位逻辑：移除 default-avatar 静态图，缺省头像一律回退到文字头像并兼容本地预览/相对路径
+- NextAuth JWT/Session 现保存 avatar_url，并在更新会话时写回，保证侧栏/导航等依赖全局用户信息的头像能与个人中心保持一致
+- 头像上传流程集成 react-easy-crop，本地裁剪生效后再上传后端，降低服务器负载并提升用户交互体验
+- 更新 `resolveMediaVideoUrl` 映射，兼容 `uploads/processed/*`，后台内容管理页视频播放与封面恢复正常
+
+# 2025-11-08
+- 个人中心头像改造：新增 shadcn Avatar 上传区（大小/格式校验、预览、会话同步）并移除手动 URL 输入
+- userService / TanStack Query 对接 `POST /users/profile/avatar`，统一使用 UserResponseDto 数据结构更新 Zustand/NextAuth
+
+# 2025-11-07
+- 修复点赞或收藏触发的播放器黑屏，避免重复重建 video.js 实例
+- 视频详情留言区接入后端评论 API，支持热门/最新排序与登录发布
+
+# 2025-10-31
+- 对接视频互动 API，统一点赞与收藏状态并修正请求路径
+- 视频详情页改为左右双栏布局：左侧播放器与信息，右侧 Telegram 风格留言面板
+- 移除相关推荐模块，评论区改为单层留言卡片
+- 修复媒体详情缺失多清晰度问题：后端 `findOne` 补齐 video_qualities，前端统一复用了 buildVideoSources
+- 搜索页接入后端数据并更新卡片交互与封面体验
+- 修复互动高亮丢失、搜索清空无法回退及卡片跳转只见骨架的问题

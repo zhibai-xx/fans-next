@@ -3,6 +3,7 @@ import { useMemo } from 'react';
 import { userService, UserProfile, UpdateProfileRequest } from '@/services/user.service';
 import { useToast } from '@/hooks/use-toast';
 import { useAuthStore } from '@/store/auth.store';
+import type { User } from '@/store/auth.store';
 import { queryUtils } from '@/lib/query-client';
 
 // Profile-related query keys
@@ -11,7 +12,7 @@ export const profileQueryKeys = {
   downloads: ['profile', 'downloads'] as const,
   favorites: ['profile', 'favorites'] as const,
   uploads: ['profile', 'uploads'] as const,
-  weiboImports: ['profile', 'weibo-imports'] as const,
+  systemIngest: ['profile', 'system-ingest'] as const,
 };
 
 // Get user profile
@@ -43,12 +44,15 @@ export const useUpdateProfileMutation = () => {
   const { toast } = useToast();
   const { setUser } = useAuthStore();
 
-  return useMutation({
+  return useMutation<UserProfile, Error, UpdateProfileRequest>({
     mutationFn: async (updates: UpdateProfileRequest) => {
       // 过滤掉空字符串字段
       const filteredData = Object.entries(updates).reduce((acc, [key, value]) => {
-        if (value && value.trim() !== '') {
-          acc[key as keyof UpdateProfileRequest] = value;
+        if (typeof value === 'string') {
+          const trimmed = value.trim();
+          if (trimmed !== '') {
+            acc[key as keyof UpdateProfileRequest] = trimmed;
+          }
         }
         return acc;
       }, {} as UpdateProfileRequest);
@@ -63,14 +67,18 @@ export const useUpdateProfileMutation = () => {
 
       // 更新Zustand中的用户信息
       const currentUser = useAuthStore.getState().user;
-      if (currentUser && updatedProfile.user) {
-        setUser({
+      if (currentUser) {
+        const mergedUser: User = {
           ...currentUser,
-          username: updatedProfile.user.username,
-          email: updatedProfile.user.email || currentUser.email,
-          nickname: updatedProfile.user.nickname || currentUser.nickname,
-          avatar_url: updatedProfile.user.avatar || updatedProfile.user.avatar_url || currentUser.avatar_url,
-        });
+          ...updatedProfile,
+          email: updatedProfile.email || currentUser.email,
+          nickname: updatedProfile.nickname || currentUser.nickname,
+          phoneNumber: updatedProfile.phoneNumber || currentUser.phoneNumber,
+          avatar_url: updatedProfile.avatar_url || currentUser.avatar_url,
+        };
+        setUser(mergedUser);
+      } else {
+        setUser(updatedProfile as User);
       }
 
       // 使profile查询失效，触发重新获取
@@ -80,6 +88,50 @@ export const useUpdateProfileMutation = () => {
       toast({
         title: '更新失败',
         description: error.message || '更新个人资料失败，请稍后重试',
+        variant: 'destructive',
+      });
+    },
+  });
+};
+
+// Avatar upload mutation
+export const useAvatarUploadMutation = () => {
+  const { toast } = useToast();
+  const { setUser } = useAuthStore();
+
+  return useMutation<UserProfile, Error, File>({
+    mutationFn: async (file: File) => {
+      const formData = new FormData();
+      formData.append('avatar', file);
+      return userService.uploadAvatar(formData);
+    },
+    onSuccess: (updatedProfile) => {
+      toast({
+        title: '头像更新成功',
+        description: '新头像已应用到全站',
+      });
+
+      const currentUser = useAuthStore.getState().user;
+      if (currentUser) {
+        const mergedUser: User = {
+          ...currentUser,
+          ...updatedProfile,
+          email: updatedProfile.email || currentUser.email,
+          nickname: updatedProfile.nickname || currentUser.nickname,
+          phoneNumber: updatedProfile.phoneNumber || currentUser.phoneNumber,
+          avatar_url: updatedProfile.avatar_url || currentUser.avatar_url,
+        };
+        setUser(mergedUser);
+      } else {
+        setUser(updatedProfile as User);
+      }
+
+      queryUtils.invalidateQuery(profileQueryKeys.profile);
+    },
+    onError: (error: Error) => {
+      toast({
+        title: '头像更新失败',
+        description: error.message || '上传头像失败，请稍后重试',
         variant: 'destructive',
       });
     },
@@ -131,8 +183,7 @@ export const useUserDownloads = () => {
       if (!isAuthenticated) {
         throw new Error('用户未登录');
       }
-      // 这里需要实现下载记录的API
-      return [];
+      return userService.getDownloads();
     },
     enabled: isAuthenticated,
     staleTime: 1000 * 60 * 2, // 2 minutes
@@ -196,7 +247,6 @@ export const useProfileForm = () => {
         nickname: '',
         email: '',
         phoneNumber: '',
-        avatar: '',
       };
     }
 
@@ -204,7 +254,6 @@ export const useProfileForm = () => {
       nickname: profile.nickname || profile.username || '',
       email: profile.email || '',
       phoneNumber: profile.phoneNumber || '',
-      avatar: profile.avatar || profile.avatar_url || '',
     };
   }, [profile]);
 

@@ -5,18 +5,10 @@ import { useSession } from 'next-auth/react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { IconRenderer } from '@/components/icons/IconRenderer';
+import { SystemIngestFile } from '@/services/system-ingest.service';
 
-interface WeiboFile {
-  id: string;
-  name: string;
-  path: string;
-  size: number;
-  type: 'image' | 'video' | 'gif';
-  lastModified: string;
-}
-
-interface OptimizedWeiboFileCardProps {
-  file: WeiboFile;
+interface OptimizedSystemIngestFileCardProps {
+  file: SystemIngestFile;
   isSelected: boolean;
   onToggleSelection: () => void;
   isVisible?: boolean; // 用于懒加载控制
@@ -81,7 +73,7 @@ const cleanupCache = () => {
   }
 };
 
-const OptimizedWeiboFileCard: React.FC<OptimizedWeiboFileCardProps> = memo(({
+const OptimizedSystemIngestFileCard: React.FC<OptimizedSystemIngestFileCardProps> = memo(({
   file,
   isSelected,
   onToggleSelection,
@@ -142,7 +134,7 @@ const OptimizedWeiboFileCard: React.FC<OptimizedWeiboFileCardProps> = memo(({
       await optimizedRequestQueue.add(async () => {
         if (abortController.signal.aborted) return;
 
-        const apiUrl = `${API_BASE_URL}/upload/weibo-preview/${file.id}`;
+        const apiUrl = `${API_BASE_URL}/upload/system-ingest/preview/${file.id}`;
 
         const response = await fetch(apiUrl, {
           headers: {
@@ -376,6 +368,6 @@ const OptimizedWeiboFileCard: React.FC<OptimizedWeiboFileCardProps> = memo(({
   );
 });
 
-OptimizedWeiboFileCard.displayName = 'OptimizedWeiboFileCard';
+OptimizedSystemIngestFileCard.displayName = 'OptimizedSystemIngestFileCard';
 
-export default OptimizedWeiboFileCard; 
+export default OptimizedSystemIngestFileCard; 

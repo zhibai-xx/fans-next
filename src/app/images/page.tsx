@@ -22,6 +22,7 @@ import {
 } from '@/hooks/queries/useUserMedia';
 import { useIntersectionObserverLegacy } from '@/hooks/useIntersectionObserver';
 import { queryClient } from '@/lib/query-client';
+import { getViewSessionId } from '@/lib/view-session';
 
 export default function ImagesPage() {
     const { toast } = useToast();
@@ -185,6 +186,16 @@ export default function ImagesPage() {
         }
     }, [hasNextPage, isFetchingNextPage, fetchNextPage]);
 
+    const trackImageView = useCallback((mediaId: string) => {
+        const sessionId = getViewSessionId();
+        incrementViewsMutation.mutate({
+            mediaId,
+            mediaType: 'IMAGE',
+            sessionId: sessionId ?? undefined,
+            event: 'detail',
+        });
+    }, [incrementViewsMutation]);
+
     // 图片点击处理
     const handleImageClick = useCallback((image: MediaItem) => {
         const index = images.findIndex(img => img.id === image.id);
@@ -192,8 +203,8 @@ export default function ImagesPage() {
         setSelectedImageIndex(index);
 
         // 增加查看次数
-        incrementViewsMutation.mutate(image.id);
-    }, [images, incrementViewsMutation]);
+        trackImageView(image.id);
+    }, [images, trackImageView]);
 
     // 模态框导航
     const handleNextImage = useCallback(() => {
@@ -203,9 +214,9 @@ export default function ImagesPage() {
             setSelectedImage(nextImage);
             setSelectedImageIndex(nextIndex);
             // 增加查看次数
-            incrementViewsMutation.mutate(nextImage.id);
+            trackImageView(nextImage.id);
         }
-    }, [selectedImageIndex, images, incrementViewsMutation]);
+    }, [selectedImageIndex, images, trackImageView]);
 
     const handlePreviousImage = useCallback(() => {
         if (selectedImageIndex > 0) {
@@ -214,9 +225,9 @@ export default function ImagesPage() {
             setSelectedImage(prevImage);
             setSelectedImageIndex(prevIndex);
             // 增加查看次数
-            incrementViewsMutation.mutate(prevImage.id);
+            trackImageView(prevImage.id);
         }
-    }, [selectedImageIndex, images, incrementViewsMutation]);
+    }, [selectedImageIndex, images, trackImageView]);
 
     // 点赞处理
     const handleLike = useCallback((mediaId: string, isLiked: boolean) => {

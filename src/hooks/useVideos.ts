@@ -1,5 +1,5 @@
 import { useQuery, useInfiniteQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { VideoService, VideoFilters, VideoItem } from '@/services/video.service';
+import { VideoService, VideoFilters, VideoItem, IncrementViewPayload } from '@/services/video.service';
 import { useToast } from '@/hooks/use-toast';
 
 // 查询键工厂
@@ -187,10 +187,12 @@ export function useIncrementViewsMutation() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (videoId: string) => VideoService.incrementViews(videoId),
-    onSuccess: (_, videoId) => {
+    mutationFn: (payload: IncrementViewPayload) =>
+      VideoService.incrementViews(payload.mediaId, payload),
+    onSuccess: (_, payload) => {
       // 乐观更新视频详情中的观看次数
-      queryClient.setQueryData(videoKeys.detail(videoId), (old: any) => {
+      const mediaId = payload.mediaId;
+      queryClient.setQueryData(videoKeys.detail(mediaId), (old: any) => {
         if (old?.data) {
           return {
             ...old,
@@ -220,6 +222,8 @@ export function useLikeVideoMutation() {
     mutationFn: ({ videoId, isLiked }: { videoId: string; isLiked: boolean }) =>
       VideoService.likeVideo(videoId, isLiked),
     onSuccess: (_, { videoId, isLiked }) => {
+      const delta = isLiked ? 1 : -1;
+
       // 乐观更新互动状态
       queryClient.setQueryData(videoKeys.interaction(videoId), (old: any) => {
         if (old?.data) {
@@ -227,7 +231,8 @@ export function useLikeVideoMutation() {
             ...old,
             data: {
               ...old.data,
-              isLiked
+              isLiked,
+              likesCount: Math.max(0, (old.data.likesCount || 0) + delta),
             }
           };
         }
@@ -237,7 +242,6 @@ export function useLikeVideoMutation() {
       // 乐观更新视频详情中的点赞数
       queryClient.setQueryData(videoKeys.detail(videoId), (old: any) => {
         if (old?.data) {
-          const delta = isLiked ? 1 : -1;
           return {
             ...old,
             data: {
@@ -280,6 +284,8 @@ export function useFavoriteVideoMutation() {
     mutationFn: ({ videoId, isFavorited }: { videoId: string; isFavorited: boolean }) =>
       VideoService.favoriteVideo(videoId, isFavorited),
     onSuccess: (_, { videoId, isFavorited }) => {
+      const delta = isFavorited ? 1 : -1;
+
       // 乐观更新互动状态
       queryClient.setQueryData(videoKeys.interaction(videoId), (old: any) => {
         if (old?.data) {
@@ -287,8 +293,23 @@ export function useFavoriteVideoMutation() {
             ...old,
             data: {
               ...old.data,
-              isFavorited
+              isFavorited,
+              favoritesCount: Math.max(0, (old.data.favoritesCount || 0) + delta),
             }
+          };
+        }
+        return old;
+      });
+
+      // 乐观更新视频详情中的收藏数
+      queryClient.setQueryData(videoKeys.detail(videoId), (old: any) => {
+        if (old?.data) {
+          return {
+            ...old,
+            data: {
+              ...old.data,
+              favorites_count: Math.max(0, (old.data.favorites_count || 0) + delta),
+            },
           };
         }
         return old;

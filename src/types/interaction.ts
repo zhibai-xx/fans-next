@@ -96,7 +96,8 @@ export interface Pagination {
  * 收藏列表响应类型
  */
 export interface FavoriteListResponse {
-  data: any[];
+  success: boolean;
+  data: FavoriteItem[];
   pagination: Pagination;
 }
 
@@ -245,6 +246,13 @@ export interface FavoriteItem {
     tags: Array<{
       id: string;
       name: string;
+    }>;
+    video_qualities?: Array<{
+      id: string;
+      quality: string;
+      url: string;
+      width?: number;
+      height?: number;
     }>;
   };
   created_at: string; // 收藏时间

@@ -5,6 +5,13 @@ import { useRouter } from 'next/navigation'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 
+interface SearchBarProps {
+  onSearch?: (query: string) => void
+  placeholder?: string
+  defaultValue?: string
+  autoFocus?: boolean
+}
+
 // 模拟搜索建议数据
 const searchSuggestions = [
   '张婧仪',
@@ -16,8 +23,13 @@ const searchSuggestions = [
   '觉醒年代张婧仪'
 ]
 
-export function SearchBar() {
-  const [query, setQuery] = useState('')
+export function SearchBar({
+  onSearch,
+  placeholder = '搜索视频、作者...',
+  defaultValue = '',
+  autoFocus = false
+}: SearchBarProps) {
+  const [query, setQuery] = useState(defaultValue)
   const [suggestions, setSuggestions] = useState<string[]>([])
   const [showSuggestions, setShowSuggestions] = useState(false)
   const [searchHistory, setSearchHistory] = useState<string[]>([])
@@ -36,6 +48,10 @@ export function SearchBar() {
       }
     }
   }, [])
+
+  useEffect(() => {
+    setQuery(defaultValue)
+  }, [defaultValue])
 
   // 过滤搜索建议
   useEffect(() => {
@@ -76,38 +92,52 @@ export function SearchBar() {
     }
   }, [])
 
+  const persistHistory = (value: string) => {
+    const newHistory = [
+      value,
+      ...searchHistory.filter(s => s !== value)
+    ].slice(0, 10)
+
+    setSearchHistory(newHistory)
+    localStorage.setItem('videoSearchHistory', JSON.stringify(newHistory))
+  }
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
-    if (query.trim()) {
-      // 保存到搜索历史
-      const newHistory = [
-        query,
-        ...searchHistory.filter(s => s !== query)
-      ].slice(0, 10)
-
-      setSearchHistory(newHistory)
-      localStorage.setItem('videoSearchHistory', JSON.stringify(newHistory))
-
-      // 导航到搜索结果页
-      router.push(`/videos/search?q=${encodeURIComponent(query)}`)
+    const value = query.trim()
+    if (!value) {
+      if (onSearch) {
+        onSearch('')
+      } else {
+        router.push('/videos')
+      }
       setShowSuggestions(false)
+      return
     }
+
+    persistHistory(value)
+
+    if (onSearch) {
+      onSearch(value)
+    } else {
+      // 导航到搜索结果页
+      router.push(`/videos/search?q=${encodeURIComponent(value)}`)
+    }
+
+    setShowSuggestions(false)
   }
 
   const handleSuggestionClick = (suggestion: string) => {
     setQuery(suggestion)
 
-    // 保存到搜索历史
-    const newHistory = [
-      suggestion,
-      ...searchHistory.filter(s => s !== suggestion)
-    ].slice(0, 10)
+    persistHistory(suggestion)
 
-    setSearchHistory(newHistory)
-    localStorage.setItem('videoSearchHistory', JSON.stringify(newHistory))
+    if (onSearch) {
+      onSearch(suggestion)
+    } else {
+      router.push(`/videos/search?q=${encodeURIComponent(suggestion)}`)
+    }
 
-    // 导航到搜索结果页
-    router.push(`/videos/search?q=${encodeURIComponent(suggestion)}`)
     setShowSuggestions(false)
   }
 
@@ -118,10 +148,11 @@ export function SearchBar() {
           <Input
             ref={inputRef}
             type="text"
-            placeholder="搜索视频、作者..."
+            placeholder={placeholder}
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             onFocus={() => setShowSuggestions(true)}
+            autoFocus={autoFocus}
             className="w-full pl-4 pr-10 rounded-full"
           />
           <Button

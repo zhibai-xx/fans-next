@@ -6,14 +6,14 @@ import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { IconRenderer } from '@/components/icons/IconRenderer';
 import { Spinner } from '@/components/Spinner';
-import { UploadResult } from '@/services/weibo-import.service';
+import { SystemIngestUploadResult } from '@/services/system-ingest.service';
 
-interface WeiboUploadProgressProps {
-  uploadProgress: UploadResult[];
+interface SystemIngestUploadProgressProps {
+  uploadProgress: SystemIngestUploadResult[];
   isUploading: boolean;
 }
 
-export const WeiboUploadProgress: React.FC<WeiboUploadProgressProps> = ({
+export const SystemIngestUploadProgress: React.FC<SystemIngestUploadProgressProps> = ({
   uploadProgress,
   isUploading,
 }) => {

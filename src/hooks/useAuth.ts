@@ -56,7 +56,7 @@ export function useAuth() {
   const hasPermission = (permission: string): boolean => {
     // 映射旧权限名到新权限名
     const permissionMap: Record<string, string> = {
-      'weibo-import': 'ADMIN_ACCESS',
+      'system-ingest': 'ADMIN_ACCESS',
       'admin-panel': 'ADMIN_ACCESS',
       'admin-dashboard': 'ADMIN_ACCESS',
       'user-management': 'USER_MANAGEMENT',

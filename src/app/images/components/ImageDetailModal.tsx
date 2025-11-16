@@ -2,32 +2,15 @@
 
 import React, { useState, useEffect } from 'react';
 import Image from 'next/image';
-import { Heart, Bookmark, Download, Share2, Eye, Calendar, User, Tag, MoreHorizontal, FileText, Folder, BarChart3, Monitor, HardDrive, Clock } from 'lucide-react';
+import { Heart, Bookmark, Download, Share2, Eye, Calendar, Tag, MoreHorizontal, FileText, Folder, BarChart3, Monitor, HardDrive, Clock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { MediaItem } from '@/services/media.service';
 import type { MediaInteractionStatus } from '@/types/interaction';
-
-// 头像URL规范化函数
-const normalizeAvatarUrl = (avatarUrl?: string): string => {
-  if (!avatarUrl || avatarUrl === 'default_avatar.png') {
-    return '/assets/zjy3.png'; // 使用现有的图片作为默认头像
-  }
-
-  // 如果已经是完整URL，直接返回
-  if (avatarUrl.startsWith('http://') || avatarUrl.startsWith('https://')) {
-    return avatarUrl;
-  }
-
-  // 如果已经是绝对路径，直接返回
-  if (avatarUrl.startsWith('/')) {
-    return avatarUrl;
-  }
-
-  // 否则转换为绝对路径
-  return `/${avatarUrl}`;
-};
+import { requestMediaDownload } from '@/lib/utils/media-download';
+import { useToast } from '@/hooks/use-toast';
+import { UserAvatar } from '@/components/avatar/UserAvatar';
 
 // 图片URL规范化函数
 const normalizeImageUrl = (imageUrl: string): string => {
@@ -85,6 +68,7 @@ export const ImageDetailModal: React.FC<ImageDetailModalProps> = ({
   canGoPrevious = false
 }) => {
   const [imageLoaded, setImageLoaded] = useState(false);
+  const { toast } = useToast();
 
   useEffect(() => {
     if (image) {
@@ -118,19 +102,18 @@ export const ImageDetailModal: React.FC<ImageDetailModalProps> = ({
 
   const handleDownload = async () => {
     try {
-      const response = await fetch(image.url);
-      const blob = await response.blob();
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.style.display = 'none';
-      a.href = url;
-      a.download = `${image.title}.jpg`;
-      document.body.appendChild(a);
-      a.click();
-      window.URL.revokeObjectURL(url);
-      document.body.removeChild(a);
+      await requestMediaDownload(image.id, `${image.title}.jpg`);
+      toast({
+        title: '开始下载',
+        description: `${image.title} 正在下载`,
+      });
     } catch (error) {
       console.error('下载失败:', error);
+      toast({
+        title: '下载失败',
+        description: '图片下载失败，请稍后重试',
+        variant: 'destructive',
+      });
     }
   };
 
@@ -212,19 +195,13 @@ export const ImageDetailModal: React.FC<ImageDetailModalProps> = ({
               <div className="p-4">
                 {/* 用户信息区域 */}
                 <div className="flex items-center space-x-4 mb-3">
-                  <div className="w-14 h-14 rounded-full bg-gradient-to-br from-blue-100 to-purple-100 dark:from-blue-900 dark:to-purple-900 flex items-center justify-center overflow-hidden ring-2 ring-white dark:ring-gray-700 shadow-sm">
-                    {image.user.avatar_url ? (
-                      <Image
-                        src={normalizeAvatarUrl(image.user.avatar_url)}
-                        alt={image.user.username}
-                        width={56}
-                        height={56}
-                        className="object-cover w-full h-full"
-                      />
-                    ) : (
-                      <User className="w-7 h-7 text-gray-500" />
-                    )}
-                  </div>
+                  <UserAvatar
+                    src={image.user.avatar_url}
+                    name={image.user.nickname || image.user.username}
+                    size="lg"
+                    withBorder
+                    className="h-14 w-14 ring-2 ring-white dark:ring-gray-700 shadow-sm bg-gradient-to-br from-blue-100 to-purple-100 dark:from-blue-900 dark:to-purple-900"
+                  />
                   <div className="flex-1 min-w-0">
                     <h3 className="font-semibold text-gray-900 dark:text-white text-lg">
                       {image.user.username}
