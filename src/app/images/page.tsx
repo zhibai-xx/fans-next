@@ -24,6 +24,19 @@ import { useIntersectionObserverLegacy } from '@/hooks/useIntersectionObserver';
 import { queryClient } from '@/lib/query-client';
 import { getViewSessionId } from '@/lib/view-session';
 
+const SOURCE_GROUP_OPTIONS = [
+    {
+        key: 'official' as const,
+        label: '官方精选',
+        description: '系统导入 / 管理员精选内容',
+    },
+    {
+        key: 'community' as const,
+        label: '社区投稿',
+        description: '粉丝用户上传作品',
+    },
+];
+
 export default function ImagesPage() {
     const { toast } = useToast();
 
@@ -33,7 +46,8 @@ export default function ImagesPage() {
         type: 'IMAGE', // 只显示图片
         status: 'APPROVED', // 只显示已发布的图片
         sortBy: 'created_at',
-        sortOrder: 'desc'
+        sortOrder: 'desc',
+        sourceGroup: 'official',
     });
     const [layoutMode, setLayoutMode] = useState<'masonry' | 'grid'>('masonry');
     const [selectedImage, setSelectedImage] = useState<MediaItem | null>(null);
@@ -135,6 +149,7 @@ export default function ImagesPage() {
 
     // 统计信息
     const totalCount = data?.pages[0]?.pagination?.total || 0;
+    const activeSourceGroup = filters.sourceGroup || 'official';
 
     // 处理错误
     React.useEffect(() => {
@@ -177,6 +192,17 @@ export default function ImagesPage() {
         console.log('筛选条件更新:', updatedFilters);
         setFilters(updatedFilters);
         // TanStack Query 会自动重新获取数据
+    }, []);
+    const handleSourceGroupChange = useCallback((group: 'official' | 'community') => {
+        setFilters(prev => {
+            if (prev.sourceGroup === group) {
+                return prev;
+            }
+            return {
+                ...prev,
+                sourceGroup: group,
+            };
+        });
     }, []);
 
     // 加载更多
@@ -281,6 +307,44 @@ export default function ImagesPage() {
                     </div>
                     <div className="flex items-center gap-3">
                         <ImageUploadButton onUploadComplete={handleUploadComplete} />
+                    </div>
+                </div>
+
+                {/* 来源切换 */}
+                <div className="mb-6">
+                    <div className="bg-white dark:bg-gray-900 border border-gray-200/60 dark:border-gray-800/60 rounded-2xl shadow-sm p-5">
+                        <div className="flex items-center justify-between mb-4">
+                            <div>
+                                <p className="text-sm font-semibold text-gray-900 dark:text-gray-100">展示来源</p>
+                                <p className="text-xs text-gray-500 dark:text-gray-400">
+                                    默认展示官方精选，可切换为社区投稿并继续搭配分类/标签筛选
+                                </p>
+                            </div>
+                            <span className="text-xs px-3 py-1 rounded-full bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-300">
+                                {activeSourceGroup === 'official' ? '官方精选' : '社区投稿'}
+                            </span>
+                        </div>
+                        <div className="grid gap-3 sm:grid-cols-2">
+                            {SOURCE_GROUP_OPTIONS.map((option) => {
+                                const isActive = activeSourceGroup === option.key;
+                                return (
+                                    <button
+                                        key={option.key}
+                                        type="button"
+                                        onClick={() => handleSourceGroupChange(option.key)}
+                                        className={[
+                                            'rounded-2xl border p-4 text-left transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-pink-300',
+                                            isActive
+                                                ? 'border-pink-200 bg-pink-50 shadow-sm dark:border-pink-500/40 dark:bg-pink-500/10'
+                                                : 'border-gray-200 hover:border-pink-200 hover:bg-pink-50/40 dark:border-gray-700 dark:hover:border-pink-500/30',
+                                        ].join(' ')}
+                                    >
+                                        <p className="text-sm font-semibold text-gray-900 dark:text-gray-100">{option.label}</p>
+                                        <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">{option.description}</p>
+                                    </button>
+                                );
+                            })}
+                        </div>
                     </div>
                 </div>
 

@@ -28,7 +28,13 @@ export interface Media {
   duration?: number;
   width?: number;
   height?: number;
-  status: 'PENDING' | 'APPROVED' | 'REJECTED';
+  status:
+    | 'PENDING_REVIEW'
+    | 'APPROVED'
+    | 'REJECTED'
+    | 'USER_DELETED'
+    | 'ADMIN_DELETED'
+    | 'SYSTEM_HIDDEN';
   visibility: 'VISIBLE' | 'HIDDEN';
   created_at: string;
   updated_at: string;
@@ -55,7 +61,7 @@ export interface Media {
 
 export interface MediaFilters {
   visibility?: 'VISIBLE' | 'HIDDEN';
-  status?: 'PENDING' | 'APPROVED' | 'REJECTED';
+  status?: 'PENDING_REVIEW' | 'APPROVED' | 'REJECTED';
   media_type?: string;
   category_id?: string;
   date_range?: string;
@@ -113,7 +119,8 @@ export interface PaginatedResponse<T> {
 export interface RecycleMediaItem extends Media {
   deleted_at: string;
   deleted_reason?: string | null;
-  deleted_by?: number | null;
+  deleted_by_id?: number | null;
+  deleted_by_type?: 'USER' | 'ADMIN' | null;
   cleanup_scheduled_at?: string | null;
 }
 

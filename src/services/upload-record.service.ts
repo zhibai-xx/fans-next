@@ -65,6 +65,29 @@ export class UploadRecordService {
   }
 
   /**
+   * 更新待审核媒体
+   */
+  static async updateRecord(recordId: string, data: Partial<UploadRecord>): Promise<UploadRecord> {
+    try {
+      const response = await apiClient.patch(`/user-uploads/${recordId}`, data);
+      return response as UploadRecord;
+    } catch (error) {
+      throw handleApiError(error, '更新投稿失败');
+    }
+  }
+
+  /**
+   * 撤回待审核投稿
+   */
+  static async withdrawRecord(recordId: string): Promise<void> {
+    try {
+      await apiClient.post(`/user-uploads/${recordId}/withdraw`);
+    } catch (error) {
+      throw handleApiError(error, '撤回投稿失败');
+    }
+  }
+
+  /**
    * 格式化文件大小
    */
   static formatFileSize(bytes: number): string {
@@ -97,10 +120,12 @@ export class UploadRecordService {
    */
   static getStatusText(status: string): string {
     const statusMap = {
-      PENDING: '待审核',
+      PENDING_REVIEW: '待审核',
       APPROVED: '已通过',
       REJECTED: '已拒绝',
-      PRIVATE: '已暂存'
+      USER_DELETED: '已被作者删除',
+      ADMIN_DELETED: '管理员删除',
+      SYSTEM_HIDDEN: '系统隐藏'
     };
     return statusMap[status as keyof typeof statusMap] || status;
   }
@@ -110,11 +135,13 @@ export class UploadRecordService {
    */
   static getStatusColor(status: string): string {
     const colorMap = {
-      PENDING: 'text-yellow-600 bg-yellow-50 border-yellow-200',
+      PENDING_REVIEW: 'text-yellow-600 bg-yellow-50 border-yellow-200',
       APPROVED: 'text-green-600 bg-green-50 border-green-200',
       REJECTED: 'text-red-600 bg-red-50 border-red-200',
-      PRIVATE: 'text-gray-600 bg-gray-50 border-gray-200'
+      USER_DELETED: 'text-gray-400 bg-gray-50 border-gray-200',
+      ADMIN_DELETED: 'text-gray-500 bg-gray-50 border-gray-200',
+      SYSTEM_HIDDEN: 'text-purple-600 bg-purple-50 border-purple-200'
     };
     return colorMap[status as keyof typeof colorMap] || 'text-gray-600 bg-gray-50 border-gray-200';
   }
-} 
+}

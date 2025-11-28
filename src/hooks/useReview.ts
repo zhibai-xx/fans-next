@@ -15,7 +15,7 @@ export function useReview(initialFilters: ReviewFilters = {}): UseReviewResult {
 
   // 确保每次重新挂载时都使用正确的初始筛选条件
   const [currentFilters, setCurrentFilters] = useState<ReviewFilters>(() => ({
-    status: initialFilters.status || 'PENDING',
+    status: initialFilters.status || 'PENDING_REVIEW',
     take: initialFilters.take || 20,
     sortBy: initialFilters.sortBy || 'created_at',
     sortOrder: initialFilters.sortOrder || 'desc',

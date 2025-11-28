@@ -110,7 +110,7 @@ export function useMediaTypeOptions() {
 // 媒体状态选项
 export function useMediaStatusOptions() {
   return [
-    { value: 'PENDING', label: '待审核' },
+    { value: 'PENDING_REVIEW', label: '待审核' },
     { value: 'APPROVED', label: '已通过' },
     { value: 'REJECTED', label: '已拒绝' },
   ];

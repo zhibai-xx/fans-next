@@ -9,7 +9,13 @@ export interface UploadRecord {
   duration?: number;       // 视频时长（秒）
   width?: number;          // 宽度
   height?: number;         // 高度
-  status: 'PENDING' | 'APPROVED' | 'REJECTED' | 'PRIVATE';
+  status:
+    | 'PENDING_REVIEW'
+    | 'APPROVED'
+    | 'REJECTED'
+    | 'USER_DELETED'
+    | 'ADMIN_DELETED'
+    | 'SYSTEM_HIDDEN';
   review_comment?: string; // 审核备注
   reviewed_by?: number;    // 审核员ID
   reviewed_at?: string;    // 审核时间
@@ -34,17 +40,25 @@ export interface UploadRecord {
 
 export interface UploadStats {
   total: number;           // 总上传数
-  pending: number;         // 待审核
+  pending_review: number;  // 待审核
   approved: number;        // 已通过
   rejected: number;        // 已拒绝
-  private: number;         // 已暂存
+  user_deleted: number;    // 用户删除
+  admin_deleted: number;   // 管理员删除
+  system_hidden: number;   // 系统隐藏
   total_views: number;     // 总浏览量
   total_likes: number;     // 总点赞数
   approval_rate: number;   // 通过率（百分比）
 }
 
 export interface UploadFilters {
-  status?: 'PENDING' | 'APPROVED' | 'REJECTED' | 'PRIVATE';
+  status?:
+    | 'PENDING_REVIEW'
+    | 'APPROVED'
+    | 'REJECTED'
+    | 'USER_DELETED'
+    | 'ADMIN_DELETED'
+    | 'SYSTEM_HIDDEN';
   media_type?: 'IMAGE' | 'VIDEO';
   search?: string;
   category_id?: string;

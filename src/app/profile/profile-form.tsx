@@ -10,6 +10,7 @@ import LoadingSpinner from '@/components/LoadingSpinner';
 import { useAvatarUploadMutation, useProfileForm } from '@/hooks/queries/useProfile';
 import { UserAvatar } from '@/components/avatar/UserAvatar';
 import { AvatarCropperDialog } from '@/components/avatar/AvatarCropperDialog';
+import { cn } from '@/lib/utils';
 
 const ACCEPTED_AVATAR_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
 const AVATAR_MAX_SIZE = 2 * 1024 * 1024; // 2MB
@@ -213,8 +214,17 @@ export default function ProfileForm() {
     );
   }
 
+  const isProfileReady = Boolean(profile);
+  const showAvatarSkeleton = !isProfileReady && !avatarPreview;
+
   return (
-    <form onSubmit={handleSubmit} className="space-y-6 max-w-2xl mx-auto">
+    <form
+      onSubmit={handleSubmit}
+      className={cn(
+        'space-y-6 max-w-2xl mx-auto transition-opacity duration-300 ease-out',
+        isProfileReady ? 'opacity-100' : 'opacity-75',
+      )}
+    >
       {updateError && (
         <div className="bg-red-50 text-red-500 p-4 rounded-md mb-6">
           {updateError.message || '更新资料失败，请稍后重试'}
@@ -230,13 +240,18 @@ export default function ProfileForm() {
       <div className="space-y-3">
         <Label>头像</Label>
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
-          <UserAvatar
-            src={avatarPreview || profile?.avatar_url}
-            name={profile?.nickname || profile?.username || '用户'}
-            size="xl"
-            withBorder
-            className="border-dashed border-border"
-          />
+          {showAvatarSkeleton ? (
+            <div className="h-20 w-20 rounded-2xl bg-muted animate-pulse shadow-inner" />
+          ) : (
+            <UserAvatar
+              src={avatarPreview || profile?.avatar_url}
+              name={profile?.nickname || profile?.username || ' '}
+              size="xl"
+              withBorder
+              className="shadow-sm ring-1 ring-border/50"
+              fallbackClassName="bg-muted text-muted-foreground"
+            />
+          )}
           <div className="flex-1 space-y-2">
             <Input
               ref={fileInputRef}
@@ -246,42 +261,52 @@ export default function ProfileForm() {
               className="hidden"
               onChange={handleAvatarFileChange}
             />
-            <div className="flex flex-wrap gap-2">
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => fileInputRef.current?.click()}
-              >
-                选择图片
-              </Button>
-              <Button
-                type="button"
-                disabled={!avatarFile || isUploadingAvatar}
-                onClick={handleAvatarUpload}
-              >
-                {isUploadingAvatar ? '上传中...' : '上传头像'}
-              </Button>
-              {avatarFile && (
-                <Button
-                  type="button"
-                  variant="ghost"
-                  onClick={() => resetAvatarSelection()}
-                  disabled={isUploadingAvatar}
-                >
-                  取消选择
-                </Button>
-              )}
-            </div>
-            <p className="text-xs text-muted-foreground">
-              支持 JPG / PNG / WebP，最大 2MB，系统会自动裁剪并压缩为 WebP。
-            </p>
-            {avatarFile && (
-              <p className="text-xs text-muted-foreground">
-                已选择：{avatarFile.name}（{formatFileSize(avatarFile.size)}）
-              </p>
-            )}
-            {avatarError && (
-              <p className="text-xs text-red-500">{avatarError}</p>
+            {showAvatarSkeleton ? (
+              <div className="space-y-3">
+                <div className="h-10 w-32 rounded-full bg-muted animate-pulse" />
+                <div className="h-10 w-32 rounded-full bg-muted animate-pulse" />
+                <div className="h-4 w-48 rounded-full bg-muted animate-pulse" />
+              </div>
+            ) : (
+              <>
+                <div className="flex flex-wrap gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => fileInputRef.current?.click()}
+                  >
+                    选择图片
+                  </Button>
+                  <Button
+                    type="button"
+                    disabled={!avatarFile || isUploadingAvatar}
+                    onClick={handleAvatarUpload}
+                  >
+                    {isUploadingAvatar ? '上传中...' : '上传头像'}
+                  </Button>
+                  {avatarFile && (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      onClick={() => resetAvatarSelection()}
+                      disabled={isUploadingAvatar}
+                    >
+                      取消选择
+                    </Button>
+                  )}
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  支持 JPG / PNG / WebP，最大 2MB，系统会自动裁剪并压缩为 WebP。
+                </p>
+                {avatarFile && (
+                  <p className="text-xs text-muted-foreground">
+                    已选择：{avatarFile.name}（{formatFileSize(avatarFile.size)}）
+                  </p>
+                )}
+                {avatarError && (
+                  <p className="text-xs text-red-500">{avatarError}</p>
+                )}
+              </>
             )}
           </div>
         </div>

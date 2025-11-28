@@ -12,7 +12,13 @@ export interface VideoItem {
   duration?: number | null; // 秒
   width?: number | null;
   height?: number | null;
-  status: 'PENDING' | 'APPROVED' | 'REJECTED' | 'PRIVATE';
+  status:
+    | 'PENDING_REVIEW'
+    | 'APPROVED'
+    | 'REJECTED'
+    | 'USER_DELETED'
+    | 'ADMIN_DELETED'
+    | 'SYSTEM_HIDDEN';
   views: number; // 观看次数
   likes_count: number;
   favorites_count: number;
@@ -60,7 +66,7 @@ export interface VideoFilters {
   tag?: string;
   sortBy?: 'created_at' | 'views' | 'likes_count' | 'title';
   sortOrder?: 'asc' | 'desc';
-  status?: 'APPROVED' | 'PENDING' | 'PROCESSING' | 'REJECTED';
+  status?: 'APPROVED' | 'PENDING_REVIEW' | 'REJECTED' | 'PROCESSING';
   limit?: number;
   page?: number;
 }

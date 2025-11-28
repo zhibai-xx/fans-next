@@ -126,7 +126,10 @@ export const ImageSearchBar: React.FC<ImageSearchBarProps> = ({
     setSelectedTags([]);
     onFilterChange({
       type: 'IMAGE', // 保持图片类型
-      status: 'APPROVED' // 保持已发布状态
+      status: 'APPROVED', // 保持已发布状态
+      sortBy: 'created_at',
+      sortOrder: 'desc',
+      sourceGroup: currentFilters.sourceGroup,
     });
   };
 

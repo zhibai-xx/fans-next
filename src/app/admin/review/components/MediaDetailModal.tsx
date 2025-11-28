@@ -187,7 +187,13 @@ const VideoPlayerWrapper = React.memo(function VideoPlayerWrapper({ media }: { m
   return prevProps.media.id === nextProps.media.id;
 });
 
-type ReviewStatus = 'PENDING' | 'APPROVED' | 'REJECTED' | 'PRIVATE';
+type ReviewStatus =
+  | 'PENDING_REVIEW'
+  | 'APPROVED'
+  | 'REJECTED'
+  | 'USER_DELETED'
+  | 'ADMIN_DELETED'
+  | 'SYSTEM_HIDDEN';
 
 interface MediaFormState {
   title: string;
@@ -207,7 +213,7 @@ export function MediaDetailModal({ media, isOpen, onClose, onUpdate }: MediaDeta
     title: '',
     description: '',
     category_id: '',
-    status: 'PENDING',
+    status: 'PENDING_REVIEW',
     tag_ids: []
   });
 
@@ -310,7 +316,7 @@ export function MediaDetailModal({ media, isOpen, onClose, onUpdate }: MediaDeta
     try {
       let updateData;
 
-      if (media.status === 'PENDING') {
+      if (media.status === 'PENDING_REVIEW') {
         // 待审核 → 通过
         updateData = {
           title: formData.title,
@@ -348,7 +354,7 @@ export function MediaDetailModal({ media, isOpen, onClose, onUpdate }: MediaDeta
     try {
       let updateData;
 
-      if (media.status === 'PENDING') {
+      if (media.status === 'PENDING_REVIEW') {
         // 待审核 → 拒绝
         updateData = {
           title: formData.title,
@@ -397,7 +403,7 @@ export function MediaDetailModal({ media, isOpen, onClose, onUpdate }: MediaDeta
         category_id: formData.category_id && formData.category_id !== 'none' && formData.category_id.trim() !== ''
           ? formData.category_id
           : undefined,
-        status: 'PENDING' as const,
+        status: 'PENDING_REVIEW' as const,
         tag_ids: formData.tag_ids
       };
 
@@ -414,18 +420,20 @@ export function MediaDetailModal({ media, isOpen, onClose, onUpdate }: MediaDeta
   };
 
   // 判断是否可以编辑
-  const canEdit = media?.status === 'PENDING';
+  const canEdit = media?.status === 'PENDING_REVIEW';
 
   // 判断是否可以审核操作
-  const canApprove = media?.status === 'PENDING';
-  const canReject = media?.status === 'PENDING';
+  const canApprove = media?.status === 'PENDING_REVIEW';
+  const canReject = media?.status === 'PENDING_REVIEW';
   const canWithdrawRejection = media?.status === 'REJECTED';
 
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'APPROVED': return 'bg-green-100 text-green-800';
       case 'REJECTED': return 'bg-red-100 text-red-800';
-      case 'PRIVATE': return 'bg-gray-100 text-gray-800';
+      case 'USER_DELETED':
+      case 'ADMIN_DELETED': return 'bg-gray-100 text-gray-700';
+      case 'SYSTEM_HIDDEN': return 'bg-purple-100 text-purple-700';
       default: return 'bg-yellow-100 text-yellow-800';
     }
   };
@@ -434,7 +442,9 @@ export function MediaDetailModal({ media, isOpen, onClose, onUpdate }: MediaDeta
     switch (status) {
       case 'APPROVED': return '已通过';
       case 'REJECTED': return '已拒绝';
-      case 'PRIVATE': return '私有';
+      case 'USER_DELETED': return '作者删除';
+      case 'ADMIN_DELETED': return '管理员删除';
+      case 'SYSTEM_HIDDEN': return '系统隐藏';
       default: return '待审核';
     }
   };
@@ -443,7 +453,7 @@ export function MediaDetailModal({ media, isOpen, onClose, onUpdate }: MediaDeta
     switch (status) {
       case 'APPROVED': return '已通过的内容请在媒体管理页面进行管理';
       case 'REJECTED': return '已拒绝的内容可以撤回拒绝，重新进入待审核状态';
-      case 'PENDING': return '待审核的内容可以编辑信息并进行审核';
+      case 'PENDING_REVIEW': return '待审核的内容可以编辑信息并进行审核';
       default: return '';
     }
   };
@@ -660,8 +670,9 @@ export function MediaDetailModal({ media, isOpen, onClose, onUpdate }: MediaDeta
                       <SelectValue placeholder="选择状态" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="PENDING">待审核</SelectItem>
-                      <SelectItem value="PRIVATE">私有</SelectItem>
+                      <SelectItem value="PENDING_REVIEW">待审核</SelectItem>
+                      <SelectItem value="APPROVED">已通过</SelectItem>
+                      <SelectItem value="REJECTED">已拒绝</SelectItem>
                     </SelectContent>
                   </Select>
                 ) : (

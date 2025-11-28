@@ -174,6 +174,31 @@ export function useUpdateUploadRecordMutation() {
   });
 }
 
+export function useWithdrawUploadRecordMutation() {
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (recordId: string) => {
+      return await UploadRecordService.withdrawRecord(recordId);
+    },
+    onSuccess: () => {
+      toast({
+        title: '撤回成功',
+        description: '投稿已撤回审核',
+      });
+      queryClient.invalidateQueries({ queryKey: uploadRecordQueryKeys.all });
+    },
+    onError: (error) => {
+      toast({
+        title: '撤回失败',
+        description: error instanceof Error ? error.message : '撤回投稿失败',
+        variant: 'destructive',
+      });
+    },
+  });
+}
+
 // 查询工具函数
 export const uploadRecordQueryUtils = {
   // 使所有上传记录查询失效

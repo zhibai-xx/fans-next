@@ -18,13 +18,15 @@ interface ResubmitModalProps {
   onClose: () => void;
   record: UploadRecord | null;
   onSuccess: () => void;
+  mode?: 'resubmit' | 'edit';
 }
 
 export const ResubmitModal: React.FC<ResubmitModalProps> = ({
   isOpen,
   onClose,
   record,
-  onSuccess
+  onSuccess,
+  mode = 'resubmit'
 }) => {
   const [formData, setFormData] = useState<ResubmitData>({});
   const [isLoading, setIsLoading] = useState(false);
@@ -32,6 +34,7 @@ export const ResubmitModal: React.FC<ResubmitModalProps> = ({
   const [categories, setCategories] = useState<Array<{ id: string; name: string }>>([]);
   const [tags, setTags] = useState<Array<{ id: string; name: string }>>([]);
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
+  const isResubmit = mode === 'resubmit';
 
   // 初始化表单数据
   useEffect(() => {
@@ -79,7 +82,11 @@ export const ResubmitModal: React.FC<ResubmitModalProps> = ({
         tag_ids: selectedTags
       };
 
-      await UploadRecordService.resubmitRecord(record.id, submitData);
+      if (isResubmit) {
+        await UploadRecordService.resubmitRecord(record.id, submitData);
+      } else {
+        await UploadRecordService.updateRecord(record.id, submitData);
+      }
       onSuccess();
       onClose();
     } catch (error: any) {
@@ -111,7 +118,7 @@ export const ResubmitModal: React.FC<ResubmitModalProps> = ({
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="text-xl font-bold">
-            重新提交内容
+            {isResubmit ? '重新提交内容' : '编辑投稿'}
           </DialogTitle>
         </DialogHeader>
 
@@ -124,7 +131,7 @@ export const ResubmitModal: React.FC<ResubmitModalProps> = ({
           )}
 
           {/* 审核备注回顾 */}
-          {record.review_comment && (
+          {isResubmit && record.review_comment && (
             <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
               <h4 className="font-medium text-yellow-800 mb-2">审核备注</h4>
               <p className="text-sm text-yellow-700">{record.review_comment}</p>
@@ -231,7 +238,9 @@ export const ResubmitModal: React.FC<ResubmitModalProps> = ({
               type="submit"
               disabled={isLoading || !formData.title?.trim()}
             >
-              {isLoading ? '提交中...' : '重新提交'}
+              {isLoading
+                ? isResubmit ? '提交中...' : '保存中...'
+                : isResubmit ? '重新提交' : '保存修改'}
             </Button>
           </div>
         </form>

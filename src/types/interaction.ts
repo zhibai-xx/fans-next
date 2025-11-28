@@ -224,7 +224,13 @@ export interface FavoriteItem {
     duration?: number; // 🎯 添加：视频时长
     width?: number; // 🎯 添加：图片宽度
     height?: number; // 🎯 添加：图片高度
-    status: 'PENDING' | 'APPROVED' | 'REJECTED' | 'PRIVATE'; // 🎯 添加：状态
+    status:
+      | 'PENDING_REVIEW'
+      | 'APPROVED'
+      | 'REJECTED'
+      | 'USER_DELETED'
+      | 'ADMIN_DELETED'
+      | 'SYSTEM_HIDDEN'; // 🎯 添加：状态
     views: number;
     likes_count: number;
     favorites_count: number;

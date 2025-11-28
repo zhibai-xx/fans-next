@@ -24,9 +24,10 @@ export function AuthNavButtons() {
 
   if (isLoading) {
     return (
-      <div className="mt-auto mb-4 text-center">
-        <div className="w-full py-2 px-4 bg-gray-800 text-white opacity-50 rounded-full text-center text-sm flex items-center justify-center">
+      <div className="text-center">
+        <div className="w-full py-3 px-4 rounded-xl border border-gray-200 text-xs text-gray-500 flex items-center justify-center gap-2">
           <LoadingSpinner size="sm" />
+          <span>加载中</span>
         </div>
       </div>
     );
@@ -34,11 +35,11 @@ export function AuthNavButtons() {
 
   if (isAuthenticated && user) {
     return (
-      <div className="mt-auto mb-4 relative">
+      <div className="relative">
         <Button
           onClick={toggleDropdown}
-          variant="secondary"
-          className="w-full py-2 px-4 bg-gray-800 flex items-center justify-center space-x-2 rounded-full hover:bg-gray-700 transition text-white"
+          variant="ghost"
+          className="w-full py-3 px-4 border border-gray-200 text-gray-800 flex items-center justify-center space-x-2 rounded-xl hover:bg-gray-50 transition font-medium"
         >
           <UserAvatar
             src={user.avatar_url}
@@ -52,10 +53,10 @@ export function AuthNavButtons() {
         </Button>
 
         {isDropdownOpen && (
-          <div className="absolute bottom-full left-0 right-0 mb-2 p-2 bg-gray-900 rounded-md shadow-lg z-10">
+          <div className="absolute bottom-full left-0 right-0 mb-3 p-3 bg-white border border-gray-100 rounded-xl shadow-xl z-10">
             <Link
               href="/profile"
-              className="block py-2 px-3 text-sm hover:bg-gray-800 rounded"
+              className="block py-2 px-3 text-sm text-gray-700 hover:bg-gray-50 rounded-lg"
               onClick={() => setIsDropdownOpen(false)}
             >
               个人资料
@@ -64,7 +65,7 @@ export function AuthNavButtons() {
             {isAdmin() && (
               <Link
                 href="/admin/dashboard"
-                className="block py-2 px-3 text-sm text-blue-400 hover:bg-gray-800 rounded"
+                className="block py-2 px-3 text-sm text-blue-600 hover:bg-blue-50 rounded-lg"
                 onClick={() => setIsDropdownOpen(false)}
               >
                 管理后台
@@ -73,7 +74,7 @@ export function AuthNavButtons() {
             <Button
               onClick={handleSignOut}
               variant="ghost"
-              className="w-full text-left py-2 px-3 text-sm text-red-400 hover:bg-gray-800 rounded justify-start h-auto"
+              className="w-full text-left py-2.5 px-3 text-sm text-red-500 hover:bg-red-50 rounded-lg justify-start h-auto"
             >
               退出登录
             </Button>
@@ -84,13 +85,19 @@ export function AuthNavButtons() {
   }
 
   return (
-    <div className="mt-auto mb-4">
-      <Link href="/login" className="w-full py-2 px-4 bg-white text-black rounded-full text-center text-sm block hover:bg-gray-200 transition">
+    <div className="space-y-2">
+      <Link
+        href="/login"
+        className="w-full py-3 px-4 bg-black text-white rounded-xl text-center text-sm block font-medium hover:bg-gray-900 transition"
+      >
         登录
       </Link>
-      <Link href="/signup" className="w-full py-2 px-4 border border-white rounded-full text-center text-sm block mt-2 hover:bg-gray-900 transition">
+      <Link
+        href="/signup"
+        className="w-full py-3 px-4 border border-gray-200 rounded-xl text-center text-sm block text-gray-800 hover:bg-gray-50 transition font-medium"
+      >
         注册
       </Link>
     </div>
   );
-} 
+}

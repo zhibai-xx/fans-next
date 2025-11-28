@@ -113,7 +113,7 @@ const ModernVideoPlayerWrapper = React.memo(function ModernVideoPlayerWrapper({
   );
 });
 
-type ReviewStatus = 'PENDING' | 'APPROVED' | 'REJECTED' | 'PRIVATE';
+type ReviewStatus = 'PENDING_REVIEW' | 'APPROVED' | 'REJECTED';
 
 interface MediaFormState {
   title: string;
@@ -137,7 +137,7 @@ export function ModernMediaDetailModal({
     title: '',
     description: '',
     category_id: '',
-    status: 'PENDING',
+    status: 'PENDING_REVIEW',
     tag_ids: [],
   });
 
@@ -268,9 +268,9 @@ export function ModernMediaDetailModal({
     }
   };
 
-  const canEdit = media?.status === 'PENDING';
-  const canApprove = media?.status === 'PENDING';
-  const canReject = media?.status === 'PENDING';
+  const canEdit = media?.status === 'PENDING_REVIEW';
+  const canApprove = media?.status === 'PENDING_REVIEW';
+  const canReject = media?.status === 'PENDING_REVIEW';
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -278,8 +278,11 @@ export function ModernMediaDetailModal({
         return 'bg-green-100 text-green-800';
       case 'REJECTED':
         return 'bg-red-100 text-red-800';
-      case 'PRIVATE':
-        return 'bg-gray-100 text-gray-800';
+      case 'USER_DELETED':
+      case 'ADMIN_DELETED':
+        return 'bg-gray-100 text-gray-700';
+      case 'SYSTEM_HIDDEN':
+        return 'bg-purple-100 text-purple-700';
       default:
         return 'bg-yellow-100 text-yellow-800';
     }
@@ -291,8 +294,12 @@ export function ModernMediaDetailModal({
         return '已通过';
       case 'REJECTED':
         return '已拒绝';
-      case 'PRIVATE':
-        return '私有';
+      case 'USER_DELETED':
+        return '作者删除';
+      case 'ADMIN_DELETED':
+        return '管理员删除';
+      case 'SYSTEM_HIDDEN':
+        return '系统隐藏';
       default:
         return '待审核';
     }

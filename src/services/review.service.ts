@@ -117,7 +117,7 @@ export class ReviewService {
       description?: string;
       category_id?: string;
       media_type?: 'IMAGE' | 'VIDEO';
-      status?: 'PENDING' | 'APPROVED' | 'REJECTED' | 'PRIVATE';
+      status?: 'PENDING_REVIEW' | 'APPROVED' | 'REJECTED';
       tag_ids?: string[];
     }
   ): Promise<any> {

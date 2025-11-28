@@ -29,7 +29,13 @@ export interface MediaItem {
   duration?: number;
   width?: number;
   height?: number;
-  status: 'PENDING' | 'APPROVED' | 'REJECTED' | 'PRIVATE';
+  status:
+    | 'PENDING_REVIEW'
+    | 'APPROVED'
+    | 'REJECTED'
+    | 'USER_DELETED'
+    | 'ADMIN_DELETED'
+    | 'SYSTEM_HIDDEN';
   views: number;
   likes_count: number;
   favorites_count: number;
@@ -66,13 +72,20 @@ export interface MediaListResponse {
 
 export interface MediaFilters {
   type?: 'IMAGE' | 'VIDEO';
-  status?: 'PENDING' | 'APPROVED' | 'REJECTED' | 'PRIVATE';
+  status?:
+    | 'PENDING_REVIEW'
+    | 'APPROVED'
+    | 'REJECTED'
+    | 'USER_DELETED'
+    | 'ADMIN_DELETED'
+    | 'SYSTEM_HIDDEN';
   userUuid?: string;
   categoryId?: string;
   tagId?: string;
   search?: string;
   sortBy?: 'created_at' | 'views' | 'likes_count';
   sortOrder?: 'asc' | 'desc';
+  sourceGroup?: 'official' | 'community';
 }
 
 export class MediaService {
@@ -100,6 +113,7 @@ export class MediaService {
       if (filters.search) queryParams.set('search', filters.search);
       if (filters.sortBy) queryParams.set('sortBy', filters.sortBy);
       if (filters.sortOrder) queryParams.set('sortOrder', filters.sortOrder);
+      if (filters.sourceGroup) queryParams.set('sourceGroup', filters.sourceGroup);
 
       console.log('正在获取媒体列表:', queryParams.toString());
 

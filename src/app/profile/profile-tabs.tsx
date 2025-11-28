@@ -29,7 +29,7 @@ export default function ProfileTabs() {
         <TabsTrigger value="password">修改密码</TabsTrigger>
         <TabsTrigger value="favorites">我的收藏</TabsTrigger>
         <TabsTrigger value="downloads">下载记录</TabsTrigger>
-        <TabsTrigger value="uploads">上传记录</TabsTrigger>
+        <TabsTrigger value="uploads">媒体管理</TabsTrigger>
         <AdminOnly showFallback={false}>
           <TabsTrigger value="system-ingest" className="text-orange-600 font-semibold">
             系统导入

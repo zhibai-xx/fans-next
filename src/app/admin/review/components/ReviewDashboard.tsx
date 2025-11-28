@@ -179,7 +179,7 @@ export function ReviewDashboard() {
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
 
   const review = useReview({
-    status: 'PENDING',
+    status: 'PENDING_REVIEW',
     take: 20,
     sortBy: 'created_at',
     sortOrder: 'desc'
@@ -207,7 +207,7 @@ export function ReviewDashboard() {
   // 稳定的事件处理函数
   const handleRefresh = useCallback(() => refreshMediaList(false), [refreshMediaList]);
 
-  const handleStatusFilter = useCallback((status: 'PENDING' | 'APPROVED' | 'REJECTED') => {
+  const handleStatusFilter = useCallback((status: 'PENDING_REVIEW' | 'APPROVED' | 'REJECTED') => {
     updateFilters({ status, skip: 0 });
 
     // 切换筛选时也刷新统计，确保数字是最新的
@@ -223,7 +223,7 @@ export function ReviewDashboard() {
 
   // 预计算的筛选按钮状态，避免重复计算
   const filterStates = useMemo(() => ({
-    isPending: currentFilters.status === 'PENDING',
+    isPending: currentFilters.status === 'PENDING_REVIEW',
     isApproved: currentFilters.status === 'APPROVED',
     isRejected: currentFilters.status === 'REJECTED',
     isImageFilter: currentFilters.type === 'IMAGE',
@@ -231,8 +231,8 @@ export function ReviewDashboard() {
   }), [currentFilters.status, currentFilters.type]);
 
   // 根据当前筛选状态判断可进行的批量操作
-  const canBatchApprove = currentFilters.status === 'PENDING' && selectionState.hasSelection;
-  const canBatchReject = currentFilters.status === 'PENDING' && selectionState.hasSelection;
+  const canBatchApprove = currentFilters.status === 'PENDING_REVIEW' && selectionState.hasSelection;
+  const canBatchReject = currentFilters.status === 'PENDING_REVIEW' && selectionState.hasSelection;
   const canBatchWithdrawRejection = currentFilters.status === 'REJECTED' && selectionState.hasSelection;
   const canBatchDelete = selectionState.hasSelection; // 所有状态都可以删除
 
@@ -254,7 +254,7 @@ export function ReviewDashboard() {
       const selectedIds = Array.from(selectedItems);
       await ReviewService.batchUpdateStatus({
         mediaIds: selectedIds,
-        status: 'PENDING'
+        status: 'PENDING_REVIEW'
       });
 
       // 刷新数据
@@ -431,7 +431,7 @@ export function ReviewDashboard() {
             <Button
               variant={filterStates.isPending ? 'default' : 'outline'}
               size="sm"
-              onClick={() => handleStatusFilter('PENDING')}
+              onClick={() => handleStatusFilter('PENDING_REVIEW')}
             >
               <Clock className="h-4 w-4 mr-2" />
               待审核 ({stats?.pending || 0})

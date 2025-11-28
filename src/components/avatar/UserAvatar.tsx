@@ -3,18 +3,10 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { cn } from '@/lib/utils';
+import { User2 } from 'lucide-react';
 
 const DEFAULT_AVATAR_API_PATH = '/api/upload/file/avatars/default.webp';
-const FALLBACK_TEXT = '粉';
-
-const pastelGradients = [
-  'from-[#fdf2f8] via-[#fce7f3] to-[#ede9fe]',
-  'from-[#fef3c7] via-[#fde68a] to-[#fef9c3]',
-  'from-[#e0f2fe] via-[#bfdbfe] to-[#fde68a]',
-  'from-[#dcfce7] via-[#fef9c3] to-[#fecdd3]',
-  'from-[#fae8ff] via-[#ede9fe] to-[#c7d2fe]',
-  'from-[#fee2e2] via-[#ffe4e6] to-[#fef3c7]',
-];
+const FALLBACK_TEXT = '·';
 
 const sizeMap = {
   sm: 'h-8 w-8 text-xs',
@@ -90,10 +82,8 @@ const buildSeed = (value?: string | null) => {
   return hash;
 };
 
-const pickGradient = (name?: string | null) => {
-  const seed = buildSeed(name);
-  return pastelGradients[seed % pastelGradients.length];
-};
+const fallbackBase =
+  'bg-muted text-muted-foreground flex items-center justify-center';
 
 export interface UserAvatarProps {
   src?: string | null;
@@ -114,7 +104,6 @@ export const UserAvatar: React.FC<UserAvatarProps> = ({
 }) => {
   const normalizedSrc = useMemo(() => normalizeAvatarUrl(src), [src]);
   const initials = useMemo(() => getInitialChar(name), [name]);
-  const gradientClass = useMemo(() => pickGradient(name), [name]);
   const [allowImage, setAllowImage] = useState(Boolean(normalizedSrc));
 
   useEffect(() => {
@@ -137,13 +126,10 @@ export const UserAvatar: React.FC<UserAvatarProps> = ({
         />
       )}
       <AvatarFallback
-        className={cn(
-          'uppercase font-semibold text-slate-700 bg-gradient-to-br',
-          gradientClass,
-          fallbackClassName,
-        )}
+        className={cn(fallbackBase, fallbackClassName)}
+        aria-label={initials}
       >
-        {initials}
+        <User2 className="h-4 w-4 opacity-70" />
       </AvatarFallback>
     </Avatar>
   );

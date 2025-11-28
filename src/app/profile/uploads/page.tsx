@@ -47,12 +47,29 @@ import {
   useInfiniteUploadRecords,
   useUploadStats,
   useDeleteUploadRecordMutation,
-  useBatchDeleteUploadRecordsMutation,
-  useResubmitUploadRecordMutation,
-  useUpdateUploadRecordMutation,
+  useWithdrawUploadRecordMutation,
   uploadRecordQueryUtils
 } from '@/hooks/queries/useUploadRecords';
 import { UploadRecordService } from '@/services/upload-record.service';
+
+const USER_MEDIA_TAB_CONFIG = [
+  { value: 'all', label: '全部', statKey: 'total' },
+  { value: 'pending', label: '待审核', statKey: 'pending_review' },
+  { value: 'approved', label: '已通过', statKey: 'approved' },
+  { value: 'rejected', label: '已拒绝', statKey: 'rejected' },
+  { value: 'deleted', label: '已删除', statKey: 'user_deleted' },
+] as const;
+
+const TAB_STATUS_MAP: Record<
+  (typeof USER_MEDIA_TAB_CONFIG)[number]['value'],
+  UploadFilters['status'] | undefined
+> = {
+  all: undefined,
+  pending: 'PENDING_REVIEW',
+  approved: 'APPROVED',
+  rejected: 'REJECTED',
+  deleted: 'USER_DELETED',
+};
 
 export default function UserUploadsPage() {
   // 本地UI状态
@@ -64,8 +81,12 @@ export default function UserUploadsPage() {
   });
   const [searchQuery, setSearchQuery] = useState('');
   const [activeTab, setActiveTab] = useState('all');
-  const [resubmitRecord, setResubmitRecord] = useState<UploadRecord | null>(null);
-  const [deleteRecord, setDeleteRecord] = useState<UploadRecord | null>(null);
+  const [editorRecord, setEditorRecord] = useState<UploadRecord | null>(null);
+  const [editorMode, setEditorMode] = useState<'resubmit' | 'edit'>('resubmit');
+  const [actionRecord, setActionRecord] = useState<{
+    record: UploadRecord;
+    mode: 'delete' | 'withdraw';
+  } | null>(null);
 
   // 无限滚动引用
   const loadMoreRef = useRef<HTMLDivElement>(null);
@@ -92,9 +113,17 @@ export default function UserUploadsPage() {
 
   // Mutation hooks
   const deleteRecordMutation = useDeleteUploadRecordMutation();
-  const batchDeleteMutation = useBatchDeleteUploadRecordsMutation();
-  const resubmitMutation = useResubmitUploadRecordMutation();
-  const updateRecordMutation = useUpdateUploadRecordMutation();
+  const withdrawRecordMutation = useWithdrawUploadRecordMutation();
+  const isWithdrawAction = actionRecord?.mode === 'withdraw';
+  const actionMutationPending = actionRecord
+    ? isWithdrawAction
+      ? withdrawRecordMutation.isPending
+      : deleteRecordMutation.isPending
+    : false;
+  const tabItems = USER_MEDIA_TAB_CONFIG.map((tab) => ({
+    ...tab,
+    count: stats ? (stats as Record<string, number>)[tab.statKey] ?? 0 : 0,
+  }));
 
   // 合并所有页面的记录数据
   const records = useMemo(() => {
@@ -121,26 +150,16 @@ export default function UserUploadsPage() {
   // 状态标签点击
   const handleTabChange = useCallback((value: string) => {
     setActiveTab(value);
-    const statusFilter = value === 'all' ? undefined : value.toUpperCase();
+    const statusFilter =
+      TAB_STATUS_MAP[
+        value as (typeof USER_MEDIA_TAB_CONFIG)[number]['value']
+      ];
     setFilters(prev => ({
       ...prev,
-      status: statusFilter as any,
+      status: statusFilter,
       page: 0
     }));
   }, []);
-
-  // 确认删除
-  const handleConfirmDelete = useCallback(() => {
-    if (!deleteRecord) return;
-
-    deleteRecordMutation.mutate(deleteRecord.id);
-    setDeleteRecord(null);
-  }, [deleteRecord, deleteRecordMutation]);
-
-  // 重新提交处理
-  const handleResubmit = useCallback((record: UploadRecord, metadata?: any) => {
-    resubmitMutation.mutate({ recordId: record.id, metadata });
-  }, [resubmitMutation]);
 
   // 刷新数据
   const handleRefresh = useCallback(() => {
@@ -148,15 +167,36 @@ export default function UserUploadsPage() {
     uploadRecordQueryUtils.invalidateAll(queryClient);
   }, [refetch]);
 
+  // 确认删除/撤回
+  const handleConfirmDelete = useCallback(() => {
+    if (!actionRecord) return;
+
+    const { record, mode } = actionRecord;
+    const onSettled = () => setActionRecord(null);
+
+    if (mode === 'withdraw') {
+      withdrawRecordMutation.mutate(record.id, {
+        onSuccess: () => handleRefresh(),
+        onSettled,
+      });
+      return;
+    }
+
+    deleteRecordMutation.mutate(record.id, {
+      onSuccess: () => handleRefresh(),
+      onSettled,
+    });
+  }, [actionRecord, deleteRecordMutation, withdrawRecordMutation, handleRefresh]);
+
   return (
     <div className="container mx-auto px-4 py-8 max-w-7xl">
       {/* 页面标题 */}
       <div className="mb-8">
         <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">
-          我的上传记录
+          媒体管理
         </h1>
         <p className="text-gray-600 dark:text-gray-400">
-          查看和管理你的所有上传内容，了解审核状态和数据表现
+          统一管理你的投稿，随时掌握审核状态并快速编辑、撤回或删除
         </p>
       </div>
 
@@ -250,21 +290,11 @@ export default function UserUploadsPage() {
         {/* 状态标签 */}
         <Tabs value={activeTab} onValueChange={handleTabChange}>
           <TabsList className="grid w-full grid-cols-5">
-            <TabsTrigger value="all">
-              全部 ({stats?.total || 0})
-            </TabsTrigger>
-            <TabsTrigger value="pending">
-              待审核 ({stats?.pending || 0})
-            </TabsTrigger>
-            <TabsTrigger value="approved">
-              已通过 ({stats?.approved || 0})
-            </TabsTrigger>
-            <TabsTrigger value="rejected">
-              已拒绝 ({stats?.rejected || 0})
-            </TabsTrigger>
-            <TabsTrigger value="private">
-              已暂存 ({stats?.private || 0})
-            </TabsTrigger>
+            {tabItems.map((tab) => (
+              <TabsTrigger key={tab.value} value={tab.value}>
+                {tab.label} ({tab.count})
+              </TabsTrigger>
+            ))}
           </TabsList>
         </Tabs>
       </div>
@@ -274,21 +304,28 @@ export default function UserUploadsPage() {
         {records.length === 0 && !isLoading ? (
           <div className="text-center py-12">
             <FileText className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-            <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">
-              暂无上传记录
-            </h3>
-            <p className="text-gray-600 dark:text-gray-400">
-              开始上传你的第一个作品吧！
-            </p>
-          </div>
+              <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">
+                暂无媒体内容
+              </h3>
+              <p className="text-gray-600 dark:text-gray-400">
+                快去上传或创作你的第一个作品吧！
+              </p>
+            </div>
         ) : (
           records.map((record) => (
             <UploadRecordCard
               key={record.id}
               record={record}
-              onDelete={(record) => setDeleteRecord(record)}
-              onResubmit={handleRefresh}
-              onOpenResubmit={setResubmitRecord}
+              onDelete={(record) =>
+                setActionRecord({ record, mode: 'delete' })
+              }
+              onWithdraw={(record) =>
+                setActionRecord({ record, mode: 'withdraw' })
+              }
+              onOpenEditor={(target, mode) => {
+                setEditorMode(mode);
+                setEditorRecord(target);
+              }}
             />
           ))
         )}
@@ -317,47 +354,58 @@ export default function UserUploadsPage() {
         {/* 没有更多内容提示 */}
         {!hasNextPage && records.length > 0 && (
           <div className="text-center py-8 text-gray-500">
-            已显示全部上传记录
+            已显示全部媒体内容
           </div>
         )}
       </div>
 
       {/* 重新提交模态框 */}
       <ResubmitModal
-        isOpen={!!resubmitRecord}
-        onClose={() => setResubmitRecord(null)}
-        record={resubmitRecord}
+        isOpen={!!editorRecord}
+        mode={editorMode}
+        onClose={() => setEditorRecord(null)}
+        record={editorRecord}
         onSuccess={() => {
-          setResubmitRecord(null);
+          setEditorRecord(null);
           handleRefresh();
         }}
       />
 
-      {/* 删除确认弹框 */}
-      <Dialog open={!!deleteRecord} onOpenChange={() => setDeleteRecord(null)}>
+      {/* 删除/撤回确认弹框 */}
+      <Dialog open={!!actionRecord} onOpenChange={() => setActionRecord(null)}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-2 text-red-600">
-              <AlertTriangle className="h-5 w-5" />
-              确认删除
+            <DialogTitle
+              className={`flex items-center gap-2 ${
+                isWithdrawAction ? 'text-blue-600' : 'text-red-600'
+              }`}
+            >
+              {isWithdrawAction ? (
+                <Clock className="h-5 w-5" />
+              ) : (
+                <AlertTriangle className="h-5 w-5" />
+              )}
+              {isWithdrawAction ? '确认撤回' : '确认删除'}
             </DialogTitle>
             <DialogDescription className="text-gray-600 dark:text-gray-400">
-              您确定要删除以下上传记录吗？此操作不可撤销。
+              {isWithdrawAction
+                ? '撤回后作品将不再参与审核，可重新编辑或删除。'
+                : ''}
             </DialogDescription>
           </DialogHeader>
 
-          {deleteRecord && (
+          {actionRecord?.record && (
             <div className="flex items-center gap-3 p-4 bg-gray-50 dark:bg-gray-800 rounded-lg border">
               <div className="flex-shrink-0 w-12 h-12 bg-gray-100 rounded-lg overflow-hidden">
-                {deleteRecord.thumbnail_url ? (
+                {actionRecord.record.thumbnail_url ? (
                   <img
-                    src={deleteRecord.thumbnail_url}
-                    alt={deleteRecord.title}
+                    src={actionRecord.record.thumbnail_url}
+                    alt={actionRecord.record.title}
                     className="w-full h-full object-cover"
                   />
                 ) : (
                   <div className="w-full h-full flex items-center justify-center">
-                    {deleteRecord.media_type === 'VIDEO' ? (
+                    {actionRecord.record.media_type === 'VIDEO' ? (
                       <Video className="h-6 w-6 text-gray-400" />
                     ) : (
                       <ImageIcon className="h-6 w-6 text-gray-400" />
@@ -367,11 +415,11 @@ export default function UserUploadsPage() {
               </div>
               <div className="flex-1 min-w-0">
                 <h4 className="font-medium text-gray-900 dark:text-white truncate">
-                  {deleteRecord.title}
+                  {actionRecord.record.title}
                 </h4>
                 <p className="text-sm text-gray-500 mt-1">
-                  {deleteRecord.media_type === 'VIDEO' ? '视频' : '图片'} •
-                  {UploadRecordService.getStatusText(deleteRecord.status)}
+                  {actionRecord.record.media_type === 'VIDEO' ? '视频' : '图片'} •
+                  {UploadRecordService.getStatusText(actionRecord.record.status)}
                 </p>
               </div>
             </div>
@@ -380,27 +428,31 @@ export default function UserUploadsPage() {
           <DialogFooter className="flex flex-col-reverse sm:flex-row sm:justify-end gap-2">
             <Button
               variant="outline"
-              onClick={() => setDeleteRecord(null)}
-              disabled={deleteRecordMutation.isPending}
+              onClick={() => setActionRecord(null)}
+              disabled={actionMutationPending}
               className="w-full sm:w-auto"
             >
               取消
             </Button>
             <Button
-              variant="destructive"
+              variant={isWithdrawAction ? 'default' : 'destructive'}
               onClick={handleConfirmDelete}
-              disabled={deleteRecordMutation.isPending}
+              disabled={actionMutationPending}
               className="w-full sm:w-auto"
             >
-              {deleteRecordMutation.isPending ? (
+              {actionMutationPending ? (
                 <>
                   <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2" />
-                  删除中...
+                  处理中...
                 </>
               ) : (
                 <>
-                  <Trash2 className="h-4 w-4 mr-2" />
-                  确认删除
+                  {isWithdrawAction ? (
+                    <RefreshCw className="h-4 w-4 mr-2" />
+                  ) : (
+                    <Trash2 className="h-4 w-4 mr-2" />
+                  )}
+                  {isWithdrawAction ? '确认撤回' : '确认删除'}
                 </>
               )}
             </Button>
@@ -415,15 +467,15 @@ export default function UserUploadsPage() {
 interface UploadRecordCardProps {
   record: UploadRecord;
   onDelete: (record: UploadRecord) => void;
-  onResubmit: () => void;
-  onOpenResubmit: (record: UploadRecord) => void;
+  onWithdraw: (record: UploadRecord) => void;
+  onOpenEditor: (record: UploadRecord, mode: 'resubmit' | 'edit') => void;
 }
 
 const UploadRecordCard: React.FC<UploadRecordCardProps> = ({
   record,
   onDelete,
-  onResubmit,
-  onOpenResubmit
+  onWithdraw,
+  onOpenEditor
 }) => {
   const [showDetails, setShowDetails] = useState(false);
 
@@ -436,6 +488,21 @@ const UploadRecordCard: React.FC<UploadRecordCardProps> = ({
       minute: '2-digit'
     });
   };
+
+  const isPending = record.status === 'PENDING_REVIEW';
+  const isRejected = record.status === 'REJECTED';
+  const isApproved = record.status === 'APPROVED';
+  const isUserDeleted = record.status === 'USER_DELETED';
+  const isAdminDeleted = record.status === 'ADMIN_DELETED';
+  const isSystemHidden = record.status === 'SYSTEM_HIDDEN';
+  const statusNotice = isUserDeleted
+    ? '你已删除该作品，其他用户将不再看到它。'
+    : isAdminDeleted
+    ? '作品因管理员处理已被移除。'
+    : isSystemHidden
+    ? '作品因系统策略暂不可见。'
+    : null;
+  const canDelete = isRejected || isApproved;
 
   return (
     <Card className="overflow-hidden hover:shadow-lg transition-shadow">
@@ -512,8 +579,14 @@ const UploadRecordCard: React.FC<UploadRecordCardProps> = ({
               </div>
             )}
 
+            {statusNotice && (
+              <div className="bg-gray-50 border border-gray-200 rounded-lg p-3 mb-3">
+                <p className="text-sm text-gray-600">{statusNotice}</p>
+              </div>
+            )}
+
             {/* 操作按钮 */}
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
               <Button
                 size="sm"
                 variant="outline"
@@ -522,25 +595,50 @@ const UploadRecordCard: React.FC<UploadRecordCardProps> = ({
                 {showDetails ? '收起' : '详情'}
               </Button>
 
-              {record.status === 'REJECTED' && (
+              {isPending && (
                 <Button
                   size="sm"
                   variant="outline"
-                  onClick={() => onOpenResubmit(record)}
+                  onClick={() => onOpenEditor(record, 'edit')}
+                  className="text-gray-700 border-gray-200"
+                >
+                  <Edit className="h-4 w-4 mr-1" />
+                  编辑
+                </Button>
+              )}
+
+              {isPending && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => onWithdraw(record)}
+                  className="text-blue-600 border-blue-200 hover:bg-blue-50"
+                >
+                  <Clock className="h-4 w-4 mr-1" />
+                  撤回
+                </Button>
+              )}
+
+              {isRejected && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => onOpenEditor(record, 'resubmit')}
                 >
                   <RefreshCw className="h-4 w-4 mr-1" />
                   重新提交
                 </Button>
               )}
 
-              {record.status !== 'APPROVED' && (
+              {canDelete && (
                 <Button
                   size="sm"
                   variant="outline"
                   onClick={() => onDelete(record)}
                   className="text-red-600 border-red-200 hover:bg-red-50"
                 >
-                  <Trash2 className="h-4 w-4" />
+                  <Trash2 className="h-4 w-4 mr-1" />
+                  删除
                 </Button>
               )}
             </div>
