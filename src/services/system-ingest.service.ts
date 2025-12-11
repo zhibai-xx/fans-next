@@ -103,8 +103,9 @@ export class SystemIngestService {
   static async uploadSingle(
     filePath: string,
     fileName: string,
-    metadata?: any,
+    metadata?: Record<string, unknown>,
   ): Promise<SystemIngestUploadResult> {
+    void metadata;
     const [result] = await this.batchUploadFiles([{ path: filePath, name: fileName }]);
     if (!result) {
       return {
@@ -118,10 +119,14 @@ export class SystemIngestService {
   }
 
   static async getUserFiles(userId?: string, page?: number, limit?: number) {
+    void userId;
+    void page;
+    void limit;
     return { files: [], total: 0 };
   }
 
   static async deleteFile(filePath: string) {
+    void filePath;
     throw new Error('系统导入文件删除暂未开放');
   }
 

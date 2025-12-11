@@ -138,7 +138,7 @@ export class AdminLogsService {
       page: page.toString(),
       limit: limit.toString(),
       ...Object.fromEntries(
-        Object.entries(filters).filter(([_, value]) => value !== undefined && value !== '')
+        Object.entries(filters).filter(([, value]) => value !== undefined && value !== '')
       )
     };
 
@@ -166,7 +166,7 @@ export class AdminLogsService {
       page: page.toString(),
       limit: limit.toString(),
       ...Object.fromEntries(
-        Object.entries(filters).filter(([_, value]) => value !== undefined && value !== '')
+        Object.entries(filters).filter(([, value]) => value !== undefined && value !== '')
       )
     };
 

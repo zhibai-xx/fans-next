@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { queryKeys } from '@/lib/query-client';
-import { AdminDashboardService, DashboardStats, RecentActivity, SystemStatus } from '@/services/admin-dashboard.service';
+import { AdminDashboardService } from '@/services/admin-dashboard.service';
 
 // 获取管理面板统计数据
 export const useDashboardStats = () => {

@@ -125,14 +125,10 @@ export const useBatchUploadMutation = () => {
   const { toast } = useToast();
   const {
     setIsUploading,
-    setUploadResults,
-    setUploadTasks,
-    clearAllData
+    setUploadResults
   } = useUploadStore(state => ({
     setIsUploading: state.setIsUploading,
-    setUploadResults: state.setUploadResults,
-    setUploadTasks: state.setUploadTasks,
-    clearAllData: state.clearAllData,
+    setUploadResults: state.setUploadResults
   }));
 
   return useMutation({
@@ -164,7 +160,7 @@ export const useBatchUploadMutation = () => {
         total: files.length,
         mediaIds: results
           .filter(r => r.status === 'fulfilled')
-          .map(r => (r as PromiseFulfilledResult<any>).value.mediaId)
+          .map(r => (r as PromiseFulfilledResult<{ mediaId: string }>).value.mediaId)
       };
     },
     onSuccess: (result) => {

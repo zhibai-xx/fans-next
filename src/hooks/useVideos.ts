@@ -157,7 +157,7 @@ export function useVideoProcessingStatus(mediaId: string) {
     queryKey: videoKeys.processing(mediaId),
     queryFn: () => VideoService.getProcessingStatus(mediaId),
     enabled: !!mediaId,
-    refetchInterval: (data, query) => {
+    refetchInterval: (data) => {
       // 如果状态是处理中，每5秒刷新一次
       if (data?.data?.status === 'processing') {
         return 5000;

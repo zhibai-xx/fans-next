@@ -1,6 +1,6 @@
 import { useQuery, useInfiniteQuery } from '@tanstack/react-query';
 import { queryKeys } from '@/lib/query-client';
-import { AdminUsersService, User, UserFilters, PaginatedResponse } from '@/services/admin-users.service';
+import { AdminUsersService, UserFilters } from '@/services/admin-users.service';
 
 // 获取用户列表（分页）
 export const useUsers = (filters: UserFilters = {}, page = 1, limit = 24) => {

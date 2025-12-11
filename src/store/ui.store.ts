@@ -29,17 +29,6 @@ interface ConfirmDialogState {
   variant?: 'default' | 'destructive';
 }
 
-// Toast 消息状态
-interface ToastState {
-  toasts: Array<{
-    id: string;
-    title?: string;
-    description: string;
-    variant?: 'default' | 'destructive' | 'success';
-    duration?: number;
-  }>;
-}
-
 // UI 状态接口
 interface UIState {
   // 主题
@@ -77,7 +66,7 @@ interface UIState {
   searchState: {
     isOpen: boolean;
     query: string;
-    results: any[];
+    results: unknown[];
     loading: boolean;
   };
   setSearchState: (state: Partial<UIState['searchState']>) => void;
@@ -94,7 +83,7 @@ interface UIState {
 // 创建 UI store
 export const useUIStore = create<UIState>()(
   persist(
-    (set, get) => ({
+    (set) => ({
       // 主题
       theme: 'system',
       setTheme: (theme) => set({ theme }),

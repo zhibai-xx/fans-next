@@ -3,9 +3,6 @@ import { useToast } from '@/hooks/use-toast';
 import {
   ReviewStats,
   ReviewFilters,
-  BatchUpdateStatusData,
-  BatchUpdateTagsData,
-  BatchUpdateCategoryData
 } from '@/types/review';
 import { MediaItem } from '@/services/media.service';
 import { ReviewService, UseReviewResult } from '@/services/review.service';

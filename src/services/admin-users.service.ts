@@ -76,7 +76,7 @@ export class AdminUsersService {
       page: page.toString(),
       limit: limit.toString(),
       ...Object.fromEntries(
-        Object.entries(filters).filter(([_, value]) => value !== undefined && value !== '')
+        Object.entries(filters).filter(([, value]) => value !== undefined && value !== '')
       )
     };
 

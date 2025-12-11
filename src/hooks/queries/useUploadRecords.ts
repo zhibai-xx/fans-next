@@ -70,7 +70,7 @@ export function useDeleteUploadRecordMutation() {
     mutationFn: async (recordId: string) => {
       return await UploadRecordService.deleteRecord(recordId);
     },
-    onSuccess: (data, recordId) => {
+    onSuccess: () => {
       toast({
         title: '删除成功',
         description: '上传记录已删除',
@@ -126,7 +126,7 @@ export function useResubmitUploadRecordMutation() {
     mutationFn: async (params: { recordId: string; metadata?: any }) => {
       return await UploadRecordService.resubmitRecord(params.recordId, params.metadata);
     },
-    onSuccess: (data, variables) => {
+    onSuccess: () => {
       toast({
         title: '重新提交成功',
         description: '文件已重新提交审核',
@@ -154,7 +154,7 @@ export function useUpdateUploadRecordMutation() {
     mutationFn: async (params: { recordId: string; updates: Partial<UploadRecord> }) => {
       return await UploadRecordService.updateRecord(params.recordId, params.updates);
     },
-    onSuccess: (data, variables) => {
+    onSuccess: (_data, variables) => {
       toast({
         title: '更新成功',
         description: '上传记录已更新',

@@ -64,12 +64,10 @@ const nextConfig: NextConfig = {
       },
     ];
   },
-  experimental: {
-    turbo: {
-      rules: {
-        '*.svg': {
-          loaders: ['@svgr/webpack'],
-        },
+  turbopack: {
+    rules: {
+      '*.svg': {
+        loaders: ['@svgr/webpack'],
       },
     },
   },

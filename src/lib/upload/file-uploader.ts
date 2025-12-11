@@ -229,7 +229,7 @@ export class FileUploader {
 
         // 5. 开始上传分片
         this.updateTaskStatus(taskId, 'uploading');
-        await this.uploadChunks(taskId, options, fileMd5);
+        await this.uploadChunks(taskId, options);
 
         // 6. 合并分片
         this.updateTaskStatus(taskId, 'merging');
@@ -267,7 +267,7 @@ export class FileUploader {
   /**
    * 上传分片 - 优化版本
    */
-  private async uploadChunks(taskId: string, options: ExtendedUploadOptions, _fileMd5: string) {
+  private async uploadChunks(taskId: string, options: ExtendedUploadOptions) {
     const task = this.tasks.get(taskId);
     if (!task || !task.uploadId || !task.totalChunks) return;
 
@@ -435,7 +435,7 @@ export class FileUploader {
   /**
    * 重试上传
    */
-  async retryUpload(taskId: string, options: ExtendedUploadOptions) {
+  async retryUpload(taskId: string) {
     const task = this.tasks.get(taskId);
     if (!task) return;
 

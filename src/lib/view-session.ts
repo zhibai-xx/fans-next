@@ -13,7 +13,7 @@ export const getViewSessionId = (): string | null => {
   }
 
   try {
-    let existing = window.localStorage.getItem(SESSION_STORAGE_KEY);
+    const existing = window.localStorage.getItem(SESSION_STORAGE_KEY);
     if (existing && existing.length > 0) {
       return existing;
     }

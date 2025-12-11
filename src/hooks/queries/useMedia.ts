@@ -136,7 +136,7 @@ export function useUpdateMediaVisibilityMutation() {
       }
       return response;
     },
-    onSuccess: (data, variables) => {
+    onSuccess: () => {
       toast({
         title: '更新成功',
         description: `媒体已${variables.visibility === 'VISIBLE' ? '显示' : '隐藏'}`,
@@ -165,7 +165,7 @@ export function useBatchUpdateMediaVisibilityMutation() {
       }
       return response;
     },
-    onSuccess: (data, variables) => {
+    onSuccess: () => {
       toast({
         title: '批量更新成功',
         description: `${variables.mediaIds.length} 个媒体已${variables.visibility === 'VISIBLE' ? '显示' : '隐藏'}`,
@@ -213,7 +213,7 @@ export function useUpdateMediaInfoMutation() {
       }
       return response;
     },
-    onSuccess: (data, variables) => {
+    onSuccess: () => {
       toast({
         title: '更新成功',
         description: '媒体信息已更新',
@@ -248,7 +248,6 @@ export function useDeleteMediaMutation() {
     },
     onSuccess: (data) => {
       const response = data as any;
-      const successCount = response.data?.successCount || 1;
       const failedCount = response.data?.failedCount || 0;
       const failedDetails = response.data?.failedDetails || [];
 
@@ -291,7 +290,7 @@ export function useBatchDeleteMediaMutation() {
       }
       return response;
     },
-    onSuccess: (data, mediaIds) => {
+    onSuccess: (data) => {
       const response = data as any;
       const successCount = response.data?.successCount || 0;
       const failedCount = response.data?.failedCount || 0;

@@ -1,5 +1,5 @@
 import { useQuery, useInfiniteQuery, useMutation } from '@tanstack/react-query';
-import { MediaService, MediaItem, MediaTag, MediaCategory, MediaFilters } from '@/services/media.service';
+import { MediaService, MediaTag, MediaCategory, MediaFilters } from '@/services/media.service';
 import { VideoService, IncrementViewPayload } from '@/services/video.service';
 import { InteractionService } from '@/services/interaction.service';
 import { useToast } from '@/hooks/use-toast';

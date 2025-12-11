@@ -7,12 +7,9 @@ import type {
   MediaInteractionStatus,
   BatchLikeStatus,
   BatchFavoriteStatus,
-  LikeRequest,
-  FavoriteRequest,
   FavoriteListQuery,
   FavoriteListResponse,
-  InteractionApiResponse,
-  FavoriteItem,
+  InteractionApiResponse
 } from '@/types/interaction';
 
 /**
