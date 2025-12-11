@@ -25,26 +25,12 @@ export default function Home() {
             bgColor="bg-blue-50"
           />
           <FeatureCard 
-            title="社区讨论" 
-            description="与其他粉丝交流，分享你的想法和创意" 
+            title="支持我们" 
+            description="了解如何在不涉及交易的前提下，自愿支持站点运营" 
             image="/assets/zjy.jpeg"
-            link="/community"
+            link="/shop"
             bgColor="bg-green-50" 
           />
-        </div>
-      </section>
-      
-      <section className="mb-16">
-        <h2 className="text-2xl font-semibold mb-4">最新动态</h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {[1, 2, 3, 4, 5, 6].map((item) => (
-            <NewsCard key={item} />
-          ))}
-        </div>
-        <div className="text-center mt-8">
-          <Link href="/news" className="inline-block py-2 px-6 border border-black dark:border-white rounded-full hover:bg-black hover:text-white dark:hover:bg-white dark:hover:text-black transition">
-            查看更多
-          </Link>
         </div>
       </section>
     </div>
@@ -85,29 +71,5 @@ function FeatureCard({
         <p className="text-sm text-gray-600 dark:text-gray-300">{description}</p>
       </div>
     </Link>
-  );
-}
-
-function NewsCard() {
-  return (
-    <div className="border border-gray-200 dark:border-gray-800 rounded-lg overflow-hidden hover:shadow-md transition">
-      <div className="h-40 bg-gray-200 dark:bg-gray-800 relative">
-        <Image 
-          src="/assets/zjy.jpeg" 
-          alt="新闻图片"
-          fill
-          sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
-          style={{objectFit: "cover"}}
-          priority={true}
-        />
-      </div>
-      <div className="p-4">
-        <span className="text-xs text-gray-500 dark:text-gray-400">2023年10月15日</span>
-        <h3 className="text-lg font-medium mt-1 mb-2">张婧仪新剧《风起洛阳》将于下月开播</h3>
-        <p className="text-sm text-gray-600 dark:text-gray-300 line-clamp-2">
-          据悉，由张婧仪主演的古装剧《风起洛阳》将于11月在卫视和各大平台同步播出...
-        </p>
-      </div>
-    </div>
   );
 }

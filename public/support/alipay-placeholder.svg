@@ -1,0 +1,6 @@
+<svg width="640" height="640" viewBox="0 0 640 640" xmlns="http://www.w3.org/2000/svg">
+  <rect width="640" height="640" rx="32" fill="#F5F5F5"/>
+  <path d="M320 120C208.528 120 120 208.528 120 320C120 431.472 208.528 520 320 520C431.472 520 520 431.472 520 320C520 208.528 431.472 120 320 120ZM320 160C409.387 160 480 230.613 480 320C480 409.387 409.387 480 320 480C230.613 480 160 409.387 160 320C160 230.613 230.613 160 320 160Z" fill="#0A84FF" fill-opacity="0.15"/>
+  <text x="50%" y="45%" text-anchor="middle" fill="#1E1E1E" font-family="Arial, Helvetica, sans-serif" font-size="32" font-weight="600">Alipay QR</text>
+  <text x="50%" y="55%" text-anchor="middle" fill="#6C6C6C" font-family="Arial, Helvetica, sans-serif" font-size="20">请替换为真实收款码</text>
+</svg>

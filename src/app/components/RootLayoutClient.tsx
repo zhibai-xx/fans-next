@@ -10,15 +10,14 @@ interface RootLayoutClientProps {
 }
 
 const PRIMARY_LINKS = [
-  { href: '/', icon: '/icons/fire.svg', label: '动态' },
+  { href: '/', icon: '/icons/fire.svg', label: '首页' },
   { href: '/images', icon: '/icons/images.svg', label: '图片' },
   { href: '/videos', icon: '/icons/video.svg', label: '视频' },
-  { href: '/community', icon: '/icons/community.svg', label: '社区' },
   { href: '/profile', icon: '/icons/profile.svg', label: '个人' },
 ];
 
 const SECONDARY_LINKS = [
-  { href: '/shop', icon: '/icons/shop.svg', label: '商店' },
+  { href: '/shop', icon: '/icons/shop.svg', label: '支持我们' },
 ];
 
 export function RootLayoutClient({ children }: RootLayoutClientProps) {

@@ -1,0 +1,6 @@
+<svg width="640" height="640" viewBox="0 0 640 640" xmlns="http://www.w3.org/2000/svg">
+  <rect width="640" height="640" rx="32" fill="#F0FFF3"/>
+  <path d="M320 140C218.364 140 140 218.364 140 320C140 421.636 218.364 500 320 500C421.636 500 500 421.636 500 320C500 218.364 421.636 140 320 140ZM320 180C399.32 180 460 240.68 460 320C460 399.32 399.32 460 320 460C240.68 460 180 399.32 180 320C180 240.68 240.68 180 320 180Z" fill="#22C55E" fill-opacity="0.2"/>
+  <text x="50%" y="45%" text-anchor="middle" fill="#064E3B" font-family="Arial, Helvetica, sans-serif" font-size="32" font-weight="600">WeChat QR</text>
+  <text x="50%" y="55%" text-anchor="middle" fill="#4B5563" font-family="Arial, Helvetica, sans-serif" font-size="20">替换为个人付款二维码</text>
+</svg>
