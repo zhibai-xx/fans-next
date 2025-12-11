@@ -593,8 +593,16 @@ export default function RobustVideoPlayer({
 
   // 获取容器样式类名 - 简化版本，所有比例都使用相同的响应式规则
   const getContainerClass = () => {
-    // 不再区分不同比例，统一使用响应式容器
-    return styles.aspectAuto;
+    switch (aspectRatio) {
+      case 'landscape':
+        return styles.aspectLandscape;
+      case 'portrait':
+        return styles.aspectPortrait;
+      case 'square':
+        return styles.aspectSquare;
+      default:
+        return styles.aspectAuto;
+    }
   };
 
   // 不再需要SSR检查 - 通过动态导入处理

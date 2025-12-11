@@ -6,7 +6,6 @@ import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { InteractionService } from '@/services/interaction.service';
 import type {
-  MediaInteractionStatus,
   InteractionButtonsProps,
   LikeStatus,
   FavoriteStatus,

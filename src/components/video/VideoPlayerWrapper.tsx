@@ -12,7 +12,7 @@ const RobustVideoPlayer = dynamic(
   }
 );
 
-export interface VideoPlayerWrapperProps extends RobustVideoPlayerProps { }
+export type VideoPlayerWrapperProps = RobustVideoPlayerProps;
 
 /**
  * 视频播放器包装器 - 解决SSR水合问题

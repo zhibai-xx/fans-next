@@ -111,8 +111,8 @@ export function ModernVideoCard({ video, className, showActions = true }: Modern
           title: video.title,
           url: `${window.location.origin}/videos/${video.id}`,
         });
-      } catch (err) {
-        console.log('分享被取消或失败');
+      } catch (error) {
+        console.log('分享被取消或失败', error);
       }
     } else {
       // 备用分享方案：复制到剪贴板
@@ -123,8 +123,8 @@ export function ModernVideoCard({ video, className, showActions = true }: Modern
           description: '快邀请朋友一起来看吧～',
           duration: 2000,
         });
-      } catch (err) {
-        console.log('复制失败');
+      } catch (error) {
+        console.log('复制失败', error);
         toast({
           title: '复制失败',
           description: '请稍后再试',

@@ -11,7 +11,6 @@ import { cn } from '@/lib/utils';
  * 显示观看数、点赞数、收藏数、评论数等统计信息
  */
 export const InteractionStats: React.FC<InteractionStatsProps> = ({
-  mediaId,
   views = 0,
   likesCount,
   favoritesCount,
@@ -152,7 +151,6 @@ export const DetailedInteractionStats: React.FC<{
   createdAt?: string;
   className?: string;
 }> = ({
-  mediaId,
   title,
   views,
   likesCount,

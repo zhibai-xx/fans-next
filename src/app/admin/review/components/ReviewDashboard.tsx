@@ -154,7 +154,7 @@ const MediaGrid = memo(({
 
   return (
     <div className={gridClass}>
-      {mediaList.map((media, index) => {
+      {mediaList.map((media) => {
         return (
           <MediaItem
             key={media.id}
@@ -652,7 +652,7 @@ export function ReviewDashboard() {
         media={selectedMedia}
         isOpen={!!selectedMedia}
         onClose={() => setSelectedMedia(null)}
-        onUpdate={(updatedMedia) => {
+        onUpdate={() => {
           // 更新媒体列表中的对应项
           refreshMediaList(false);
           refreshStats();

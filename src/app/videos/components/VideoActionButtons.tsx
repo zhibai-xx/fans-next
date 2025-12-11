@@ -33,14 +33,15 @@ export function VideoActionButtons({
 
   const handleShare = () => {
     // 分享逻辑
+    const shareUrl = `${window.location.origin}/videos/${videoId}`
     if (navigator.share) {
       navigator.share({
         title: '分享视频',
-        url: window.location.href
+        url: shareUrl
       })
     } else {
       // 复制链接
-      navigator.clipboard.writeText(window.location.href)
+      navigator.clipboard.writeText(shareUrl)
       alert('链接已复制到剪贴板')
     }
   }

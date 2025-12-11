@@ -45,7 +45,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { AdminUsersService, User, UserFilters } from '@/services/admin-users.service';
-import { useUserManagement, useUserStatusOptions, useUserRoleOptions } from '@/hooks/queries/useUsers';
+import { useUserManagement } from '@/hooks/queries/useUsers';
 import { queryUtils } from '@/lib/query-client';
 import LoadingSpinner from '@/components/LoadingSpinner';
 import { Label } from '@/components/ui/label';
@@ -106,7 +106,6 @@ export default function UsersManagementPage() {
   const {
     users,
     pagination: queryPagination,
-    stats,
     isLoading,
     error,
     hasError,
@@ -138,10 +137,6 @@ export default function UsersManagementPage() {
     phoneNumber: ''
   });
   const [editLoading, setEditLoading] = useState(false);
-
-  // 获取选项数据
-  const statusOptions = useUserStatusOptions();
-  const roleOptions = useUserRoleOptions();
 
   // 处理错误
   React.useEffect(() => {

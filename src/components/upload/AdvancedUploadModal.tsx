@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useCallback, useEffect } from 'react';
-import { Upload, X, FileImage, FileVideo, Search, Plus, AlertCircle, CheckCircle2, ChevronDown, ChevronUp, Copy, Edit3, Zap } from 'lucide-react';
+import { Upload, X, FileImage, FileVideo, Plus, AlertCircle, CheckCircle2, ChevronDown, ChevronUp, Copy, Zap } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -16,7 +16,6 @@ import { formatFileSize } from '@/lib/utils/format';
 import { UploadProgress } from './UploadProgress';
 import { useUploadStore } from '@/store/upload.store';
 import { useUserTags, useUserCategories } from '@/hooks/queries/useUserMedia';
-import type { UploadTask, Tag, Category, FileWithMetadata } from '@/types/upload';
 
 interface AdvancedUploadModalProps {
   isOpen: boolean;
@@ -37,7 +36,6 @@ export default function AdvancedUploadModal({
     uploadTasks,
     isUploading,
     uploadResults,
-    viewMode,
     showBatchPanel,
     batchTemplate,
     tags,
@@ -228,7 +226,7 @@ export default function AdvancedUploadModal({
         description: fileData.description,
         tags: fileData.tags.map(tag => tag.name),
         category: fileData.category,
-        onProgress: (progress) => {
+        onProgress: () => {
           // 进度更新会通过useEffect监听任务状态变化来处理
         }
       };

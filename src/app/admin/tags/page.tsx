@@ -4,7 +4,6 @@ import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Label } from '@/components/ui/label';
@@ -26,7 +25,6 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
   useTags,
   useCategories,
-  useTagsCategoriesStats,
   useCreateTagMutation,
   useUpdateTagMutation,
   useDeleteTagMutation,
@@ -58,7 +56,7 @@ interface Category {
 }
 
 // 标签管理组件
-function TagManagement({ isActive }: { isActive: boolean }) {
+function TagManagement() {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
@@ -93,7 +91,7 @@ function TagManagement({ isActive }: { isActive: boolean }) {
       setEditingTag(null);
       setFormData({ name: '' });
     } catch (error) {
-      // 错误已在mutation中处理
+      console.error('保存标签失败:', error);
     }
   };
 
@@ -123,7 +121,7 @@ function TagManagement({ isActive }: { isActive: boolean }) {
       setIsDeleteDialogOpen(false);
       setDeleteTarget({ type: 'single', data: null });
     } catch (error) {
-      // 错误已在mutation中处理
+      console.error('删除标签失败:', error);
     }
   };
 
@@ -269,7 +267,7 @@ function TagManagement({ isActive }: { isActive: boolean }) {
             <div className="text-center py-8 text-gray-500">
               <TagIcon className="w-12 h-12 mx-auto mb-4 text-gray-300" />
               <p>暂无标签数据</p>
-              <p className="text-sm">点击"创建标签"按钮开始添加标签</p>
+              <p className="text-sm">点击&quot;创建标签&quot;按钮开始添加标签</p>
             </div>
           ) : (
             <div className="space-y-2">
@@ -334,7 +332,7 @@ function TagManagement({ isActive }: { isActive: boolean }) {
             <AlertDialogTitle>确认删除</AlertDialogTitle>
             <AlertDialogDescription>
               {deleteTarget.type === 'single' && deleteTarget.data
-                ? `确定要删除标签"${deleteTarget.data.name}"吗？此操作无法撤销。`
+                ? `确定要删除标签&quot;${deleteTarget.data.name}&quot;吗？此操作无法撤销。`
                 : `确定要删除选中的 ${selectedTags.length} 个标签吗？此操作无法撤销。`
               }
             </AlertDialogDescription>
@@ -359,7 +357,7 @@ function TagManagement({ isActive }: { isActive: boolean }) {
 }
 
 // 分类管理组件
-function CategoryManagement({ isActive }: { isActive: boolean }) {
+function CategoryManagement() {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
@@ -398,7 +396,7 @@ function CategoryManagement({ isActive }: { isActive: boolean }) {
       setEditingCategory(null);
       setFormData({ name: '', description: '' });
     } catch (error) {
-      // 错误已在mutation中处理
+      console.error('保存分类失败:', error);
     }
   };
 
@@ -428,7 +426,7 @@ function CategoryManagement({ isActive }: { isActive: boolean }) {
       setIsDeleteDialogOpen(false);
       setDeleteTarget({ type: 'single', data: null });
     } catch (error) {
-      // 错误已在mutation中处理
+      console.error('删除分类失败:', error);
     }
   };
 
@@ -585,7 +583,7 @@ function CategoryManagement({ isActive }: { isActive: boolean }) {
             <div className="text-center py-8 text-gray-500">
               <Folder className="w-12 h-12 mx-auto mb-4 text-gray-300" />
               <p>暂无分类数据</p>
-              <p className="text-sm">点击"创建分类"按钮开始添加分类</p>
+              <p className="text-sm">点击&quot;创建分类&quot;按钮开始添加分类</p>
             </div>
           ) : (
             <div className="space-y-2">
@@ -704,11 +702,11 @@ export default function TagsCategoriesPage() {
         </TabsList>
 
         <TabsContent value="tags">
-          <TagManagement isActive={activeTab === 'tags'} />
+          <TagManagement />
         </TabsContent>
 
         <TabsContent value="categories">
-          <CategoryManagement isActive={activeTab === 'categories'} />
+          <CategoryManagement />
         </TabsContent>
       </Tabs>
     </div>

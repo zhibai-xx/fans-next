@@ -18,7 +18,6 @@ import { useToast } from '@/hooks/use-toast';
 import { formatDistanceToNow } from 'date-fns';
 import { zhCN } from 'date-fns/locale';
 import { buildVideoSources, getPosterUrl, getVideoContainerStyle } from '@/lib/utils/video-sources';
-import { resolveMediaVideoUrl } from '@/lib/utils/media-url';
 import RobustVideoPlayer from '@/components/video/RobustVideoPlayer';
 import { getViewSessionId } from '@/lib/view-session';
 import { requestMediaDownload } from '@/lib/utils/media-download';

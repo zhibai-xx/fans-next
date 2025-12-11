@@ -1,13 +1,11 @@
 'use client';
 
 import React, { useState, useCallback, useMemo, useRef } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Select } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import LoadingSpinner from '@/components/LoadingSpinner';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
   Dialog,
   DialogContent,
@@ -18,7 +16,6 @@ import {
 } from '@/components/ui/dialog';
 import {
   Search,
-  Filter,
   Eye,
   Heart,
   Calendar,
@@ -28,17 +25,13 @@ import {
   Trash2,
   RefreshCw,
   Edit,
-  BarChart3,
   TrendingUp,
   Clock,
-  CheckCircle,
   AlertTriangle
 } from 'lucide-react';
 import {
   UploadRecord,
-  UploadStats,
-  UploadFilters,
-  UploadRecordResponse
+  UploadFilters
 } from '@/types/upload-record';
 import { ResubmitModal } from './components/ResubmitModal';
 import { useIntersectionObserverLegacy } from '@/hooks/useIntersectionObserver';
@@ -104,8 +97,6 @@ export default function UserUploadsPage() {
     hasNextPage,
     isFetchingNextPage,
     isLoading,
-    isError,
-    error,
     refetch
   } = useInfiniteUploadRecords(queryFilters, 20);
 

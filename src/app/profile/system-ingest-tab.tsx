@@ -52,12 +52,10 @@ const ITEMS_PER_PAGE = 15; // 个人中心中减少每页数量
 
 // 优化的分页信息组件
 const PaginationInfo = React.memo<{
-  currentPage: number;
-  totalPages: number;
   startIndex: number;
   endIndex: number;
   totalItems: number;
-}>(({ currentPage, totalPages, startIndex, endIndex, totalItems }) => (
+}>(({ startIndex, endIndex, totalItems }) => (
   <div className="text-sm text-gray-500">
     显示 {startIndex} - {endIndex} 条，共 {totalItems} 条
   </div>
@@ -66,7 +64,7 @@ const PaginationInfo = React.memo<{
 PaginationInfo.displayName = 'PaginationInfo';
 
 export default function SystemIngestTab() {
-  const { hasPermission, isAdmin, isLoading: authLoading } = useAuth();
+  const { isLoading: authLoading } = useAuth();
   const { toast } = useToast();
 
   const [isScanning, setIsScanning] = useState(false);
@@ -331,8 +329,6 @@ export default function SystemIngestTab() {
                 {/* 分页信息 */}
                 <div className="flex items-center justify-between mb-4">
                   <PaginationInfo
-                    currentPage={currentPage}
-                    totalPages={paginationData.totalPages}
                     startIndex={paginationData.startIndex}
                     endIndex={paginationData.endIndex}
                     totalItems={filteredFiles.length}

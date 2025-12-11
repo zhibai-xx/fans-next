@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
+import Link from 'next/link';
 import { handleApiError } from '@/lib/utils/error-handler';
 import { formatDateTime } from '@/lib/utils/format';
 import LoadingSpinner from '@/components/LoadingSpinner';
@@ -108,18 +109,18 @@ export default function DownloadsList() {
     return (
       <div className="py-8 text-center text-gray-500">
         <p>您还没有下载过任何内容</p>
-        <a
+        <Link
           href="/images"
           className="text-blue-600 hover:text-blue-500 block mt-2"
         >
           浏览图片内容
-        </a>
-        <a
+        </Link>
+        <Link
           href="/videos"
           className="text-blue-600 hover:text-blue-500 block mt-2"
         >
           浏览视频内容
-        </a>
+        </Link>
       </div>
     );
   }

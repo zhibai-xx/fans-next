@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { Heart, Bookmark, Eye, Calendar, Filter, Search, Grid, List, Play } from 'lucide-react';
+import { Bookmark, Eye, Calendar, Search, Grid, List, Play } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -16,7 +16,6 @@ import { ImageDetailModal } from '@/app/images/components/ImageDetailModal';
 import { useLikeImageMutation, useFavoriteImageMutation } from '@/hooks/queries/useUserMedia';
 import type {
   FavoriteItem,
-  FavoriteListResponse,
   MyFavoritesProps,
   MediaInteractionStatus,
 } from '@/types/interaction';
@@ -390,28 +389,6 @@ export const MyFavorites: React.FC<MyFavoritesProps> = ({
   }, [favoriteImageMutation, toast, handleCloseModal]);
 
   /**
-   * 处理详情模态框中的互动（已弃用，保留用于向后兼容）
-   */
-  const handleModalInteraction = useCallback((mediaId: string, newStatus: MediaInteractionStatus) => {
-    setInteractionStatuses(prev => ({
-      ...prev,
-      [mediaId]: newStatus
-    }));
-
-    // 如果是取消收藏，从列表中移除
-    if (!newStatus.is_favorited) {
-      setFavorites(prev => prev.filter(item => item.media.id !== mediaId));
-      setTotal(prev => prev - 1);
-      handleCloseModal();
-
-      toast({
-        title: '取消收藏成功',
-        description: '已从收藏中移除'
-      });
-    }
-  }, [toast, handleCloseModal]);
-
-  /**
    * 筛选收藏列表
    */
   const filteredFavorites = favorites
@@ -452,7 +429,7 @@ export const MyFavorites: React.FC<MyFavoritesProps> = ({
     const pages = [];
     const maxVisiblePages = 5;
     let startPage = Math.max(1, currentPage - Math.floor(maxVisiblePages / 2));
-    let endPage = Math.min(totalPages, startPage + maxVisiblePages - 1);
+    const endPage = Math.min(totalPages, startPage + maxVisiblePages - 1);
 
     if (endPage - startPage + 1 < maxVisiblePages) {
       startPage = Math.max(1, endPage - maxVisiblePages + 1);

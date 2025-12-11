@@ -7,15 +7,12 @@ import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import {
   Users,
-  Image,
+  Image as ImageIcon,
   FileCheck,
   Activity,
   TrendingUp,
-  AlertTriangle,
   Clock,
   Shield,
-  Eye,
-  Upload,
   Database,
   Server,
   HardDrive
@@ -73,7 +70,7 @@ export default function AdminDashboard() {
   const quickActions = [
     { title: '审核内容', href: '/admin/review', icon: FileCheck, count: stats.media.pending },
     { title: '用户管理', href: '/admin/users', icon: Users, count: stats.users.new_this_week },
-    { title: '媒体管理', href: '/admin/media', icon: Image, count: 0 },
+    { title: '媒体管理', href: '/admin/media', icon: ImageIcon, count: 0 },
     { title: '系统监控', href: '/admin/performance', icon: Activity, count: 0 },
   ];
 
@@ -114,7 +111,7 @@ export default function AdminDashboard() {
             <CardTitle className="text-sm font-medium text-gray-600">
               媒体内容
             </CardTitle>
-            <Image className="h-4 w-4 text-green-600" />
+            <ImageIcon className="h-4 w-4 text-green-600" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-gray-900">{stats.media.total.toLocaleString()}</div>

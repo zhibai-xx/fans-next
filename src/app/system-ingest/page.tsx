@@ -5,7 +5,6 @@ import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
@@ -15,7 +14,6 @@ import { queryClient } from '@/lib/query-client';
 import OptimizedSystemIngestFileCard from './components/OptimizedSystemIngestFileCard';
 import {
   useScanSystemIngestFiles,
-  useSystemIngestUserFiles,
   useBatchUploadMutation,
   useUploadSingleFileMutation,
   useDeleteFileMutation,
@@ -32,40 +30,15 @@ interface SystemIngestFile {
   lastModified: string;
 }
 
-interface SystemIngestUser {
-  userId: string;
-  userName: string;
-  totalFiles: number;
-  files: SystemIngestFile[];
-}
-
-interface ScanResult {
-  users: SystemIngestUser[];
-  totalFiles: number;
-  totalSize: number;
-}
-
-interface UploadResult {
-  filePath: string;
-  fileName: string;
-  uploadId?: string;
-  success: boolean;
-  needUpload?: boolean;
-  mediaId?: string;
-  error?: string;
-}
-
 // 分页配置
 const ITEMS_PER_PAGE = 20;
 
 // 优化的分页信息组件
 const PaginationInfo = React.memo<{
-  currentPage: number;
-  totalPages: number;
   startIndex: number;
   endIndex: number;
   totalItems: number;
-}>(({ currentPage, totalPages, startIndex, endIndex, totalItems }) => (
+}>(({ startIndex, endIndex, totalItems }) => (
   <div className="text-sm text-gray-500">
     显示 {startIndex} - {endIndex} 条，共 {totalItems} 条
   </div>
@@ -85,7 +58,6 @@ export default function SystemIngestPage() {
     total: number;
     current?: string;
   }>({ completed: 0, total: 0 });
-  const [uploadResults, setUploadResults] = useState<UploadResult[]>([]);
   const [currentPage, setCurrentPage] = useState(0);
   const [filterType, setFilterType] = useState<'all' | 'image' | 'video' | 'gif'>('all');
   const [filterUser, setFilterUser] = useState<string>('all');
@@ -97,11 +69,6 @@ export default function SystemIngestPage() {
     refetch: refetchScan,
     error: scanError
   } = useScanSystemIngestFiles();
-
-  const {
-    data: userFilesData,
-    isLoading: isLoadingFiles
-  } = useSystemIngestUserFiles(filterUser !== 'all' ? filterUser : undefined, currentPage, ITEMS_PER_PAGE);
 
   // Mutation hooks
   const batchUploadMutation = useBatchUploadMutation();
@@ -469,8 +436,6 @@ export default function SystemIngestPage() {
               <CardTitle className="flex items-center justify-between">
                 <span>文件列表</span>
                 <PaginationInfo
-                  currentPage={currentPage + 1}
-                  totalPages={totalPages}
                   startIndex={currentPage * ITEMS_PER_PAGE + 1}
                   endIndex={Math.min((currentPage + 1) * ITEMS_PER_PAGE, filteredFiles.length)}
                   totalItems={filteredFiles.length}
@@ -478,7 +443,7 @@ export default function SystemIngestPage() {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              {isLoadingFiles ? (
+              {isScanning ? (
                 <div className="flex justify-center items-center py-16">
                   <Spinner className="mr-2" />
                   <span>加载文件列表...</span>

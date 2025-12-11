@@ -13,19 +13,16 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import LoadingSpinner from '@/components/LoadingSpinner';
-import { resolveMediaImageUrl, resolveMediaVideoUrl } from '@/lib/utils/media-url';
+import { resolveMediaImageUrl } from '@/lib/utils/media-url';
 import { buildVideoSources, getPosterUrl, getVideoContainerStyle } from '@/lib/utils/video-sources';
 import RobustVideoPlayer from '@/components/video/RobustVideoPlayer';
 import {
   Search,
-  Filter,
-  MoreHorizontal,
   CheckSquare,
   Square,
   Edit,
   Edit2,
   Trash2,
-  Download,
   Image as ImageIcon,
   Video,
   Calendar,
@@ -35,27 +32,17 @@ import {
   Folder,
   Eye,
   EyeOff,
-  Settings,
-  AlertCircle,
   Play,
   BarChart3,
   RefreshCw,
-  ChevronLeft,
-  ChevronRight,
   MessageSquare,
   Hash,
   Save
 } from 'lucide-react';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { AdminMediaService, type Media, type MediaFilters, type Tag, type Category } from '@/services/admin-media.service';
 import {
   useInfiniteMedia,
   useMediaStats,
-  useTagUsageStats,
-  useCategoryUsageStats,
-  useMediaTypeOptions,
-  useMediaStatusOptions,
-  useMediaVisibilityOptions,
   useUpdateMediaVisibilityMutation,
   useBatchUpdateMediaVisibilityMutation,
   useUpdateMediaInfoMutation,
@@ -791,13 +778,6 @@ export default function MediaManagementPage() {
   } = useInfiniteMedia(apiFilters, 24);
 
   const { data: stats } = useMediaStats();
-  const { data: tags } = useTagUsageStats();
-  const { data: categories } = useCategoryUsageStats();
-
-  // 获取选项数据
-  const typeOptions = useMediaTypeOptions();
-  const statusOptions = useMediaStatusOptions();
-  const visibilityOptions = useMediaVisibilityOptions();
 
   // Mutation hooks
   const updateVisibilityMutation = useUpdateMediaVisibilityMutation();

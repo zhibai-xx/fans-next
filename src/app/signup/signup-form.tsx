@@ -53,7 +53,7 @@ export default function SignupForm() {
 
     try {
       // 使用 authService.register 进行注册
-      const response = await authService.register({
+      await authService.register({
         username: formData.username,
         email: formData.email,
         password: formData.password,

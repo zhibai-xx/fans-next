@@ -2,10 +2,10 @@
 
 import React, { useState, useEffect } from 'react';
 import Image from 'next/image';
-import { Heart, Bookmark, Download, Share2, Eye, Calendar, Tag, MoreHorizontal, FileText, Folder, BarChart3, Monitor, HardDrive, Clock } from 'lucide-react';
+import { Heart, Bookmark, Download, Share2, Eye, Calendar, Tag, FileText, Folder, BarChart3, Monitor, HardDrive, Clock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
 import { MediaItem } from '@/services/media.service';
 import type { MediaInteractionStatus } from '@/types/interaction';
 import { requestMediaDownload } from '@/lib/utils/media-download';

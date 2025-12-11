@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { useAuth } from '@/hooks/useAuth';
+import Link from 'next/link';
 import { PermissionGuard } from '@/components/auth/PermissionGuard';
 import { AdminSidebar } from './components/AdminSidebar';
 import { AdminHeader } from './components/AdminHeader';
@@ -53,12 +53,12 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
             <p className="text-gray-600 mb-6">
               您需要管理员权限才能访问后台管理系统
             </p>
-            <a
+            <Link
               href="/"
               className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
             >
               返回首页
-            </a>
+            </Link>
           </div>
         </div>
       }
@@ -83,10 +83,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
         {/* 主内容区域 */}
         <div className="flex-1 flex flex-col overflow-hidden min-w-0">
           {/* 头部导航 */}
-          <AdminHeader
-            onToggleSidebar={() => setSidebarCollapsed(!sidebarCollapsed)}
-            sidebarCollapsed={sidebarCollapsed}
-          />
+          <AdminHeader onToggleSidebar={() => setSidebarCollapsed(!sidebarCollapsed)} />
 
           {/* 页面内容 */}
           <main

@@ -3,7 +3,6 @@
 import React, { useState, useCallback, useMemo, useRef } from 'react';
 import { ModernVideoGrid } from './components/ModernVideoGrid';
 import { SearchBar } from './components/SearchBar';
-import { CategoryTabs } from './components/CategoryTabs';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -13,12 +12,10 @@ import {
   useInfiniteVideos,
   useTrendingVideos,
   useLatestVideos,
-  videoQueryUtils
 } from '@/hooks/useVideos';
 import { VideoFilters } from '@/services/video.service';
 import { useIntersectionObserver } from '@/hooks/useIntersectionObserver';
 import { useToast } from '@/hooks/use-toast';
-import { useQueryClient } from '@tanstack/react-query';
 import {
   RefreshCw,
   TrendingUp,
@@ -33,7 +30,6 @@ import {
 
 export default function ModernVideosPage() {
   const { toast } = useToast();
-  const queryClient = useQueryClient();
 
   // 本地状态
   const [searchQuery, setSearchQuery] = useState('');
@@ -111,30 +107,11 @@ export default function ModernVideosPage() {
     setActiveTab('all'); // 搜索时切回全部标签
   }, []);
 
-  // 筛选条件变更处理
-  const handleFiltersChange = useCallback((newFilters: VideoFilters) => {
-    // 这里可以处理更多筛选条件，暂时只处理排序
-    console.log('筛选条件更新:', newFilters);
-  }, []);
-
-
-
   // 标签切换处理
   const handleTabChange = useCallback((tab: 'all' | 'trending' | 'latest') => {
     setActiveTab(tab);
     setSearchQuery(''); // 清除搜索
   }, []);
-
-  // 刷新数据
-  const handleRefresh = useCallback(() => {
-    refetch();
-    videoQueryUtils.invalidateAll(queryClient);
-    toast({
-      title: '刷新成功',
-      description: '视频列表已更新',
-      duration: 2000,
-    });
-  }, [refetch, queryClient, toast]);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 dark:from-gray-900 dark:via-blue-950 dark:to-indigo-950">

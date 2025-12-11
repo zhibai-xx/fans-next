@@ -55,6 +55,7 @@ export default function PerformanceDashboard() {
       const response = await apiClient.get('/performance/overview') as { data: PerformanceData };
       setPerformanceData(response.data);
     } catch (error) {
+      console.error('获取性能数据失败:', error);
       toast({
         title: '获取性能数据失败',
         description: '请检查网络连接或稍后重试',
@@ -76,6 +77,7 @@ export default function PerformanceDashboard() {
       });
       await fetchPerformanceData();
     } catch (error) {
+      console.error('清空缓存失败:', error);
       toast({
         title: '清空缓存失败',
         description: '请稍后重试',
@@ -94,6 +96,7 @@ export default function PerformanceDashboard() {
       });
       await fetchPerformanceData();
     } catch (error) {
+      console.error('清空性能指标失败:', error);
       toast({
         title: '清空性能指标失败',
         description: '请稍后重试',

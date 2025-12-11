@@ -26,10 +26,9 @@ import { useRouter } from 'next/navigation';
 
 interface AdminHeaderProps {
   onToggleSidebar: () => void;
-  sidebarCollapsed: boolean;
 }
 
-export function AdminHeader({ onToggleSidebar, sidebarCollapsed }: AdminHeaderProps) {
+export function AdminHeader({ onToggleSidebar }: AdminHeaderProps) {
   const { user, isAdmin } = useAuth();
   const router = useRouter();
 

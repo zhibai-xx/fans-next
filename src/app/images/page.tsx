@@ -73,8 +73,7 @@ export default function ImagesPage() {
         isFetchingNextPage,
         isLoading,
         isError,
-        error,
-        refetch
+        error
     } = useInfiniteImages(apiFilters, 24);
 
     const { data: tags } = useUserTags();

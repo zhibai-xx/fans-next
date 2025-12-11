@@ -73,15 +73,6 @@ const getInitialChar = (name?: string | null) => {
   return first;
 };
 
-const buildSeed = (value?: string | null) => {
-  const base = value?.trim() || FALLBACK_TEXT;
-  let hash = 0;
-  for (let i = 0; i < base.length; i += 1) {
-    hash = (hash + base.charCodeAt(i)) % 2147483647;
-  }
-  return hash;
-};
-
 const fallbackBase =
   'bg-muted text-muted-foreground flex items-center justify-center';
 

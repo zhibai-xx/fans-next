@@ -2,9 +2,6 @@ import NextAuth, { NextAuthOptions } from 'next-auth';
 import CredentialsProvider from 'next-auth/providers/credentials';
 import { authService } from '@/services/auth.service';
 
-// 后端API基础URL
-const API_BASE_URL = 'http://localhost:3000';
-
 // 扩展NextAuth的Session和JWT类型
 declare module 'next-auth' {
   interface Session {
