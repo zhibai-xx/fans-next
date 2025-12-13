@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useCallback, useMemo, useRef } from 'react';
+import Image from 'next/image';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -44,6 +45,7 @@ import {
   uploadRecordQueryUtils
 } from '@/hooks/queries/useUploadRecords';
 import { UploadRecordService } from '@/services/upload-record.service';
+import { resolveMediaImageUrl } from '@/lib/utils/media-url';
 
 const USER_MEDIA_TAB_CONFIG = [
   { value: 'all', label: '全部', statKey: 'total' },
@@ -387,12 +389,16 @@ export default function UserUploadsPage() {
 
           {actionRecord?.record && (
             <div className="flex items-center gap-3 p-4 bg-gray-50 dark:bg-gray-800 rounded-lg border">
-              <div className="flex-shrink-0 w-12 h-12 bg-gray-100 rounded-lg overflow-hidden">
+              <div className="flex-shrink-0 w-12 h-12 bg-gray-100 rounded-lg overflow-hidden relative">
                 {actionRecord.record.thumbnail_url ? (
-                  <img
-                    src={actionRecord.record.thumbnail_url}
-                    alt={actionRecord.record.title}
-                    className="w-full h-full object-cover"
+                  <Image
+                    src={resolveMediaImageUrl(actionRecord.record.thumbnail_url)}
+                    alt={actionRecord.record.title || '作品缩略图'}
+                    fill
+                    className="object-cover"
+                    sizes="48px"
+                    loading="lazy"
+                    unoptimized
                   />
                 ) : (
                   <div className="w-full h-full flex items-center justify-center">
@@ -500,12 +506,16 @@ const UploadRecordCard: React.FC<UploadRecordCardProps> = ({
       <CardContent className="p-6">
         <div className="flex gap-4">
           {/* 缩略图 */}
-          <div className="flex-shrink-0 w-20 h-20 bg-gray-100 rounded-lg overflow-hidden">
+          <div className="flex-shrink-0 w-20 h-20 bg-gray-100 rounded-lg overflow-hidden relative">
             {record.thumbnail_url ? (
-              <img
-                src={record.thumbnail_url}
-                alt={record.title}
-                className="w-full h-full object-cover"
+              <Image
+                src={resolveMediaImageUrl(record.thumbnail_url)}
+                alt={record.title || '作品缩略图'}
+                fill
+                className="object-cover"
+                sizes="80px"
+                loading="lazy"
+                unoptimized
               />
             ) : (
               <div className="w-full h-full flex items-center justify-center">

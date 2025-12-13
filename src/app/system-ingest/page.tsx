@@ -12,6 +12,7 @@ import { Spinner } from '@/components/Spinner';
 import { useAuth } from '@/hooks/useAuth';
 import { queryClient } from '@/lib/query-client';
 import OptimizedSystemIngestFileCard from './components/OptimizedSystemIngestFileCard';
+import type { SystemIngestFile } from '@/services/system-ingest.service';
 import {
   useScanSystemIngestFiles,
   useBatchUploadMutation,
@@ -20,15 +21,6 @@ import {
   usePreviewFileMutation,
   systemIngestQueryUtils
 } from '@/hooks/queries/useSystemIngest';
-
-interface SystemIngestFile {
-  id: string;
-  name: string;
-  path: string;
-  size: number;
-  type: 'image' | 'video' | 'gif';
-  lastModified: string;
-}
 
 // 分页配置
 const ITEMS_PER_PAGE = 20;
@@ -126,15 +118,25 @@ export default function SystemIngestPage() {
   // 扫描文件
   const handleScan = useCallback(async () => {
     try {
-      await refetchScan();
+      const result = await refetchScan();
+      if (result.error) {
+        throw result.error;
+      }
+      const totalFiles = result.data?.totalFiles ?? 0;
       toast({
         title: '扫描完成',
-        description: `发现 ${scanResult?.totalFiles || 0} 个文件`,
+        description: `发现 ${totalFiles} 个文件`,
       });
     } catch (error) {
+      const message = error instanceof Error ? error.message : '扫描失败';
       console.error('扫描失败:', error);
+      toast({
+        title: '扫描失败',
+        description: message,
+        variant: 'destructive',
+      });
     }
-  }, [refetchScan, scanResult?.totalFiles, toast]);
+  }, [refetchScan, toast]);
 
   // 批量上传
   const handleBatchUpload = useCallback(async () => {
@@ -158,7 +160,7 @@ export default function SystemIngestPage() {
         setUploadProgress(progress);
       }
     });
-  }, [selectedFiles, filteredFiles, batchUploadMutation]);
+  }, [selectedFiles, filteredFiles, batchUploadMutation, toast]);
 
   // 单个文件上传
   const handleSingleUpload = useCallback((file: SystemIngestFile & { userId: string }) => {
@@ -329,7 +331,10 @@ export default function SystemIngestPage() {
                     <Label htmlFor="filter-type" className="text-sm font-medium">
                       文件类型
                     </Label>
-                    <Select value={filterType} onValueChange={(value: any) => setFilterType(value)}>
+                    <Select
+                      value={filterType}
+                      onValueChange={(value: 'all' | 'image' | 'video' | 'gif') => setFilterType(value)}
+                    >
                       <SelectTrigger className="w-32">
                         <SelectValue />
                       </SelectTrigger>

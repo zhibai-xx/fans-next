@@ -69,6 +69,16 @@ export const ResubmitModal: React.FC<ResubmitModalProps> = ({
     }
   };
 
+  const extractErrorMessage = (error: unknown): string => {
+    if (error instanceof Error) {
+      return error.message;
+    }
+    if (typeof error === 'string') {
+      return error;
+    }
+    return '重新提交失败';
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!record) return;
@@ -89,8 +99,8 @@ export const ResubmitModal: React.FC<ResubmitModalProps> = ({
       }
       onSuccess();
       onClose();
-    } catch (error: any) {
-      setError(error.message || '重新提交失败');
+    } catch (error) {
+      setError(extractErrorMessage(error));
     } finally {
       setIsLoading(false);
     }

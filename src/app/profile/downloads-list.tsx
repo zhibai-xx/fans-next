@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { handleApiError } from '@/lib/utils/error-handler';
 import { formatDateTime } from '@/lib/utils/format';
 import LoadingSpinner from '@/components/LoadingSpinner';
@@ -147,11 +148,15 @@ export default function DownloadsList() {
                 <td className="px-4 py-3">
                   <div className="flex items-center space-x-3">
                     {download.thumbnailUrl && (
-                      <div className="h-10 w-10 overflow-hidden rounded">
-                        <img
+                      <div className="h-10 w-10 overflow-hidden rounded relative">
+                        <Image
                           src={resolveMediaImageUrl(download.thumbnailUrl)}
                           alt={download.title || '下载内容'}
-                          className="w-full h-full object-cover"
+                          fill
+                          className="object-cover"
+                          sizes="40px"
+                          loading="lazy"
+                          unoptimized
                         />
                       </div>
                     )}

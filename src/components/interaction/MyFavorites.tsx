@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import Image from 'next/image';
 import { Bookmark, Eye, Calendar, Search, Grid, List, Play } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -25,6 +26,22 @@ import { useRouter } from 'next/navigation';
 import VideoPlayerWrapper from '@/components/video/VideoPlayerWrapper';
 import { buildVideoSources } from '@/lib/utils/video-sources';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+
+type FavoritesFilterType = 'all' | 'IMAGE' | 'VIDEO';
+type FavoritesSortKey = 'created_at' | 'likes' | 'views';
+
+interface FavoriteApiMediaTag {
+  tag?: {
+    id: string;
+    name: string;
+  } | null;
+}
+
+type FavoriteApiItem = Omit<FavoriteItem, 'media'> & {
+  media: FavoriteItem['media'] & {
+    media_tags?: FavoriteApiMediaTag[] | null;
+  };
+};
 
 // 图片URL规范化函数
 const normalizeImageUrl = (imageUrl: string): string => {
@@ -77,8 +94,8 @@ export const MyFavorites: React.FC<MyFavoritesProps> = ({
 
   // 筛选和排序
   const [searchTerm, setSearchTerm] = useState('');
-  const [filterType, setFilterType] = useState<'all' | 'IMAGE' | 'VIDEO'>('all');
-  const [sortBy, setSortBy] = useState<'created_at' | 'likes' | 'views'>('created_at');
+  const [filterType, setFilterType] = useState<FavoritesFilterType>('all');
+  const [sortBy, setSortBy] = useState<FavoritesSortKey>('created_at');
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
 
   // 详情模态框状态
@@ -105,46 +122,31 @@ export const MyFavorites: React.FC<MyFavoritesProps> = ({
         limit: itemsPerPage,
       });
 
-      if (response.success && response.data && response.pagination) {
-        // 转换数据格式
-        const transformedFavorites: FavoriteItem[] = response.data.map((favorite: any) => ({
-          id: favorite.id,
-          media: {
-            id: favorite.media.id,
-            title: favorite.media.title,
-            description: favorite.media.description,
-            url: favorite.media.url,
-            thumbnail_url: favorite.media.thumbnail_url,
-            size: favorite.media.size,
-            media_type: favorite.media.media_type,
-            duration: favorite.media.duration,
-            width: favorite.media.width,
-            height: favorite.media.height,
-            status: favorite.media.status,
-            views: favorite.media.views,
-            likes_count: favorite.media.likes_count,
-            favorites_count: favorite.media.favorites_count,
-            source: favorite.media.source,
-            original_created_at: favorite.media.original_created_at,
-            source_metadata: favorite.media.source_metadata,
-            created_at: favorite.media.created_at,
-            updated_at: favorite.media.updated_at,
-            user: {
-              id: favorite.media.user.id,
-              uuid: favorite.media.user.uuid,
-              username: favorite.media.user.username,
-              avatar_url: favorite.media.user.avatar_url,
-            },
-            category: favorite.media.category,
-            tags:
-              favorite.media.media_tags?.map((mediaTag: any) => ({
-                id: mediaTag.tag.id,
-                name: mediaTag.tag.name,
-              })) || [],
-            video_qualities: favorite.media.video_qualities || [],
-          },
-          created_at: favorite.created_at,
-        }));
+	      if (response.success && response.data && response.pagination) {
+	        const apiFavorites = (response.data ?? []) as FavoriteApiItem[];
+        const transformedFavorites: FavoriteItem[] = apiFavorites.map((favorite) => {
+          const mediaTags = Array.isArray(favorite.media.tags) ? favorite.media.tags : [];
+          const normalizedTags =
+            mediaTags.length > 0
+              ? mediaTags
+              : favorite.media.media_tags
+                  ?.map((mediaTag) => mediaTag?.tag)
+                  .filter((tag): tag is { id: string; name: string } => Boolean(tag))
+                  .map((tag) => ({
+                    id: tag.id,
+                    name: tag.name,
+                  })) || [];
+
+	          return {
+	            id: favorite.id,
+	            media: {
+	              ...favorite.media,
+	              tags: normalizedTags,
+	              video_qualities: favorite.media.video_qualities || [],
+	            },
+	            created_at: favorite.created_at,
+	          };
+	        });
 
         setFavorites(transformedFavorites);
         setTotal(response.pagination.total);
@@ -215,7 +217,7 @@ export const MyFavorites: React.FC<MyFavoritesProps> = ({
       const mediaIds = favorites.map(item => item.media.id);
       loadInteractionStatuses(mediaIds);
     }
-  }, [favorites.length, loadInteractionStatuses]);
+  }, [favorites, loadInteractionStatuses]);
 
   /**
    * 处理互动状态变化
@@ -253,13 +255,13 @@ export const MyFavorites: React.FC<MyFavoritesProps> = ({
    */
   const stableCallbacks = useMemo(() => {
     const callbacks: Record<string, (status: MediaInteractionStatus) => void> = {};
-    favorites.forEach(item => {
+    favorites.forEach((item) => {
       callbacks[item.media.id] = (status: MediaInteractionStatus) => {
         handleInteractionChange(item.media.id, status);
       };
     });
     return callbacks;
-  }, [favorites.map(item => item.media.id).join(','), handleInteractionChange]);
+  }, [favorites, handleInteractionChange]);
 
   /**
    * 处理分页
@@ -476,6 +478,7 @@ export const MyFavorites: React.FC<MyFavoritesProps> = ({
    */
   const renderFavoriteItem = (item: FavoriteItem) => {
     const { media } = item;
+    const resolvedThumbnail = normalizeImageUrl(media.thumbnail_url || media.url) || '/placeholder-image.svg';
 
     if (viewMode === 'list') {
       return (
@@ -488,10 +491,14 @@ export const MyFavorites: React.FC<MyFavoritesProps> = ({
                   className="relative w-32 h-24 bg-gray-200 rounded-lg overflow-hidden cursor-pointer"
                   onClick={() => handleMediaClick(item)}
                 >
-                  <img
-                    src={normalizeImageUrl(media.thumbnail_url || media.url)}
-                    alt={media.title}
-                    className="w-full h-full object-cover transition-transform duration-200 hover:scale-105"
+                  <Image
+                    src={resolvedThumbnail}
+                    alt={media.title || '收藏内容'}
+                    fill
+                    className="object-cover transition-transform duration-200 hover:scale-105"
+                    sizes="(max-width: 768px) 40vw, 128px"
+                    loading="lazy"
+                    unoptimized
                     onError={(e) => {
                       e.currentTarget.src = '/placeholder-image.svg';
                     }}
@@ -582,10 +589,14 @@ export const MyFavorites: React.FC<MyFavoritesProps> = ({
     return (
       <Card key={item.id} className="overflow-hidden cursor-pointer" onClick={() => handleMediaClick(item)}>
         <div className="relative aspect-square">
-          <img
-            src={normalizeImageUrl(media.thumbnail_url || media.url)}
-            alt={media.title}
-            className="w-full h-full object-cover transition-transform duration-200 hover:scale-105"
+          <Image
+            src={resolvedThumbnail}
+            alt={media.title || '收藏内容'}
+            fill
+            className="object-cover transition-transform duration-200 hover:scale-105"
+            sizes="(max-width: 1024px) 50vw, 320px"
+            loading="lazy"
+            unoptimized
             onError={(e) => {
               e.currentTarget.src = '/placeholder-image.svg';
             }}
@@ -691,7 +702,10 @@ export const MyFavorites: React.FC<MyFavoritesProps> = ({
           </div>
 
           {/* 类型筛选 */}
-          <Select value={filterType} onValueChange={(value: any) => setFilterType(value)}>
+          <Select
+            value={filterType}
+            onValueChange={(value) => setFilterType(value as FavoritesFilterType)}
+          >
             <SelectTrigger className="w-32">
               <SelectValue />
             </SelectTrigger>
@@ -703,7 +717,10 @@ export const MyFavorites: React.FC<MyFavoritesProps> = ({
           </Select>
 
           {/* 排序 */}
-          <Select value={sortBy} onValueChange={(value: any) => setSortBy(value)}>
+          <Select
+            value={sortBy}
+            onValueChange={(value) => setSortBy(value as FavoritesSortKey)}
+          >
             <SelectTrigger className="w-32">
               <SelectValue />
             </SelectTrigger>

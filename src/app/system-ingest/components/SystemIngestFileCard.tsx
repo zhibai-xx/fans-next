@@ -1,5 +1,6 @@
 'use client';
 
+import NextImage from 'next/image';
 import React, { useState, useEffect, useRef } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -58,6 +59,9 @@ class RequestQueue {
 
 // 全局请求队列实例
 const requestQueue = new RequestQueue();
+
+const isAbortError = (error: unknown): error is DOMException =>
+  error instanceof DOMException && error.name === 'AbortError';
 
 export const SystemIngestFileCard: React.FC<SystemIngestFileCardProps> = ({
   file,
@@ -130,8 +134,8 @@ export const SystemIngestFileCard: React.FC<SystemIngestFileCardProps> = ({
             }
           });
 
-        } catch (error: any) {
-          if (error.name === 'AbortError') {
+        } catch (error) {
+          if (isAbortError(error)) {
             console.log('图片预览请求已取消');
           } else {
             console.error('Error fetching image:', error);
@@ -202,11 +206,14 @@ export const SystemIngestFileCard: React.FC<SystemIngestFileCardProps> = ({
                 <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
               </div>
             ) : imageUrl ? (
-              <img
+              <NextImage
                 src={imageUrl}
                 alt={file.name}
-                className="w-full h-full object-cover"
+                fill
+                sizes="(max-width: 1024px) 50vw, 25vw"
+                className="object-cover"
                 onError={() => setImageError(true)}
+                unoptimized
               />
             ) : (
               <div className="w-full h-full flex items-center justify-center bg-gray-200">

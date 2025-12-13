@@ -1,5 +1,6 @@
 'use client';
 
+import NextImage from 'next/image';
 import React, { useState, useEffect, useRef, useCallback, memo } from 'react';
 import { useSession } from 'next-auth/react';
 import { Card, CardContent } from '@/components/ui/card';
@@ -72,6 +73,9 @@ const cleanupCache = () => {
     });
   }
 };
+
+const isAbortError = (error: unknown): error is DOMException =>
+  error instanceof DOMException && error.name === 'AbortError';
 
 const OptimizedSystemIngestFileCard: React.FC<OptimizedSystemIngestFileCardProps> = memo(({
   file,
@@ -170,8 +174,8 @@ const OptimizedSystemIngestFileCard: React.FC<OptimizedSystemIngestFileCardProps
         }
       });
 
-    } catch (error: any) {
-      if (error.name !== 'AbortError') {
+    } catch (error) {
+      if (!isAbortError(error)) {
         setImageError(true);
       }
     } finally {
@@ -188,7 +192,7 @@ const OptimizedSystemIngestFileCard: React.FC<OptimizedSystemIngestFileCardProps
         return;
       }
 
-      const img = new Image();
+      const img = typeof window !== 'undefined' ? new window.Image() : new Image();
       const canvas = document.createElement('canvas');
       const ctx = canvas.getContext('2d')!;
 
@@ -232,7 +236,7 @@ const OptimizedSystemIngestFileCard: React.FC<OptimizedSystemIngestFileCardProps
     if (file.type === 'image' && isIntersecting && isVisible) {
       fetchOptimizedImage();
     }
-  }, [file.type, fetchOptimizedImage]);
+  }, [file.type, fetchOptimizedImage, isIntersecting, isVisible]);
 
   // 清理函数
   useEffect(() => {
@@ -295,15 +299,18 @@ const OptimizedSystemIngestFileCard: React.FC<OptimizedSystemIngestFileCardProps
                   <div className="animate-pulse w-8 h-8 bg-blue-200 rounded-full"></div>
                 </div>
               ) : imageUrl ? (
-                <img
+                <NextImage
                   src={imageUrl}
                   alt={file.name}
-                  className="w-full h-full object-cover"
+                  fill
+                  sizes="(max-width: 1024px) 50vw, 25vw"
+                  className="object-cover"
                   loading="lazy"
                   onError={() => setImageError(true)}
                   style={{
                     transition: 'opacity 0.3s ease',
                   }}
+                  unoptimized
                 />
               ) : (
                 <div className="w-full h-full flex items-center justify-center bg-gray-200">

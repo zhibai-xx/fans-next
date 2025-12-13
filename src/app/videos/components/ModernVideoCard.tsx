@@ -46,8 +46,12 @@ export function ModernVideoCard({ video, className, showActions = true }: Modern
     if (video.tags?.length) {
       return video.tags;
     }
-    const legacyTags = (video as any).media_tags?.map((item: any) => item.tag);
-    return legacyTags || [];
+    return (video.media_tags ?? [])
+      .map((item) => item?.tag)
+      .filter(
+        (tag): tag is NonNullable<typeof tag> =>
+          Boolean(tag)
+      );
   }, [video]);
 
   useEffect(() => {

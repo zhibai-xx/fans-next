@@ -45,6 +45,11 @@ interface VideoDetailPageProps {
   params: Promise<{ videoId: string }>;
 }
 
+type VideoTag = {
+  id: string;
+  name: string;
+};
+
 export default function ModernVideoDetailPage({ params }: VideoDetailPageProps) {
   const { videoId } = use(params);
   const { toast } = useToast();
@@ -80,7 +85,7 @@ export default function ModernVideoDetailPage({ params }: VideoDetailPageProps) 
     const mediaForSource = {
       ...video,
       url: fallbackUrl,
-    } as any;
+    };
 
     return buildVideoSources(mediaForSource, {
       isAuthenticated: true,
@@ -100,7 +105,7 @@ export default function ModernVideoDetailPage({ params }: VideoDetailPageProps) 
     setIsLiked(false);
     setIsFavorited(false);
     hasTrackedViewRef.current = false;
-  }, [video?.id, video?.likes_count, video?.favorites_count]);
+  }, [video]);
 
   useEffect(() => {
     if (!video || !interactionStatus?.data) return;
@@ -113,7 +118,7 @@ export default function ModernVideoDetailPage({ params }: VideoDetailPageProps) 
     if (typeof interactionStatus.data.favoritesCount === 'number') {
       setFavoriteCount(interactionStatus.data.favoritesCount);
     }
-  }, [interactionStatus?.data, video?.id]);
+  }, [interactionStatus?.data, video]);
 
   const handlePlayStateChange = useCallback((isPlaying: boolean) => {
     if (!video || !isPlaying || hasTrackedViewRef.current) {
@@ -151,13 +156,16 @@ export default function ModernVideoDetailPage({ params }: VideoDetailPageProps) 
     );
   }
 
-  const commentsTotal = (video as any)?.comments_count ?? 0;
-  const tags =
+  const commentsTotal = video.comments_count ?? 0;
+  const tags: VideoTag[] =
     video.tags && video.tags.length > 0
       ? video.tags
-      : ((video as any)?.media_tags ?? [])
-          .map((item: any) => item?.tag)
-          .filter(Boolean);
+      : (video.media_tags ?? [])
+          .map((item) => item?.tag)
+          .filter(
+            (tag): tag is VideoTag =>
+              Boolean(tag)
+          );
 
   const stats = [
     { label: '观看', icon: Eye, value: `${formatViews(video.views)} 次` },
@@ -413,7 +421,7 @@ export default function ModernVideoDetailPage({ params }: VideoDetailPageProps) 
               <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900">
                 <h2 className="text-sm font-semibold text-slate-900 dark:text-white">相关标签</h2>
                 <div className="mt-3 flex flex-wrap gap-2">
-                  {tags.map((tag: any) => (
+                  {tags.map((tag) => (
                     <Badge key={tag.id ?? tag.name} variant="secondary" className="rounded-full">
                       #{tag.name}
                     </Badge>

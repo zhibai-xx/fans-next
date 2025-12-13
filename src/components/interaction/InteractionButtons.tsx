@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Heart, Bookmark } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
@@ -41,48 +41,10 @@ export const InteractionButtons: React.FC<InteractionButtonsProps> = ({
   const [isLikeLoading, setIsLikeLoading] = useState(false);
   const [isFavoriteLoading, setIsFavoriteLoading] = useState(false);
 
-  // 初始化时获取互动状态
-  useEffect(() => {
-    if (!initialLikeStatus || !initialFavoriteStatus) {
-      loadInteractionStatus();
-    }
-  }, [mediaId]);
-
-  // 监听props变化并更新状态
-  useEffect(() => {
-    if (initialLikeStatus) {
-      setLikeStatus({
-        is_liked: initialLikeStatus.is_liked,
-        likes_count: initialLikeStatus.likes_count,
-      });
-    }
-  }, [initialLikeStatus?.is_liked, initialLikeStatus?.likes_count]);
-
-  useEffect(() => {
-    if (initialFavoriteStatus) {
-      setFavoriteStatus({
-        is_favorited: initialFavoriteStatus.is_favorited,
-        favorites_count: initialFavoriteStatus.favorites_count,
-      });
-    }
-  }, [initialFavoriteStatus?.is_favorited, initialFavoriteStatus?.favorites_count]);
-
-  // 通知父组件状态变化
-  useEffect(() => {
-    if (onInteractionChange) {
-      onInteractionChange({
-        is_liked: likeStatus.is_liked,
-        is_favorited: favoriteStatus.is_favorited,
-        likes_count: likeStatus.likes_count,
-        favorites_count: favoriteStatus.favorites_count,
-      });
-    }
-  }, [likeStatus, favoriteStatus, onInteractionChange]);
-
   /**
    * 加载互动状态
    */
-  const loadInteractionStatus = async () => {
+  const loadInteractionStatus = useCallback(async () => {
     try {
       const response = await InteractionService.getMediaInteractionStatus(mediaId);
       if (response.success && response.data) {
@@ -98,6 +60,49 @@ export const InteractionButtons: React.FC<InteractionButtonsProps> = ({
     } catch (error) {
       console.error('加载互动状态失败:', error);
     }
+  }, [mediaId]);
+
+  // 初始化时获取互动状态
+  useEffect(() => {
+    if (!initialLikeStatus || !initialFavoriteStatus) {
+      void loadInteractionStatus();
+    }
+  }, [initialFavoriteStatus, initialLikeStatus, loadInteractionStatus]);
+
+  // 监听props变化并更新状态
+  const initialIsLiked = initialLikeStatus?.is_liked;
+  const initialLikesCount = initialLikeStatus?.likes_count;
+  const initialIsFavorited = initialFavoriteStatus?.is_favorited;
+  const initialFavoritesCount = initialFavoriteStatus?.favorites_count;
+
+  useEffect(() => {
+    if (initialIsLiked === undefined || initialLikesCount === undefined) {
+      return;
+    }
+    setLikeStatus({
+      is_liked: initialIsLiked,
+      likes_count: initialLikesCount,
+    });
+  }, [initialIsLiked, initialLikesCount]);
+
+  useEffect(() => {
+    if (initialIsFavorited === undefined || initialFavoritesCount === undefined) {
+      return;
+    }
+    setFavoriteStatus({
+      is_favorited: initialIsFavorited,
+      favorites_count: initialFavoritesCount,
+    });
+  }, [initialFavoritesCount, initialIsFavorited]);
+
+  const emitInteractionChange = (nextLike: LikeStatus, nextFavorite: FavoriteStatus) => {
+    if (!onInteractionChange) return;
+    onInteractionChange({
+      is_liked: nextLike.is_liked,
+      likes_count: nextLike.likes_count,
+      is_favorited: nextFavorite.is_favorited,
+      favorites_count: nextFavorite.favorites_count,
+    });
   };
 
   /**
@@ -107,23 +112,30 @@ export const InteractionButtons: React.FC<InteractionButtonsProps> = ({
     if (isLikeLoading) return;
 
     setIsLikeLoading(true);
-    const previousStatus = likeStatus.is_liked;
-    const previousCount = likeStatus.likes_count;
+    const previousStatus: LikeStatus = {
+      is_liked: likeStatus.is_liked,
+      likes_count: likeStatus.likes_count,
+    };
+
+    const nextStatus: LikeStatus = {
+      is_liked: !previousStatus.is_liked,
+      likes_count: previousStatus.is_liked
+        ? Math.max(0, previousStatus.likes_count - 1)
+        : previousStatus.likes_count + 1,
+    };
 
     try {
       // 乐观更新UI
-      setLikeStatus(prev => ({
-        is_liked: !prev.is_liked,
-        likes_count: prev.is_liked ? prev.likes_count - 1 : prev.likes_count + 1,
-      }));
+      setLikeStatus(nextStatus);
+      emitInteractionChange(nextStatus, favoriteStatus);
 
       // 调用API
-      const response = await InteractionService.toggleLike(mediaId, previousStatus);
+      const response = await InteractionService.toggleLike(mediaId, previousStatus.is_liked);
 
       if (response.success) {
         toast({
-          title: previousStatus ? '取消点赞成功' : '点赞成功',
-          description: previousStatus ? '已取消点赞' : '感谢您的点赞！',
+          title: previousStatus.is_liked ? '取消点赞成功' : '点赞成功',
+          description: previousStatus.is_liked ? '已取消点赞' : '感谢您的点赞！',
         });
       } else {
         throw new Error(response.message || '操作失败');
@@ -132,10 +144,8 @@ export const InteractionButtons: React.FC<InteractionButtonsProps> = ({
       console.error('点赞操作失败:', error);
 
       // 回滚UI状态
-      setLikeStatus({
-        is_liked: previousStatus,
-        likes_count: previousCount,
-      });
+      setLikeStatus(previousStatus);
+      emitInteractionChange(previousStatus, favoriteStatus);
 
       toast({
         title: '操作失败',
@@ -154,23 +164,30 @@ export const InteractionButtons: React.FC<InteractionButtonsProps> = ({
     if (isFavoriteLoading) return;
 
     setIsFavoriteLoading(true);
-    const previousStatus = favoriteStatus.is_favorited;
-    const previousCount = favoriteStatus.favorites_count;
+    const previousStatus: FavoriteStatus = {
+      is_favorited: favoriteStatus.is_favorited,
+      favorites_count: favoriteStatus.favorites_count,
+    };
+
+    const nextStatus: FavoriteStatus = {
+      is_favorited: !previousStatus.is_favorited,
+      favorites_count: previousStatus.is_favorited
+        ? Math.max(0, previousStatus.favorites_count - 1)
+        : previousStatus.favorites_count + 1,
+    };
 
     try {
       // 乐观更新UI
-      setFavoriteStatus(prev => ({
-        is_favorited: !prev.is_favorited,
-        favorites_count: prev.is_favorited ? prev.favorites_count - 1 : prev.favorites_count + 1,
-      }));
+      setFavoriteStatus(nextStatus);
+      emitInteractionChange(likeStatus, nextStatus);
 
       // 调用API
-      const response = await InteractionService.toggleFavorite(mediaId, previousStatus);
+      const response = await InteractionService.toggleFavorite(mediaId, previousStatus.is_favorited);
 
       if (response.success) {
         toast({
-          title: previousStatus ? '取消收藏成功' : '收藏成功',
-          description: previousStatus ? '已从收藏中移除' : '已添加到收藏夹',
+          title: previousStatus.is_favorited ? '取消收藏成功' : '收藏成功',
+          description: previousStatus.is_favorited ? '已从收藏中移除' : '已添加到收藏夹',
         });
       } else {
         throw new Error(response.message || '操作失败');
@@ -179,10 +196,8 @@ export const InteractionButtons: React.FC<InteractionButtonsProps> = ({
       console.error('收藏操作失败:', error);
 
       // 回滚UI状态
-      setFavoriteStatus({
-        is_favorited: previousStatus,
-        favorites_count: previousCount,
-      });
+      setFavoriteStatus(previousStatus);
+      emitInteractionChange(likeStatus, previousStatus);
 
       toast({
         title: '操作失败',

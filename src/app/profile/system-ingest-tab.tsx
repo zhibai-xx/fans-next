@@ -10,45 +10,29 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import { Spinner } from '@/components/Spinner';
-import { systemIngestService } from '@/services/system-ingest.service';
+import {
+  systemIngestService,
+  type SystemIngestFile,
+  type SystemIngestScanResult,
+  type SystemIngestUploadResult
+} from '@/services/system-ingest.service';
 import OptimizedSystemIngestFileCard from '../system-ingest/components/OptimizedSystemIngestFileCard';
 import { PermissionGuard } from '@/components/auth/PermissionGuard';
 
-interface SystemIngestFile {
-  id: string;
-  name: string;
-  path: string;
-  size: number;
-  type: 'image' | 'video' | 'gif';
-  lastModified: string;
-  userId?: string;
-}
-
-interface SystemIngestUser {
-  userId: string;
-  userName: string;
-  totalFiles: number;
-  files: SystemIngestFile[];
-}
-
-interface ScanResult {
-  users: SystemIngestUser[];
-  totalFiles: number;
-  totalSize: number;
-}
-
-interface UploadResult {
-  filePath: string;
-  fileName: string;
-  uploadId?: string;
-  success: boolean;
-  needUpload?: boolean;
-  mediaId?: string;
-  error?: string;
-}
-
 // 分页配置
 const ITEMS_PER_PAGE = 15; // 个人中心中减少每页数量
+
+type FlattenedFile = SystemIngestFile & { userId: string };
+
+const getErrorMessage = (error: unknown): string => {
+  if (error instanceof Error) {
+    return error.message;
+  }
+  if (typeof error === 'string') {
+    return error;
+  }
+  return '';
+};
 
 // 优化的分页信息组件
 const PaginationInfo = React.memo<{
@@ -69,19 +53,19 @@ export default function SystemIngestTab() {
 
   const [isScanning, setIsScanning] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
-  const [scanResult, setScanResult] = useState<ScanResult | null>(null);
+  const [scanResult, setScanResult] = useState<SystemIngestScanResult | null>(null);
   const [selectedFiles, setSelectedFiles] = useState<Set<string>>(new Set());
   const [customScanPath, setCustomScanPath] = useState<string>('');
   const [filterType, setFilterType] = useState<'all' | 'image' | 'video' | 'gif'>('all');
   const [filterUser, setFilterUser] = useState<string>('all');
   const [currentPage, setCurrentPage] = useState(1);
-  const [uploadResults, setUploadResults] = useState<UploadResult[]>([]);
+  const [uploadResults, setUploadResults] = useState<SystemIngestUploadResult[]>([]);
 
   // 获取所有文件的扁平列表 - 使用useMemo优化
   const allFiles = useMemo(() => {
     if (!scanResult) return [];
 
-    const files: (SystemIngestFile & { userId: string })[] = [];
+    const files: FlattenedFile[] = [];
     scanResult.users.forEach(user => {
       user.files.forEach(file => {
         files.push({ ...file, userId: user.userId });
@@ -138,10 +122,11 @@ export default function SystemIngestTab() {
         title: '扫描完成',
         description: `共发现 ${result.totalFiles} 个媒体文件`,
       });
-    } catch (error: any) {
+    } catch (error) {
+      const message = getErrorMessage(error) || '扫描系统导入目录失败';
       toast({
         title: '扫描失败',
-        description: error.message || '扫描系统导入目录失败',
+        description: message,
         variant: 'destructive',
       });
     } finally {
@@ -186,10 +171,11 @@ export default function SystemIngestTab() {
       });
 
       setSelectedFiles(new Set());
-    } catch (error: any) {
+    } catch (error) {
+      const message = getErrorMessage(error) || '批量上传失败';
       toast({
         title: '批量上传失败',
-        description: error.message || '批量上传失败',
+        description: message,
         variant: 'destructive',
       });
     } finally {
@@ -295,7 +281,10 @@ export default function SystemIngestTab() {
                 <div className="flex flex-wrap gap-4 mb-4">
                   <div className="flex items-center gap-2">
                     <Label htmlFor="filterType">类型:</Label>
-                    <Select value={filterType} onValueChange={(value: any) => setFilterType(value)}>
+                    <Select
+                      value={filterType}
+                      onValueChange={(value: 'all' | 'image' | 'video' | 'gif') => setFilterType(value)}
+                    >
                       <SelectTrigger className="w-32">
                         <SelectValue />
                       </SelectTrigger>

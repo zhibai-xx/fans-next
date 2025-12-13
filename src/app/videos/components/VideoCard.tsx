@@ -24,7 +24,7 @@ export function VideoCard({ video, className }: VideoCardProps) {
           {video.duration}
         </div>
         {/* 来源标签 */}
-        {(video as any).source && (video as any).source === 'SYSTEM_INGEST' && (
+        {video.source === 'SYSTEM_INGEST' && (
           <div className="absolute top-2 left-2">
             <Badge variant="secondary" className="bg-blue-100 text-blue-800 text-xs">
               系统导入

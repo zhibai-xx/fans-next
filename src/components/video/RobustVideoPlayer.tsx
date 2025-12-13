@@ -6,12 +6,24 @@ import 'video.js/dist/video-js.css';
 import styles from './RobustVideoPlayer.module.css';
 import { getVideoMimeType } from '@/lib/utils/media-url';
 
+declare global {
+  interface Window {
+    videojs?: typeof videojs;
+  }
+}
+
 // 确保videojs在全局可用
-if (typeof window !== 'undefined' && !(window as any).videojs) {
-  (window as any).videojs = videojs;
+if (typeof window !== 'undefined' && !window.videojs) {
+  window.videojs = videojs;
 }
 
 const isDev = process.env.NODE_ENV !== 'production';
+
+type PlayerWithControlBar = videojs.Player & {
+  controlBar?: videojs.ControlBar;
+};
+
+type ExtendedPlayerOptions = videojs.PlayerOptions & Record<string, unknown>;
 
 
 export interface VideoSource {
@@ -26,6 +38,17 @@ export interface VideoSource {
   displayLabel?: string;
   isDefault?: boolean;
 }
+
+const getSourceSignature = (sources: VideoSource[]): string => {
+  if (!sources.length) {
+    return '[]';
+  }
+  return JSON.stringify(
+    sources.map((source) => `${source.src}|${source.type || ''}`)
+  );
+};
+
+type PlayerError = videojs.PlayerError | Error | { message?: string } | null;
 
 export interface RobustVideoPlayerProps {
   /** 视频源 - 支持单个URL或多个源 */
@@ -49,7 +72,7 @@ export interface RobustVideoPlayerProps {
   /** 播放进度回调 */
   onProgress?: (currentTime: number, duration: number) => void;
   /** 错误回调 */
-  onError?: (error: any) => void;
+  onError?: (error: PlayerError) => void;
   /** 登录提示 */
   onRequireAuth?: (source: VideoSource) => void;
 }
@@ -93,20 +116,13 @@ export default function RobustVideoPlayer({
     }
     return [{ src: src as string, type: getVideoMimeType(src as string) }];
   }, [src]);
-  const sourcesSignature = React.useMemo(() => {
-    if (!videoSources || videoSources.length === 0) {
-      return '[]';
-    }
-    return JSON.stringify(
-      videoSources.map((source) => `${source.src}|${source.type || ''}`)
-    );
-  }, [videoSources]);
+  const sourcesSignature = React.useMemo(() => getSourceSignature(videoSources), [videoSources]);
   const latestSourcesRef = useRef<VideoSource[]>(videoSources);
   const latestOnRequireAuthRef = useRef(onRequireAuth);
   const onReadyRef = useRef(onReady);
   const onPlayStateChangeRef = useRef(onPlayStateChange);
   const onProgressRef = useRef(onProgress);
-  const onErrorRef = useRef(onError);
+  const onErrorRef = useRef<RobustVideoPlayerProps['onError']>(onError);
   const qualityButtonRef = useRef<HTMLDivElement | null>(null);
   const qualityMenuRef = useRef<HTMLDivElement | null>(null);
   const qualityMenuContentRef = useRef<HTMLDivElement | null>(null);
@@ -135,6 +151,16 @@ export default function RobustVideoPlayer({
   useEffect(() => {
     onErrorRef.current = onError;
   }, [onError]);
+
+  const normalizePlayerError = useCallback((error: unknown): PlayerError => {
+    if (error instanceof Error) {
+      return error;
+    }
+    if (error && typeof error === 'object') {
+      return error as PlayerError;
+    }
+    return { message: typeof error === 'string' ? error : '未知错误' };
+  }, []);
   // 移除客户端检测 - 现在通过动态导入处理SSR
 
   const populateQualityMenu = useCallback(
@@ -319,7 +345,7 @@ export default function RobustVideoPlayer({
       setIsLoading(true);
 
       try {
-        const options: any = {
+        const options: ExtendedPlayerOptions = {
           controls,
           responsive: true,
           fluid: true,
@@ -389,7 +415,7 @@ export default function RobustVideoPlayer({
         const sources = latestSourcesRef.current;
         if (sources.length > 0) {
           player.src(sources);
-          lastSourceSignatureRef.current = sourcesSignature;
+          lastSourceSignatureRef.current = getSourceSignature(sources);
         } else {
           lastSourceSignatureRef.current = '';
         }
@@ -397,17 +423,18 @@ export default function RobustVideoPlayer({
         player.ready(() => {
           setIsLoading(false);
 
-          const playerEl = (player as any).el();
-          if (playerEl) {
-            playerEl.style.width = '';
-            playerEl.style.height = '';
-            playerEl.style.maxWidth = '';
-            playerEl.style.maxHeight = '';
-            playerEl.style.minWidth = '';
-            playerEl.style.minHeight = '';
+          const playerInstance = player as PlayerWithControlBar;
+          const playerElement = playerInstance.el();
+          if (playerElement instanceof HTMLElement) {
+            playerElement.style.width = '';
+            playerElement.style.height = '';
+            playerElement.style.maxWidth = '';
+            playerElement.style.maxHeight = '';
+            playerElement.style.minWidth = '';
+            playerElement.style.minHeight = '';
           }
 
-          const controlBar = (player as any).controlBar;
+          const controlBar = playerInstance.controlBar;
           const unwantedControls = [
             'skipButtons',
             'chaptersButton',
@@ -424,8 +451,8 @@ export default function RobustVideoPlayer({
 
           unwantedControls.forEach(controlName => {
             try {
-              const control = controlBar.getChild(controlName);
-              if (control) {
+              const control = controlBar?.getChild(controlName);
+              if (control && controlBar) {
                 controlBar.removeChild(control);
               }
             } catch {
@@ -433,14 +460,14 @@ export default function RobustVideoPlayer({
             }
           });
 
-          const controlBarEl = (player as any).controlBar?.el();
-          if (controlBarEl) {
+          const controlBarEl = controlBar?.el();
+          if (controlBarEl instanceof HTMLElement) {
             controlBarEl.classList.add('vjs-control-bar-ready');
           }
 
           setTimeout(() => {
-            const controlBarElement = (player as any).controlBar?.el();
-            if (controlBarElement && !controlBarElement.querySelector('.vjs-left-controls')) {
+            const controlBarElement = playerInstance.controlBar?.el();
+            if (controlBarElement instanceof HTMLElement && !controlBarElement.querySelector('.vjs-left-controls')) {
               const leftGroup = document.createElement('div');
               leftGroup.className = 'vjs-left-controls';
 
@@ -481,8 +508,8 @@ export default function RobustVideoPlayer({
           }, 100);
 
           setTimeout(() => {
-            const controlBarElement = (player as any).controlBar?.el();
-            if (controlBarElement && !controlBarElement.classList.contains('vjs-layout-ready')) {
+            const controlBarElement = playerInstance.controlBar?.el();
+            if (controlBarElement instanceof HTMLElement && !controlBarElement.classList.contains('vjs-layout-ready')) {
               controlBarElement.classList.add('vjs-layout-ready');
             }
           }, 3000);
@@ -494,17 +521,23 @@ export default function RobustVideoPlayer({
 
         player.on('play', () => {
           onPlayStateChangeRef.current?.(true);
-          const bigPlayButton = (player as any).el().querySelector('.vjs-big-play-button');
-          if (bigPlayButton) {
-            (bigPlayButton as HTMLElement).style.display = 'none';
+          const element = player.el();
+          if (element instanceof HTMLElement) {
+            const bigPlayButton = element.querySelector<HTMLElement>('.vjs-big-play-button');
+            if (bigPlayButton) {
+              bigPlayButton.style.display = 'none';
+            }
           }
         });
 
         player.on('pause', () => {
           onPlayStateChangeRef.current?.(false);
-          const bigPlayButton = (player as any).el().querySelector('.vjs-big-play-button');
-          if (bigPlayButton) {
-            (bigPlayButton as HTMLElement).style.display = 'flex';
+          const element = player.el();
+          if (element instanceof HTMLElement) {
+            const bigPlayButton = element.querySelector<HTMLElement>('.vjs-big-play-button');
+            if (bigPlayButton) {
+              bigPlayButton.style.display = 'flex';
+            }
           }
         });
 
@@ -516,19 +549,20 @@ export default function RobustVideoPlayer({
           }
         });
 
-        player.on('error', (error) => {
-          console.error('❌ RobustVideoPlayer 播放错误:', error);
+        player.on('error', () => {
+          const playerError = player.error();
+          console.error('❌ RobustVideoPlayer 播放错误:', playerError);
           setHasError(true);
           setErrorMessage('视频加载失败，请检查网络连接或视频源');
           setIsLoading(false);
-          onErrorRef.current?.(error);
+          onErrorRef.current?.(playerError ?? { message: '未知的播放器错误' });
         });
       } catch (error) {
         console.error('❌ RobustVideoPlayer 初始化错误:', error);
         setHasError(true);
         setErrorMessage('播放器初始化失败');
         setIsLoading(false);
-        onErrorRef.current?.(error);
+        onErrorRef.current?.(normalizePlayerError(error));
       }
     };
 
@@ -550,7 +584,7 @@ export default function RobustVideoPlayer({
       qualityLabelRef.current = null;
       lastSourceSignatureRef.current = '';
     };
-  }, [controls, autoplay, poster, enableQualitySelector, createQualityButton, populateQualityMenu]);
+  }, [controls, autoplay, poster, enableQualitySelector, createQualityButton, populateQualityMenu, normalizePlayerError]);
 
   // 更新播放器视频源
   useEffect(() => {
