@@ -3,7 +3,7 @@ declare module 'hls.js' {
     enableWorker?: boolean
     lowLatencyMode?: boolean
     backBufferLength?: number
-    [key: string]: any
+    [key: string]: unknown
   }
 
   export interface Level {
@@ -11,7 +11,7 @@ declare module 'hls.js' {
     width?: number
     bitrate: number
     name?: string
-    [key: string]: any
+    [key: string]: unknown
   }
 
   export default class Hls {
@@ -31,7 +31,6 @@ declare module 'hls.js' {
     loadSource(url: string): void
     attachMedia(media: HTMLVideoElement): void
     destroy(): void
-    on(event: string, callback: (event: string, data: any) => void): void
+    on(event: string, callback: (event: string, data: unknown) => void): void
   }
 }
-

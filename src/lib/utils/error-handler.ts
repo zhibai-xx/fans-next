@@ -1,4 +1,30 @@
-import type { ApiError } from '@/types/api';
+import type { ApiErrorPayload } from '@/types/api';
+
+type ApiResponseError = {
+  response?: {
+    data?: ApiErrorPayload;
+  };
+};
+
+type ErrorMessageCarrier = {
+  message: string;
+};
+
+const hasResponseData = (error: unknown): error is ApiResponseError => {
+  if (typeof error !== 'object' || error === null) {
+    return false;
+  }
+  const possibleError = error as Partial<ApiResponseError>;
+  return typeof possibleError.response === 'object';
+};
+
+const hasMessage = (error: unknown): error is ErrorMessageCarrier => {
+  if (typeof error !== 'object' || error === null) {
+    return false;
+  }
+  const possibleError = error as { message?: unknown };
+  return typeof possibleError.message === 'string';
+};
 
 /**
  * 处理特定的错误消息，转换为用户友好的格式
@@ -50,19 +76,16 @@ function processErrorMessage(message: string): string {
  */
 export function getErrorMessage(error: unknown): string {
   // 如果是我们的API错误格式
-  if (error && typeof error === 'object' && 'response' in error) {
-    const apiError = (error as any).response?.data as ApiError;
+  if (hasResponseData(error)) {
+    const apiError = error.response?.data;
     if (apiError?.message) {
       return apiError.message;
     }
   }
 
   // 如果直接是API错误对象
-  if (error && typeof error === 'object' && 'message' in error) {
-    const apiError = error as ApiError;
-    if (typeof apiError.message === 'string') {
-      return apiError.message;
-    }
+  if (hasMessage(error)) {
+    return error.message;
   }
 
   // 如果是标准Error对象

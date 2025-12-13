@@ -51,6 +51,31 @@ export const usePerformanceMonitor = () => {
   // 渲染开始时间映射表
   const renderStartTimes = useRef<Map<string, number>>(new Map());
 
+  // 更新性能数据
+  const updatePerformanceData = useCallback(() => {
+    const metrics = metricsRef.current;
+    const renderMetrics = metrics.filter(m => m.type === 'render');
+    const interactionMetrics = metrics.filter(m => m.type === 'interaction');
+
+    // 计算平均渲染时间
+    const averageRenderTime = renderMetrics.length > 0
+      ? renderMetrics.reduce((sum, m) => sum + m.duration, 0) / renderMetrics.length
+      : 0;
+
+    // 找出慢组件（渲染时间超过100ms）
+    const slowComponents = renderMetrics
+      .filter(m => m.duration > 100)
+      .map(m => m.name)
+      .filter((name, index, arr) => arr.indexOf(name) === index);
+
+    setPerformanceData({
+      metrics: metrics.slice(-100), // 只显示最近100条
+      averageRenderTime,
+      slowComponents,
+      totalInteractions: interactionMetrics.length,
+    });
+  }, []);
+
   /**
    * 记录性能指标
    * 
@@ -66,7 +91,7 @@ export const usePerformanceMonitor = () => {
 
     // 更新性能数据
     updatePerformanceData();
-  }, []);
+  }, [updatePerformanceData]);
 
   // 开始测量渲染时间
   const startRenderMeasure = useCallback((componentName: string) => {
@@ -111,7 +136,7 @@ export const usePerformanceMonitor = () => {
   }, [recordMetric]);
 
   // 测量API调用
-  const measureApiCall = useCallback(async (apiName: string, apiCall: () => Promise<any>) => {
+  const measureApiCall = useCallback(async <T,>(apiName: string, apiCall: () => Promise<T>) => {
     const startTime = performance.now();
 
     try {
@@ -143,31 +168,6 @@ export const usePerformanceMonitor = () => {
       throw error;
     }
   }, [recordMetric]);
-
-  // 更新性能数据
-  const updatePerformanceData = useCallback(() => {
-    const metrics = metricsRef.current;
-    const renderMetrics = metrics.filter(m => m.type === 'render');
-    const interactionMetrics = metrics.filter(m => m.type === 'interaction');
-
-    // 计算平均渲染时间
-    const averageRenderTime = renderMetrics.length > 0
-      ? renderMetrics.reduce((sum, m) => sum + m.duration, 0) / renderMetrics.length
-      : 0;
-
-    // 找出慢组件（渲染时间超过100ms）
-    const slowComponents = renderMetrics
-      .filter(m => m.duration > 100)
-      .map(m => m.name)
-      .filter((name, index, arr) => arr.indexOf(name) === index);
-
-    setPerformanceData({
-      metrics: metrics.slice(-100), // 只显示最近100条
-      averageRenderTime,
-      slowComponents,
-      totalInteractions: interactionMetrics.length,
-    });
-  }, []);
 
   // 获取性能报告
   const getPerformanceReport = useCallback(() => {

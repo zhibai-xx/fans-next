@@ -1,4 +1,7 @@
 import { apiClient } from '@/lib/api-client';
+import type { ApiResponse, ApiResponseWithPagination, PaginatedResponse } from '@/types/api';
+
+export type { PaginatedResponse } from '@/types/api';
 
 // 标签接口
 export interface Tag {
@@ -88,33 +91,39 @@ export interface MediaStats {
   };
 }
 
-// 统一API响应格式
-export interface ApiResponse<T = any> {
+interface BatchRestoreResult {
+  id: string;
   success: boolean;
-  data?: T;
   message?: string;
 }
 
-export interface ApiResponseWithPagination<T = any> extends ApiResponse<T> {
-  pagination?: {
-    limit: number;
-    total: number;
-    totalPages?: number;
-    page?: number;
-  };
+export interface DeleteMediaResult {
+  successCount?: number;
+  failedCount?: number;
+  failedDetails?: Array<{
+    mediaId?: string;
+    message?: string;
+    error?: string;
+  }>;
 }
 
-export interface PaginatedResponse<T> {
-  success: boolean;
-  data: T[];
-  pagination: {
-    page: number;
-    limit: number;
-    total: number;
-    totalPages: number;
+type CategoryUsageApi = {
+  id: string;
+  name: string;
+  count?: number;
+  _count?: {
+    media: number;
   };
-  message?: string;
-}
+};
+
+type TagUsageApi = {
+  id: string;
+  name: string;
+  count?: number;
+  _count?: {
+    media_tags: number;
+  };
+};
 
 export interface RecycleMediaItem extends Media {
   deleted_at: string;
@@ -173,8 +182,7 @@ export class AdminMediaService {
       ...filters,
     };
 
-    const response = await apiClient.get('/admin/media', { params });
-    return response as PaginatedResponse<Media>; // 返回完整响应对象
+    return apiClient.get<PaginatedResponse<Media>>('/admin/media', { params });
   }
 
   /**
@@ -185,14 +193,13 @@ export class AdminMediaService {
     limit?: number;
     search?: string;
   } = {}): Promise<PaginatedResponse<RecycleMediaItem>> {
-    const response = await apiClient.get('/admin/media/recycle/bin', {
+    return apiClient.get<PaginatedResponse<RecycleMediaItem>>('/admin/media/recycle/bin', {
       params: {
         page: params.page ?? 1,
         limit: params.limit ?? 20,
         search: params.search?.trim() || undefined,
       },
     });
-    return response as PaginatedResponse<RecycleMediaItem>;
   }
 
   /**
@@ -200,11 +207,10 @@ export class AdminMediaService {
    */
   static async restoreMedia(
     mediaIds: string[],
-  ): Promise<ApiResponse<{ id: string; success: boolean; message?: string }[]>> {
-    const response = await apiClient.post('/admin/media/recycle/restore', {
+  ): Promise<ApiResponse<BatchRestoreResult[]>> {
+    return apiClient.post<ApiResponse<BatchRestoreResult[]>>('/admin/media/recycle/restore', {
       mediaIds,
     });
-    return response as ApiResponse<{ id: string; success: boolean; message?: string }[]>;
   }
 
   /**
@@ -218,13 +224,12 @@ export class AdminMediaService {
       createBackup?: boolean;
     } = {},
   ): Promise<ApiResponse<DeletionSummary>> {
-    const response = await apiClient.post('/admin/media/recycle/hard-delete', {
+    return apiClient.post<ApiResponse<DeletionSummary>>('/admin/media/recycle/hard-delete', {
       mediaIds,
       reason: options.reason,
       forceDelete: options.forceDelete ?? true,
       createBackup: options.createBackup ?? false,
     });
-    return response as ApiResponse<DeletionSummary>;
   }
 
   /**
@@ -237,12 +242,11 @@ export class AdminMediaService {
       createBackup?: boolean;
     } = {},
   ): Promise<ApiResponse<DeletionSummary>> {
-    const response = await apiClient.post('/admin/media/recycle/cleanup', {
+    return apiClient.post<ApiResponse<DeletionSummary>>('/admin/media/recycle/cleanup', {
       limit: options.limit,
       reason: options.reason,
       createBackup: options.createBackup ?? false,
     });
-    return response as ApiResponse<DeletionSummary>;
   }
 
   /**
@@ -251,26 +255,23 @@ export class AdminMediaService {
   static async getPendingCleanup(
     limit: number = 50
   ): Promise<ApiResponseWithPagination<PendingCleanupItem[]>> {
-    const response = await apiClient.get('/admin/media/recycle/pending', {
+    return apiClient.get<ApiResponseWithPagination<PendingCleanupItem[]>>('/admin/media/recycle/pending', {
       params: { limit },
     });
-    return response as ApiResponseWithPagination<PendingCleanupItem[]>;
   }
 
   /**
    * 获取媒体统计信息
    */
   static async getMediaStats(): Promise<ApiResponse<MediaStats>> {
-    const response = await apiClient.get('/admin/media/stats');
-    return response as ApiResponse<MediaStats>; // 返回完整响应对象
+    return apiClient.get<ApiResponse<MediaStats>>('/admin/media/stats');
   }
 
   /**
    * 获取单个媒体详情
    */
   static async getMediaDetail(id: string): Promise<ApiResponse<Media>> {
-    const response = await apiClient.get(`/admin/media/${id}`);
-    return response as ApiResponse<Media>; // 返回完整响应对象
+    return apiClient.get<ApiResponse<Media>>(`/admin/media/${id}`);
   }
 
   // =====================================
@@ -284,10 +285,9 @@ export class AdminMediaService {
     id: string,
     visibility: 'VISIBLE' | 'HIDDEN'
   ): Promise<ApiResponse<Media>> {
-    const response = await apiClient.put(`/admin/media/${id}/visibility`, {
+    return apiClient.put<ApiResponse<Media>>(`/admin/media/${id}/visibility`, {
       visibility,
     });
-    return response as ApiResponse<Media>; // 返回完整响应对象
   }
 
   /**
@@ -296,12 +296,11 @@ export class AdminMediaService {
   static async batchUpdateMediaVisibility(
     mediaIds: string[],
     visibility: 'VISIBLE' | 'HIDDEN'
-  ): Promise<ApiResponse<any>> {
-    const response = await apiClient.post('/admin/media/batch/visibility', {
+  ): Promise<ApiResponse<Record<string, unknown>>> {
+    return apiClient.post<ApiResponse<Record<string, unknown>>>('/admin/media/batch/visibility', {
       mediaIds,
       visibility,
     });
-    return response as ApiResponse<any>; // 返回完整响应对象
   }
 
   // =====================================
@@ -311,9 +310,8 @@ export class AdminMediaService {
   /**
    * 删除单个媒体
    */
-  static async deleteMedia(id: string): Promise<ApiResponse<any>> {
-    const response = await apiClient.delete(`/admin/media/${id}`);
-    return response as ApiResponse<any>; // 返回完整响应对象
+  static async deleteMedia(id: string): Promise<ApiResponse<DeleteMediaResult>> {
+    return apiClient.delete<ApiResponse<DeleteMediaResult>>(`/admin/media/${id}`);
   }
 
   /**
@@ -321,10 +319,9 @@ export class AdminMediaService {
    */
   static async batchDeleteMedia(
     mediaIds: string[]
-  ): Promise<ApiResponse<any>> {
+  ): Promise<ApiResponse<DeleteMediaResult>> {
     // 使用POST方法发送删除请求，因为需要传递请求体数据
-    const response = await apiClient.post('/admin/media/batch/delete', { mediaIds });
-    return response as ApiResponse<any>; // 返回完整响应对象
+    return apiClient.post<ApiResponse<DeleteMediaResult>>('/admin/media/batch/delete', { mediaIds });
   }
 
   // =====================================
@@ -342,9 +339,8 @@ export class AdminMediaService {
       category_id?: string;
       tag_ids?: string[];
     }
-  ) {
-    const response = await apiClient.put(`/admin/media/${id}`, updateData);
-    return response as any; // 返回完整响应对象
+  ): Promise<ApiResponse<Media>> {
+    return apiClient.put<ApiResponse<Media>>(`/admin/media/${id}`, updateData);
   }
 
   // =====================================
@@ -367,13 +363,23 @@ export class AdminMediaService {
     role: string;
     status: string;
   }>> {
-    const response = await apiClient.get('/admin/media/users/stats', {
+    const response = await apiClient.get<ApiResponseWithPagination<Array<{
+      id: number;
+      username: string;
+      email: string;
+      avatar_url?: string;
+      created_at: string;
+      upload_count: number;
+      role: string;
+      status: string;
+    }>>>('/admin/media/users/stats', {
       params: { page, limit },
-    }) as any;
+    });
     return {
-      success: true,
-      data: response.data?.data || [],
-      pagination: response.data?.pagination || { page: 1, limit: 20, total: 0, totalPages: 0 },
+      success: response.success,
+      data: response.data ?? [],
+      pagination: response.pagination ?? { page, limit, total: 0, totalPages: 0 },
+      message: response.message,
     };
   }
 
@@ -381,45 +387,51 @@ export class AdminMediaService {
    * 获取分类使用统计
    */
   static async getCategoryUsageStats(): Promise<ApiResponse<Category[]>> {
-    const response = await apiClient.get('/admin/media/categories/usage') as any;
+    const response = await apiClient.get<ApiResponse<CategoryUsageApi[]>>('/admin/media/categories/usage');
 
-    // 转换数据格式：将 _count.media 转换为 count
     if (response.success && response.data) {
-      const transformedData = response.data.map((category: any) => ({
+      const transformedData: Category[] = response.data.map((category) => ({
         id: category.id,
         name: category.name,
-        count: category._count?.media || 0
+        count: category.count ?? category._count?.media ?? 0,
       }));
       return {
         success: response.success,
         data: transformedData,
-        message: response.message
-      } as ApiResponse<Category[]>;
+        message: response.message,
+      };
     }
 
-    return response as ApiResponse<Category[]>;
+    return {
+      success: response.success,
+      message: response.message,
+      data: [],
+    };
   }
 
   /**
    * 获取标签使用统计
    */
   static async getTagUsageStats(): Promise<ApiResponse<Tag[]>> {
-    const response = await apiClient.get('/admin/media/tags/usage') as any;
+    const response = await apiClient.get<ApiResponse<TagUsageApi[]>>('/admin/media/tags/usage');
 
-    // 转换数据格式：将 _count.media_tags 转换为 count
     if (response.success && response.data) {
-      const transformedData = response.data.map((tag: any) => ({
+      const transformedData: Tag[] = response.data.map((tag) => ({
         id: tag.id,
         name: tag.name,
-        count: tag._count?.media_tags || 0
+        count: tag.count ?? tag._count?.media_tags ?? 0,
       }));
       return {
         success: response.success,
         data: transformedData,
-        message: response.message
-      } as ApiResponse<Tag[]>;
+        message: response.message,
+      };
     }
 
-    return response as ApiResponse<Tag[]>;
+    return {
+      success: response.success,
+      message: response.message,
+      data: [],
+    };
   }
 }

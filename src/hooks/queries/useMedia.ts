@@ -246,10 +246,10 @@ export function useDeleteMediaMutation() {
       }
       return response;
     },
-    onSuccess: (data) => {
-      const response = data as any;
-      const failedCount = response.data?.failedCount || 0;
-      const failedDetails = response.data?.failedDetails || [];
+    onSuccess: (response) => {
+      const result = response.data;
+      const failedCount = result?.failedCount ?? 0;
+      const failedDetails = result?.failedDetails ?? [];
 
       if (failedCount > 0) {
         console.error('删除失败的媒体详情:', failedDetails);
@@ -290,11 +290,11 @@ export function useBatchDeleteMediaMutation() {
       }
       return response;
     },
-    onSuccess: (data) => {
-      const response = data as any;
-      const successCount = response.data?.successCount || 0;
-      const failedCount = response.data?.failedCount || 0;
-      const failedDetails = response.data?.failedDetails || [];
+    onSuccess: (response) => {
+      const result = response.data;
+      const successCount = result?.successCount ?? 0;
+      const failedCount = result?.failedCount ?? 0;
+      const failedDetails = result?.failedDetails ?? [];
 
       if (failedCount > 0) {
         console.error('删除失败的媒体详情:', failedDetails);

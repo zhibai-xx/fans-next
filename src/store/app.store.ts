@@ -62,14 +62,14 @@ interface AppState {
     message: string;
     stack?: string;
     timestamp: Date;
-    context?: any;
+    context?: unknown;
   }>;
 
   // 操作
   updateConfig: (config: Partial<AppConfig>) => void;
   setOnlineStatus: (isOnline: boolean) => void;
   updateLastSyncTime: () => void;
-  addError: (error: { message: string; stack?: string; context?: any }) => void;
+  addError: (error: { message: string; stack?: string; context?: unknown }) => void;
   clearErrors: () => void;
   toggleFeature: (feature: keyof AppConfig['features']) => void;
 
@@ -233,7 +233,7 @@ export const useErrorHandler = () => {
   const { addError, clearErrors } = useAppStore();
 
   return {
-    logError: (error: Error, context?: any) => {
+    logError: (error: Error, context?: unknown) => {
       addError({
         message: error.message,
         stack: error.stack,

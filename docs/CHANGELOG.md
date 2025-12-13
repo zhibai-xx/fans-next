@@ -1,4 +1,8 @@
-﻿# 2025-11-12
+﻿# 2025-11-13
+- 统一 API Client/服务返回类型：新增全局 ApiResponse/Pagination 类型，修复 admin-media/tags 服务与 TanStack Query hooks 里的 `any`，确保响应携带 success/data/pagination
+- 前端重点组件补齐类型：ImageGrid/LazyImageCard 加显式 props 与 `displayName`，RobustVideoPlayer 的 window/videojs/错误回调去除 `any`，useAuthSync 映射 NextAuth session 到 Zustand
+
+# 2025-11-12
 - 左侧导航栏移除“动态 / 社区”入口，主页同步去除相关卡片，改由品牌入口返回首页并突出图片、视频与支持页面
 - “支持我们 / 联系我们”页改为双列布局：左列聚焦邮箱/微信与可承接合作（网站、AI、技术顾问），右列保留精简自愿捐赠提示并内置支付宝/微信二维码占位图，方便替换为真实截图
 

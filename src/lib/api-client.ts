@@ -1,4 +1,5 @@
 import { getSession } from 'next-auth/react';
+import type { ApiErrorPayload } from '@/types/api';
 
 type RequestMethod = 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
 
@@ -9,23 +10,11 @@ type RequestOptions = {
   customConfig?: RequestInit;
 };
 
-type ErrorResponse = {
-  error?: string;
-  message?: string;  // 添加 message 字段
-  issues?: { message: string }[];
-  // 添加嵌套的 response 结构
-  response?: {
-    message: string;
-    error: string;
-    statusCode: number;
-  };
-};
-
-class ApiError extends Error {
+export class ApiError extends Error {
   status: number;
-  data: any;
+  data: unknown;
 
-  constructor(status: number, message: string, data?: any) {
+  constructor(status: number, message: string, data?: unknown) {
     super(message);
     this.name = 'ApiError';
     this.status = status;
@@ -64,7 +53,7 @@ export class ApiClient {
    * 准备请求头，自动处理认证信息
    */
   private async prepareHeaders(
-    data?: any,
+    data?: unknown,
     options?: RequestOptions
   ): Promise<Record<string, string>> {
     const headers: Record<string, string> = {
@@ -99,7 +88,7 @@ export class ApiClient {
       return {} as T;
     }
 
-    let data: ErrorResponse;
+    let data: unknown;
     try {
       data = await response.json();
     } catch (error) {
@@ -111,24 +100,27 @@ export class ApiClient {
     }
 
     if (!response.ok) {
-      // const errorData = data as ErrorResponse;
-      // const errorMessage =
-      //   errorData.issues && errorData.issues.length > 0
-      //     ? errorData.issues[0].message
-      //     : errorData.error || `请求失败，状态码: ${response.status}`;
       let errorMessage = `请求失败，状态码: ${response.status}`;
 
       // 处理嵌套响应结构
-      if (data.response) {
-        errorMessage = data.response.message || data.response.error || errorMessage;
+      const errorPayload = data as ApiErrorPayload;
+      if (errorPayload.response) {
+        errorMessage =
+          errorPayload.response.message ||
+          errorPayload.response.error ||
+          errorMessage;
       }
       // 处理常规错误结构
       else {
-        const firstIssueMessage = data.issues?.[0]?.message;
-        errorMessage = firstIssueMessage || data.message || data.error || errorMessage;
+        const firstIssueMessage = errorPayload.issues?.[0]?.message;
+        errorMessage =
+          firstIssueMessage ||
+          errorPayload.message ||
+          errorPayload.error ||
+          errorMessage;
       }
 
-      throw new ApiError(response.status, errorMessage, data);
+      throw new ApiError(response.status, errorMessage, errorPayload);
     }
 
     return data as T;
@@ -147,7 +139,7 @@ export class ApiClient {
   async request<T>(
     method: RequestMethod,
     endpoint: string,
-    data?: any,
+    data?: unknown,
     options?: RequestOptions & { retryCount?: number }
   ): Promise<T> {
     const maxRetries = 3;
@@ -167,7 +159,14 @@ export class ApiClient {
           ...(options?.customConfig?.headers || {}),
         },
         // 如果是 FormData，直接使用 data
-        body: data instanceof FormData ? data : data ? JSON.stringify(data) : undefined,
+        body:
+          data instanceof FormData
+            ? data
+            : typeof data === 'string'
+            ? data
+            : data !== undefined
+            ? JSON.stringify(data)
+            : undefined,
       };
 
       const response = await fetch(url, config);
@@ -205,15 +204,15 @@ export class ApiClient {
     return this.request<T>('GET', endpoint, undefined, options);
   }
 
-  async post<T>(endpoint: string, data?: any, options?: RequestOptions): Promise<T> {
+  async post<T>(endpoint: string, data?: unknown, options?: RequestOptions): Promise<T> {
     return this.request<T>('POST', endpoint, data, options);
   }
 
-  async put<T>(endpoint: string, data?: any, options?: RequestOptions): Promise<T> {
+  async put<T>(endpoint: string, data?: unknown, options?: RequestOptions): Promise<T> {
     return this.request<T>('PUT', endpoint, data, options);
   }
 
-  async patch<T>(endpoint: string, data?: any, options?: RequestOptions): Promise<T> {
+  async patch<T>(endpoint: string, data?: unknown, options?: RequestOptions): Promise<T> {
     return this.request<T>('PATCH', endpoint, data, options);
   }
 

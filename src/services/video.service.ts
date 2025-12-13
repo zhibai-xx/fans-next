@@ -1,6 +1,15 @@
 import { apiClient } from '@/lib/api-client';
+import type { MediaSourceMetadata } from '@/types/media';
+import type { InteractionApiResponse } from '@/types/interaction';
 
 // 视频相关的类型定义 - 基于实际的media API响应格式
+type MediaTagRelation = {
+  tag?: {
+    id: string;
+    name: string;
+  };
+};
+
 export interface VideoItem {
   id: string;
   title: string;
@@ -24,7 +33,7 @@ export interface VideoItem {
   favorites_count: number;
   source: string;
   original_created_at?: string | null;
-  source_metadata?: any;
+  source_metadata?: MediaSourceMetadata | null;
   created_at: string;
   updated_at: string;
   user: {
@@ -37,10 +46,12 @@ export interface VideoItem {
     name: string;
     description?: string;
   };
-  tags: Array<{
+  tags?: Array<{
     id: string;
     name: string;
   }>;
+  media_tags?: MediaTagRelation[];
+  comments_count?: number;
   // 扩展字段 - 可能在处理后添加
   hls_url?: string; // HLS流媒体URL
   video_qualities?: Array<{
@@ -171,25 +182,25 @@ export class VideoService {
     const queryString = params.toString();
     const url = `/media?${queryString}`;
 
-    return apiClient.get(url, { withAuth: false });
+    return apiClient.get<VideoListResponse>(url, { withAuth: false });
   }
 
   /**
    * 获取视频详情
    */
   static async getVideoById(videoId: string): Promise<VideoDetailResponse> {
-    const response = await apiClient.get<any>(
+    const response = await apiClient.get<VideoDetailResponse | VideoItem>(
       `/media/${videoId}`,
       { withAuth: false }
     );
 
     if (response && typeof response === 'object' && 'success' in response && 'data' in response) {
-      return response as VideoDetailResponse;
+      return response;
     }
 
     return {
       success: true,
-      data: response as unknown as VideoItem,
+      data: response as VideoItem,
     };
   }
 
@@ -199,8 +210,8 @@ export class VideoService {
   static async incrementViews(
     videoId: string,
     payload?: Omit<IncrementViewPayload, 'mediaId'>,
-  ): Promise<{ success: boolean; data?: any }> {
-    return apiClient.post(`/media/${videoId}/view`, {
+  ): Promise<InteractionApiResponse<{ views?: number }>> {
+    return apiClient.post<InteractionApiResponse<{ views?: number }>>(`/media/${videoId}/view`, {
       sessionId: payload?.sessionId,
       mediaType: payload?.mediaType ?? 'VIDEO',
       event: payload?.event ?? 'play',
@@ -210,23 +221,23 @@ export class VideoService {
   /**
    * 点赞视频
    */
-  static async likeVideo(videoId: string, isLiked: boolean): Promise<{ success: boolean }> {
+  static async likeVideo(videoId: string, isLiked: boolean): Promise<InteractionApiResponse<null>> {
     if (isLiked) {
-      return apiClient.post(`/media/interaction/like`, { media_id: videoId });
+      return apiClient.post<InteractionApiResponse<null>>(`/media/interaction/like`, { media_id: videoId });
     }
 
-    return apiClient.delete(`/media/interaction/like/${videoId}`);
+    return apiClient.delete<InteractionApiResponse<null>>(`/media/interaction/like/${videoId}`);
   }
 
   /**
    * 收藏视频
    */
-  static async favoriteVideo(videoId: string, isFavorited: boolean): Promise<{ success: boolean }> {
+  static async favoriteVideo(videoId: string, isFavorited: boolean): Promise<InteractionApiResponse<null>> {
     if (isFavorited) {
-      return apiClient.post(`/media/interaction/favorite`, { media_id: videoId });
+      return apiClient.post<InteractionApiResponse<null>>(`/media/interaction/favorite`, { media_id: videoId });
     }
 
-    return apiClient.delete(`/media/interaction/favorite/${videoId}`);
+    return apiClient.delete<InteractionApiResponse<null>>(`/media/interaction/favorite/${videoId}`);
   }
 
   /**
@@ -267,18 +278,15 @@ export class VideoService {
   /**
    * 获取视频处理状态
    */
-  static async getProcessingStatus(mediaId: string): Promise<{
-    success: boolean;
-    data: VideoProcessingStatus;
-  }> {
-    return apiClient.get(`/video-processing/status/${mediaId}`);
+  static async getProcessingStatus(mediaId: string): Promise<InteractionApiResponse<VideoProcessingStatus>> {
+    return apiClient.get<InteractionApiResponse<VideoProcessingStatus>>(`/video-processing/status/${mediaId}`);
   }
 
   /**
    * 手动触发视频重新处理 (管理员功能)
    */
-  static async reprocessVideo(mediaId: string): Promise<{ success: boolean; jobId: string }> {
-    return apiClient.post(`/video-processing/reprocess`, { mediaId });
+  static async reprocessVideo(mediaId: string): Promise<InteractionApiResponse<{ jobId: string }>> {
+    return apiClient.post<InteractionApiResponse<{ jobId: string }>>(`/video-processing/reprocess`, { mediaId });
   }
 
   /**
@@ -293,7 +301,7 @@ export class VideoService {
     params.append('sortBy', 'views');
     params.append('sortOrder', 'desc');
 
-    return apiClient.get(`/media?${params.toString()}`, { withAuth: false });
+    return apiClient.get<VideoListResponse>(`/media?${params.toString()}`, { withAuth: false });
   }
 
   /**

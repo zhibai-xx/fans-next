@@ -9,8 +9,8 @@ export interface OperationLog {
   target_type: string;
   target_id?: string;
   target_name?: string;
-  old_values?: any;
-  new_values?: any;
+  old_values?: Record<string, unknown> | null;
+  new_values?: Record<string, unknown> | null;
   ip_address?: string;
   user_agent?: string;
   description?: string;
@@ -133,7 +133,7 @@ export class AdminLogsService {
     filters: LogFilters = {},
     page: number = 1,
     limit: number = 20
-  ): Promise<PaginatedResponse<OperationLog>> {
+  ): Promise<PaginatedResponse<OperationLog> | OperationLog[]> {
     const params = {
       page: page.toString(),
       limit: limit.toString(),
@@ -161,7 +161,7 @@ export class AdminLogsService {
     filters: LoginLogFilters = {},
     page: number = 1,
     limit: number = 20
-  ): Promise<PaginatedResponse<LoginLog>> {
+  ): Promise<PaginatedResponse<LoginLog> | LoginLog[]> {
     const params = {
       page: page.toString(),
       limit: limit.toString(),

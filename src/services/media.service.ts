@@ -1,4 +1,5 @@
 import { apiClient } from '@/lib/api-client';
+import type { MediaSourceMetadata } from '@/types/media';
 
 export interface MediaUser {
   uuid: string;
@@ -41,7 +42,7 @@ export interface MediaItem {
   favorites_count: number;
   source: string;
   original_created_at?: string;
-  source_metadata?: any;
+  source_metadata?: MediaSourceMetadata | null;
   created_at: string;
   updated_at: string;
   user: MediaUser;

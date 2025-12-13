@@ -20,13 +20,13 @@ declare module 'video.js' {
           overrideNative?: boolean;
         };
       };
-      plugins?: Record<string, any>;
+      plugins?: Record<string, unknown>;
     }
 
     interface Player {
       ready(fn: () => void): void;
-      on(event: string, callback: (event?: any) => void): void;
-      off(event: string, callback?: (event?: any) => void): void;
+      on(event: string, callback: (event?: unknown) => void): void;
+      off(event: string, callback?: (event?: unknown) => void): void;
       src(): Tech.SourceObject[];
       src(sources: Tech.SourceObject[] | Tech.SourceObject): void;
       play(): Promise<void>;
@@ -41,7 +41,7 @@ declare module 'video.js' {
       muted(muted: boolean): void;
       dispose(): void;
       error(): MediaError | null;
-      qualityLevels?(): any;
+      qualityLevels?(): QualityLevelList;
     }
 
     namespace Tech {
@@ -57,6 +57,23 @@ declare module 'video.js' {
       IS_SAFARI: boolean;
     }
 
+    interface QualityLevel {
+      id: string;
+      label: string;
+      width: number;
+      height: number;
+      bandwidth: number;
+      enabled: boolean;
+    }
+
+    interface QualityLevelList {
+      length: number;
+      selectedIndex?: number;
+      [index: number]: QualityLevel;
+      on(event: string, callback: (event?: unknown) => void): void;
+      off(event: string, callback?: (event?: unknown) => void): void;
+    }
+
     const browser: Browser;
   }
 
@@ -69,15 +86,10 @@ declare module 'video.js' {
 }
 
 declare module 'videojs-contrib-quality-levels' {
-  // Quality levels plugin types
-  interface QualityLevel {
-    id: string;
-    label: string;
-    width: number;
-    height: number;
-    bandwidth: number;
-    enabled: boolean;
-  }
+  import type videojs from 'video.js';
+
+  export type QualityLevel = videojs.QualityLevel;
+  export type QualityLevelList = videojs.QualityLevelList;
 }
 
 declare module 'videojs-hls-quality-selector' {

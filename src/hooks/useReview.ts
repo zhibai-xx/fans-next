@@ -7,6 +7,20 @@ import {
 import { MediaItem } from '@/services/media.service';
 import { ReviewService, UseReviewResult } from '@/services/review.service';
 
+const extractErrorMessage = (error: unknown): string => {
+  if (error instanceof Error) {
+    return error.message;
+  }
+  if (typeof error === 'string') {
+    return error;
+  }
+  if (typeof error === 'object' && error !== null && 'message' in error) {
+    const possibleMessage = (error as { message?: unknown }).message;
+    return typeof possibleMessage === 'string' ? possibleMessage : '';
+  }
+  return '';
+};
+
 export function useReview(initialFilters: ReviewFilters = {}): UseReviewResult {
   const { toast } = useToast();
 
@@ -67,11 +81,6 @@ export function useReview(initialFilters: ReviewFilters = {}): UseReviewResult {
     // 加锁
     requestLockRef.current = requestId;
 
-    if (isLoading) {
-      requestLockRef.current = null;
-      return Promise.resolve();
-    }
-
     setIsLoading(true);
     setError(null);
 
@@ -102,9 +111,10 @@ export function useReview(initialFilters: ReviewFilters = {}): UseReviewResult {
         }, 100);
         return;
       }
-    } catch (err: any) {
+    } catch (err) {
       console.error('获取媒体列表失败:', err);
-      if (err.message?.includes('未授权')) {
+      const errorMessage = extractErrorMessage(err);
+      if (errorMessage.includes('未授权')) {
         setError('权限不足，请确保您有管理员权限');
       } else {
         setError('获取媒体列表失败');

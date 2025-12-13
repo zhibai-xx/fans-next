@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useInfiniteQuery, useQueryClient } from '@tanstack/react-query';
+import type { QueryClient } from '@tanstack/react-query';
 import { UploadRecordService } from '@/services/upload-record.service';
-import { UploadFilters, UploadRecord } from '@/types/upload-record';
+import type { UploadFilters, UploadRecord, ResubmitData, UploadStats } from '@/types/upload-record';
 import { useToast } from '@/hooks/use-toast';
 
 // 上传记录查询键工厂
@@ -123,8 +124,8 @@ export function useResubmitUploadRecordMutation() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async (params: { recordId: string; metadata?: any }) => {
-      return await UploadRecordService.resubmitRecord(params.recordId, params.metadata);
+    mutationFn: async (params: { recordId: string; metadata?: ResubmitData }) => {
+      return await UploadRecordService.resubmitRecord(params.recordId, params.metadata ?? {});
     },
     onSuccess: () => {
       toast({
@@ -202,30 +203,30 @@ export function useWithdrawUploadRecordMutation() {
 // 查询工具函数
 export const uploadRecordQueryUtils = {
   // 使所有上传记录查询失效
-  invalidateAll: (queryClient: any) =>
+  invalidateAll: (queryClient: QueryClient) =>
     queryClient.invalidateQueries({ queryKey: uploadRecordQueryKeys.all }),
 
   // 使上传记录列表失效
-  invalidateLists: (queryClient: any) =>
+  invalidateLists: (queryClient: QueryClient) =>
     queryClient.invalidateQueries({ queryKey: uploadRecordQueryKeys.lists() }),
 
   // 使统计数据失效
-  invalidateStats: (queryClient: any) =>
+  invalidateStats: (queryClient: QueryClient) =>
     queryClient.invalidateQueries({ queryKey: uploadRecordQueryKeys.stats() }),
 
   // 使特定记录详情失效
-  invalidateRecord: (queryClient: any, recordId: string) =>
+  invalidateRecord: (queryClient: QueryClient, recordId: string) =>
     queryClient.invalidateQueries({ queryKey: uploadRecordQueryKeys.detail(recordId) }),
 
   // 手动设置统计数据
-  setStats: (queryClient: any, data: any) =>
+  setStats: (queryClient: QueryClient, data: UploadStats) =>
     queryClient.setQueryData(uploadRecordQueryKeys.stats(), data),
 
   // 手动更新记录
-  updateRecord: (queryClient: any, recordId: string, updates: Partial<UploadRecord>) => {
-    queryClient.setQueryData(
+  updateRecord: (queryClient: QueryClient, recordId: string, updates: Partial<UploadRecord>) => {
+    queryClient.setQueryData<UploadRecord | undefined>(
       uploadRecordQueryKeys.detail(recordId),
-      (oldData: any) => oldData ? { ...oldData, ...updates } : oldData
+      (oldData) => (oldData ? { ...oldData, ...updates } : oldData)
     );
   },
 };

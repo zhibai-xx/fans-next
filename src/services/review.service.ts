@@ -120,12 +120,12 @@ export class ReviewService {
       status?: 'PENDING_REVIEW' | 'APPROVED' | 'REJECTED';
       tag_ids?: string[];
     }
-  ): Promise<any> {
+  ): Promise<MediaItem> {
     console.log('📝 ReviewService.updateMediaInfo 发送请求:');
     console.log('   媒体ID:', mediaId);
     console.log('   更新数据:', data);
 
-    const response = await apiClient.patch<any>(`/media/${mediaId}/info`, data, {
+    const response = await apiClient.patch<MediaItem>(`/media/${mediaId}/info`, data, {
       withAuth: true,
     });
 

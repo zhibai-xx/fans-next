@@ -1,3 +1,5 @@
+import type { MediaSourceMetadata } from '@/types/media';
+
 export interface VideoItem {
     id: string
     title: string
@@ -20,11 +22,5 @@ export interface VideoItem {
     isBookmarked?: boolean
     source?: 'USER_UPLOAD' | 'SYSTEM_INGEST' | 'ADMIN_UPLOAD' | 'EXTERNAL_FEED'
     originalCreatedAt?: string
-    sourceMetadata?: {
-        ingestUserId?: string
-        originalPath?: string
-        sourcePipeline?: string
-        importedAt?: string
-        [key: string]: any
-    }
+    sourceMetadata?: MediaSourceMetadata
 }

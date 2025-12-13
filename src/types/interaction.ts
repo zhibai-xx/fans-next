@@ -1,3 +1,5 @@
+import type { MediaSourceMetadata } from '@/types/media';
+
 // 媒体互动相关类型定义
 
 /**
@@ -166,7 +168,7 @@ export interface StatsQuery {
 /**
  * API响应包装类型
  */
-export interface InteractionApiResponse<T = any> {
+export interface InteractionApiResponse<T = unknown> {
   success: boolean;
   data?: T;
   message?: string;
@@ -236,7 +238,7 @@ export interface FavoriteItem {
     favorites_count: number;
     source: string; // 🎯 添加：来源
     original_created_at?: string; // 🎯 添加：原创建时间
-    source_metadata?: any; // 🎯 添加：来源元数据
+    source_metadata?: MediaSourceMetadata | null; // 🎯 添加：来源元数据
     created_at: string;
     updated_at: string; // 🎯 添加：更新时间
     user: {

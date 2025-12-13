@@ -1,4 +1,5 @@
 import { apiClient } from '@/lib/api-client';
+import type { ApiResponse } from '@/types/api';
 
 // 标签相关接口
 export interface Tag {
@@ -49,40 +50,37 @@ export class AdminTagsService {
   /**
    * 获取所有标签（包含统计信息）
    */
-  static async getAllTags(search?: string): Promise<Tag[]> {
+  static async getAllTags(search?: string): Promise<ApiResponse<Tag[]>> {
     const params = search ? { search } : {};
-    const response = await apiClient.get('/admin/tags', { params }) as any;
-    return response.data;
+    return apiClient.get<ApiResponse<Tag[]>>('/admin/tags', { params });
   }
 
   /**
    * 创建新标签
    */
-  static async createTag(data: { name: string }): Promise<Tag> {
-    const response = await apiClient.post('/admin/tags', data) as any;
-    return response.data;
+  static async createTag(data: { name: string }): Promise<ApiResponse<Tag>> {
+    return apiClient.post<ApiResponse<Tag>>('/admin/tags', data);
   }
 
   /**
    * 更新标签
    */
-  static async updateTag(id: string, data: { name: string }): Promise<Tag> {
-    const response = await apiClient.put(`/admin/tags/${id}`, data) as any;
-    return response.data;
+  static async updateTag(id: string, data: { name: string }): Promise<ApiResponse<Tag>> {
+    return apiClient.put<ApiResponse<Tag>>(`/admin/tags/${id}`, data);
   }
 
   /**
    * 删除标签
    */
-  static async deleteTag(id: string): Promise<void> {
-    await apiClient.delete(`/admin/tags/${id}`);
+  static async deleteTag(id: string): Promise<ApiResponse<null>> {
+    return apiClient.delete<ApiResponse<null>>(`/admin/tags/${id}`);
   }
 
   /**
    * 批量删除标签
    */
-  static async batchDeleteTags(ids: string[]): Promise<void> {
-    await apiClient.request('DELETE', '/admin/tags/batch', { ids });
+  static async batchDeleteTags(ids: string[]): Promise<ApiResponse<null>> {
+    return apiClient.request<ApiResponse<null>>('DELETE', '/admin/tags/batch', { ids });
   }
 
   // =====================================
@@ -92,40 +90,37 @@ export class AdminTagsService {
   /**
    * 获取所有分类（包含统计信息）
    */
-  static async getAllCategories(search?: string): Promise<Category[]> {
+  static async getAllCategories(search?: string): Promise<ApiResponse<Category[]>> {
     const params = search ? { search } : {};
-    const response = await apiClient.get('/admin/categories', { params }) as any;
-    return response.data;
+    return apiClient.get<ApiResponse<Category[]>>('/admin/categories', { params });
   }
 
   /**
    * 创建新分类
    */
-  static async createCategory(data: { name: string; description?: string }): Promise<Category> {
-    const response = await apiClient.post('/admin/categories', data) as any;
-    return response.data;
+  static async createCategory(data: { name: string; description?: string }): Promise<ApiResponse<Category>> {
+    return apiClient.post<ApiResponse<Category>>('/admin/categories', data);
   }
 
   /**
    * 更新分类
    */
-  static async updateCategory(id: string, data: { name: string; description?: string }): Promise<Category> {
-    const response = await apiClient.put(`/admin/categories/${id}`, data) as any;
-    return response.data;
+  static async updateCategory(id: string, data: { name: string; description?: string }): Promise<ApiResponse<Category>> {
+    return apiClient.put<ApiResponse<Category>>(`/admin/categories/${id}`, data);
   }
 
   /**
    * 删除分类
    */
-  static async deleteCategory(id: string): Promise<void> {
-    await apiClient.delete(`/admin/categories/${id}`);
+  static async deleteCategory(id: string): Promise<ApiResponse<null>> {
+    return apiClient.delete<ApiResponse<null>>(`/admin/categories/${id}`);
   }
 
   /**
    * 批量删除分类
    */
-  static async batchDeleteCategories(ids: string[]): Promise<void> {
-    await apiClient.request('DELETE', '/admin/categories/batch', { ids });
+  static async batchDeleteCategories(ids: string[]): Promise<ApiResponse<null>> {
+    return apiClient.request<ApiResponse<null>>('DELETE', '/admin/categories/batch', { ids });
   }
 
   // =====================================
@@ -135,8 +130,7 @@ export class AdminTagsService {
   /**
    * 获取标签和分类的统计信息
    */
-  static async getTagsCategoriesStats(): Promise<TagsCategoriesStats> {
-    const response = await apiClient.get('/admin/tags-categories/stats') as any;
-    return response.data;
+  static async getTagsCategoriesStats(): Promise<ApiResponse<TagsCategoriesStats>> {
+    return apiClient.get<ApiResponse<TagsCategoriesStats>>('/admin/tags-categories/stats');
   }
 }

@@ -1,6 +1,11 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { systemIngestService } from '@/services/system-ingest.service';
+import type {
+  SystemIngestFile,
+  SystemIngestScanResult
+} from '@/services/system-ingest.service';
 import { useToast } from '@/hooks/use-toast';
+import type { QueryClient } from '@tanstack/react-query';
 
 // 系统导入查询键
 export const systemIngestQueryKeys = {
@@ -12,7 +17,7 @@ export const systemIngestQueryKeys = {
 
 // 扫描系统导入目录
 export function useScanSystemIngestFiles() {
-  return useQuery({
+  return useQuery<SystemIngestScanResult>({
     queryKey: systemIngestQueryKeys.scan(),
     queryFn: async () => {
       return systemIngestService.scanFiles();
@@ -24,12 +29,14 @@ export function useScanSystemIngestFiles() {
 }
 
 // 获取指定用户的文件（当前返回空列表，仅用于占位）
+type UserFilesResponse = Awaited<ReturnType<typeof systemIngestService.getUserFiles>>;
+
 export function useSystemIngestUserFiles(userId?: string, page = 0, limit = 20) {
-  return useQuery({
+  return useQuery<UserFilesResponse>({
     queryKey: systemIngestQueryKeys.files(userId, page, limit),
     queryFn: async () => {
       if (!userId) {
-        return { files: [], total: 0 };
+        return { files: [] as SystemIngestFile[], total: 0 };
       }
       return systemIngestService.getUserFiles(userId, page, limit);
     },
@@ -40,15 +47,17 @@ export function useSystemIngestUserFiles(userId?: string, page = 0, limit = 20) 
 }
 
 // 批量上传
+type BatchUploadParams = {
+  files: Array<{ id: string; path: string; name: string; userId?: string }>;
+  onProgress?: (progress: { completed: number; total: number; current?: string }) => void;
+};
+
 export function useBatchUploadMutation() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async (params: {
-      files: Array<{ id: string; path: string; name: string; userId?: string }>;
-      onProgress?: (progress: { completed: number; total: number; current?: string }) => void;
-    }) => {
+    mutationFn: async (params: BatchUploadParams) => {
       return systemIngestService.batchUpload(params.files, params.onProgress);
     },
     onSuccess: (data) => {
@@ -75,7 +84,7 @@ export function useUploadSingleFileMutation() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async (params: { filePath: string; fileName: string; metadata?: any }) => {
+    mutationFn: async (params: { filePath: string; fileName: string; metadata?: Record<string, unknown> }) => {
       return systemIngestService.uploadSingle(params.filePath, params.fileName, params.metadata);
     },
     onSuccess: (data, variables) => {
@@ -149,16 +158,21 @@ export function usePreviewFileMutation() {
 
 // 查询工具
 export const systemIngestQueryUtils = {
-  invalidateAll: (queryClient: any) =>
+  invalidateAll: (queryClient: QueryClient) =>
     queryClient.invalidateQueries({ queryKey: systemIngestQueryKeys.all }),
-  invalidateScan: (queryClient: any) =>
+  invalidateScan: (queryClient: QueryClient) =>
     queryClient.invalidateQueries({ queryKey: systemIngestQueryKeys.scan() }),
-  invalidateUserFiles: (queryClient: any, userId?: string) =>
+  invalidateUserFiles: (queryClient: QueryClient, userId?: string) =>
     queryClient.invalidateQueries({
       queryKey: userId ? systemIngestQueryKeys.files(userId) : systemIngestQueryKeys.all,
     }),
-  setScanResult: (queryClient: any, data: any) =>
+  setScanResult: (queryClient: QueryClient, data: SystemIngestScanResult) =>
     queryClient.setQueryData(systemIngestQueryKeys.scan(), data),
-  setUserFiles: (queryClient: any, userId: string, page: number, limit: number, data: any) =>
-    queryClient.setQueryData(systemIngestQueryKeys.files(userId, page, limit), data),
+  setUserFiles: (
+    queryClient: QueryClient,
+    userId: string,
+    page: number,
+    limit: number,
+    data: UserFilesResponse,
+  ) => queryClient.setQueryData(systemIngestQueryKeys.files(userId, page, limit), data),
 };

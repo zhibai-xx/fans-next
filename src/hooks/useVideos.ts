@@ -1,12 +1,20 @@
 import { useQuery, useInfiniteQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { VideoService, VideoFilters, VideoItem, IncrementViewPayload } from '@/services/video.service';
+import type { QueryClient } from '@tanstack/react-query';
+import {
+  VideoService,
+  VideoFilters,
+  VideoItem,
+  IncrementViewPayload,
+  VideoListResponse,
+  VideoDetailResponse,
+} from '@/services/video.service';
 import { useToast } from '@/hooks/use-toast';
 
 // 查询键工厂
 const videoKeys = {
   all: ['videos'] as const,
   lists: () => [...videoKeys.all, 'list'] as const,
-  list: (filters: VideoFilters) => [...videoKeys.lists(), filters] as const,
+  list: (filters: VideoFilters = {}) => [...videoKeys.lists(), filters] as const,
   details: () => [...videoKeys.all, 'detail'] as const,
   detail: (id: string) => [...videoKeys.details(), id] as const,
   trending: () => [...videoKeys.all, 'trending'] as const,
@@ -19,11 +27,15 @@ const videoKeys = {
   interaction: (videoId: string) => [...videoKeys.all, 'interaction', videoId] as const,
 };
 
+type VideoDetailQueryData = Awaited<ReturnType<typeof VideoService.getVideoById>>;
+type VideoInteractionQueryData = Awaited<ReturnType<typeof VideoService.getInteractionStatus>>;
+type VideoProcessingQueryData = Awaited<ReturnType<typeof VideoService.getProcessingStatus>>;
+
 /**
  * 获取视频列表 - 无限滚动
  */
 export function useInfiniteVideos(filters: VideoFilters = {}) {
-  return useInfiniteQuery({
+  return useInfiniteQuery<VideoListResponse>({
     queryKey: videoKeys.list(filters),
     queryFn: async ({ pageParam = 1 }) => {
       return VideoService.getVideos({
@@ -53,7 +65,7 @@ export function useInfiniteVideos(filters: VideoFilters = {}) {
  * 获取视频列表 - 分页
  */
 export function useVideos(filters: VideoFilters = {}) {
-  return useQuery({
+  return useQuery<VideoListResponse>({
     queryKey: videoKeys.list(filters),
     queryFn: () => VideoService.getVideos(filters),
     staleTime: 5 * 60 * 1000, // 5分钟
@@ -65,7 +77,7 @@ export function useVideos(filters: VideoFilters = {}) {
  * 获取视频详情
  */
 export function useVideoDetail(videoId: string) {
-  return useQuery({
+  return useQuery<VideoDetailQueryData>({
     queryKey: videoKeys.detail(videoId),
     queryFn: () => VideoService.getVideoById(videoId),
     enabled: !!videoId,
@@ -78,7 +90,7 @@ export function useVideoDetail(videoId: string) {
  * 获取推荐视频
  */
 export function useRecommendedVideos(videoId?: string, limit: number = 10) {
-  return useQuery({
+  return useQuery<VideoListResponse>({
     queryKey: videoKeys.recommended(videoId),
     queryFn: () => VideoService.getRecommendedVideos(videoId, limit),
     staleTime: 10 * 60 * 1000, // 10分钟
@@ -90,7 +102,7 @@ export function useRecommendedVideos(videoId?: string, limit: number = 10) {
  * 获取热门视频
  */
 export function useTrendingVideos(limit: number = 20) {
-  return useQuery({
+  return useQuery<VideoListResponse>({
     queryKey: videoKeys.trending(),
     queryFn: () => VideoService.getTrendingVideos(limit),
     staleTime: 15 * 60 * 1000, // 15分钟
@@ -102,7 +114,7 @@ export function useTrendingVideos(limit: number = 20) {
  * 获取最新视频
  */
 export function useLatestVideos(limit: number = 20) {
-  return useQuery({
+  return useQuery<VideoListResponse>({
     queryKey: videoKeys.latest(),
     queryFn: () => VideoService.getLatestVideos(limit),
     staleTime: 5 * 60 * 1000, // 5分钟
@@ -114,7 +126,7 @@ export function useLatestVideos(limit: number = 20) {
  * 按分类获取视频
  */
 export function useVideosByCategory(categoryId: string, page: number = 1, limit: number = 20) {
-  return useQuery({
+  return useQuery<VideoListResponse>({
     queryKey: videoKeys.category(categoryId),
     queryFn: () => VideoService.getVideosByCategory(categoryId, page, limit),
     enabled: !!categoryId,
@@ -127,7 +139,7 @@ export function useVideosByCategory(categoryId: string, page: number = 1, limit:
  * 按标签获取视频
  */
 export function useVideosByTag(tagId: string, page: number = 1, limit: number = 20) {
-  return useQuery({
+  return useQuery<VideoListResponse>({
     queryKey: videoKeys.tag(tagId),
     queryFn: () => VideoService.getVideosByTag(tagId, page, limit),
     enabled: !!tagId,
@@ -140,7 +152,7 @@ export function useVideosByTag(tagId: string, page: number = 1, limit: number = 
  * 搜索视频
  */
 export function useSearchVideos(query: string, filters: Omit<VideoFilters, 'search'> = {}) {
-  return useQuery({
+  return useQuery<VideoListResponse>({
     queryKey: videoKeys.search(query),
     queryFn: () => VideoService.searchVideos(query, filters),
     enabled: !!query.trim(),
@@ -153,7 +165,7 @@ export function useSearchVideos(query: string, filters: Omit<VideoFilters, 'sear
  * 获取视频处理状态
  */
 export function useVideoProcessingStatus(mediaId: string) {
-  return useQuery({
+  return useQuery<VideoProcessingQueryData>({
     queryKey: videoKeys.processing(mediaId),
     queryFn: () => VideoService.getProcessingStatus(mediaId),
     enabled: !!mediaId,
@@ -172,7 +184,7 @@ export function useVideoProcessingStatus(mediaId: string) {
  * 获取用户对视频的互动状态
  */
 export function useVideoInteractionStatus(videoId: string) {
-  return useQuery({
+  return useQuery<VideoInteractionQueryData>({
     queryKey: videoKeys.interaction(videoId),
     queryFn: () => VideoService.getInteractionStatus(videoId),
     enabled: !!videoId,
@@ -192,17 +204,17 @@ export function useIncrementViewsMutation() {
     onSuccess: (_, payload) => {
       // 乐观更新视频详情中的观看次数
       const mediaId = payload.mediaId;
-      queryClient.setQueryData(videoKeys.detail(mediaId), (old: any) => {
-        if (old?.data) {
-          return {
-            ...old,
-            data: {
-              ...old.data,
-              views: (old.data.views || 0) + 1
-            }
-          };
+      queryClient.setQueryData<VideoDetailQueryData>(videoKeys.detail(mediaId), (old) => {
+        if (!old?.data) {
+          return old;
         }
-        return old;
+        return {
+          ...old,
+          data: {
+            ...old.data,
+            views: (old.data.views ?? 0) + 1,
+          },
+        };
       });
 
       // 使相关查询失效
@@ -225,32 +237,32 @@ export function useLikeVideoMutation() {
       const delta = isLiked ? 1 : -1;
 
       // 乐观更新互动状态
-      queryClient.setQueryData(videoKeys.interaction(videoId), (old: any) => {
-        if (old?.data) {
-          return {
-            ...old,
-            data: {
-              ...old.data,
-              isLiked,
-              likesCount: Math.max(0, (old.data.likesCount || 0) + delta),
-            }
-          };
+      queryClient.setQueryData<VideoInteractionQueryData>(videoKeys.interaction(videoId), (old) => {
+        if (!old?.data) {
+          return old;
         }
-        return old;
+        return {
+          ...old,
+          data: {
+            ...old.data,
+            isLiked,
+            likesCount: Math.max(0, (old.data.likesCount || 0) + delta),
+          },
+        };
       });
 
       // 乐观更新视频详情中的点赞数
-      queryClient.setQueryData(videoKeys.detail(videoId), (old: any) => {
-        if (old?.data) {
-          return {
-            ...old,
-            data: {
-              ...old.data,
-              likes_count: Math.max(0, (old.data.likes_count || 0) + delta)
-            }
-          };
+      queryClient.setQueryData<VideoDetailQueryData>(videoKeys.detail(videoId), (old) => {
+        if (!old?.data) {
+          return old;
         }
-        return old;
+        return {
+          ...old,
+          data: {
+            ...old.data,
+            likes_count: Math.max(0, (old.data.likes_count || 0) + delta),
+          },
+        };
       });
 
       toast({
@@ -287,32 +299,32 @@ export function useFavoriteVideoMutation() {
       const delta = isFavorited ? 1 : -1;
 
       // 乐观更新互动状态
-      queryClient.setQueryData(videoKeys.interaction(videoId), (old: any) => {
-        if (old?.data) {
-          return {
-            ...old,
-            data: {
-              ...old.data,
-              isFavorited,
-              favoritesCount: Math.max(0, (old.data.favoritesCount || 0) + delta),
-            }
-          };
+      queryClient.setQueryData<VideoInteractionQueryData>(videoKeys.interaction(videoId), (old) => {
+        if (!old?.data) {
+          return old;
         }
-        return old;
+        return {
+          ...old,
+          data: {
+            ...old.data,
+            isFavorited,
+            favoritesCount: Math.max(0, (old.data.favoritesCount || 0) + delta),
+          },
+        };
       });
 
       // 乐观更新视频详情中的收藏数
-      queryClient.setQueryData(videoKeys.detail(videoId), (old: any) => {
-        if (old?.data) {
-          return {
-            ...old,
-            data: {
-              ...old.data,
-              favorites_count: Math.max(0, (old.data.favorites_count || 0) + delta),
-            },
-          };
+      queryClient.setQueryData<VideoDetailQueryData>(videoKeys.detail(videoId), (old) => {
+        if (!old?.data) {
+          return old;
         }
-        return old;
+        return {
+          ...old,
+          data: {
+            ...old.data,
+            favorites_count: Math.max(0, (old.data.favorites_count || 0) + delta),
+          },
+        };
       });
 
       toast({
@@ -369,23 +381,23 @@ export function useReprocessVideoMutation() {
  */
 export const videoQueryUtils = {
   // 使所有视频查询失效
-  invalidateAll: (queryClient: ReturnType<typeof useQueryClient>) => {
-    queryClient.invalidateQueries({ queryKey: videoKeys.all });
+  invalidateAll: (client: QueryClient) => {
+    client.invalidateQueries({ queryKey: videoKeys.all });
   },
 
   // 使视频列表查询失效
-  invalidateLists: (queryClient: ReturnType<typeof useQueryClient>) => {
-    queryClient.invalidateQueries({ queryKey: videoKeys.lists() });
+  invalidateLists: (client: QueryClient) => {
+    client.invalidateQueries({ queryKey: videoKeys.lists() });
   },
 
   // 使特定视频详情失效
-  invalidateDetail: (queryClient: ReturnType<typeof useQueryClient>, videoId: string) => {
-    queryClient.invalidateQueries({ queryKey: videoKeys.detail(videoId) });
+  invalidateDetail: (client: QueryClient, videoId: string) => {
+    client.invalidateQueries({ queryKey: videoKeys.detail(videoId) });
   },
 
   // 预取视频详情
-  prefetchDetail: (queryClient: ReturnType<typeof useQueryClient>, videoId: string) => {
-    queryClient.prefetchQuery({
+  prefetchDetail: (client: QueryClient, videoId: string) => {
+    client.prefetchQuery({
       queryKey: videoKeys.detail(videoId),
       queryFn: () => VideoService.getVideoById(videoId),
       staleTime: 10 * 60 * 1000,
@@ -393,10 +405,11 @@ export const videoQueryUtils = {
   },
 
   // 设置视频详情数据
-  setVideoDetail: (queryClient: ReturnType<typeof useQueryClient>, videoId: string, data: VideoItem) => {
-    queryClient.setQueryData(videoKeys.detail(videoId), {
+  setVideoDetail: (client: QueryClient, videoId: string, data: VideoItem) => {
+    const response: VideoDetailResponse = {
       success: true,
-      data
-    });
+      data,
+    };
+    client.setQueryData(videoKeys.detail(videoId), response);
   },
 };

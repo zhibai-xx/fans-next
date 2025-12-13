@@ -1,4 +1,5 @@
 import { useQuery, useInfiniteQuery, useMutation } from '@tanstack/react-query';
+import type { QueryClient } from '@tanstack/react-query';
 import { MediaService, MediaTag, MediaCategory, MediaFilters } from '@/services/media.service';
 import { VideoService, IncrementViewPayload } from '@/services/video.service';
 import { InteractionService } from '@/services/interaction.service';
@@ -179,23 +180,23 @@ export function useIncrementViewsMutation() {
 // 查询工具函数
 export const userMediaQueryUtils = {
   // 使图片查询失效
-  invalidateImages: (queryClient: any) =>
+  invalidateImages: (queryClient: QueryClient) =>
     queryClient.invalidateQueries({ queryKey: userMediaQueryKeys.images.all }),
 
   // 使视频查询失效
-  invalidateVideos: (queryClient: any) =>
+  invalidateVideos: (queryClient: QueryClient) =>
     queryClient.invalidateQueries({ queryKey: userMediaQueryKeys.videos.all }),
 
   // 使标签查询失效
-  invalidateTags: (queryClient: any) =>
+  invalidateTags: (queryClient: QueryClient) =>
     queryClient.invalidateQueries({ queryKey: userMediaQueryKeys.tags.all }),
 
   // 使分类查询失效
-  invalidateCategories: (queryClient: any) =>
+  invalidateCategories: (queryClient: QueryClient) =>
     queryClient.invalidateQueries({ queryKey: userMediaQueryKeys.categories.all }),
 
   // 预取下一页
-  prefetchNextImages: (queryClient: any, filters?: MediaFilters) => {
+  prefetchNextImages: (queryClient: QueryClient, filters?: MediaFilters) => {
     queryClient.prefetchInfiniteQuery({
       queryKey: userMediaQueryKeys.images.infinite(filters),
       // queryFn 会在需要时自动调用
