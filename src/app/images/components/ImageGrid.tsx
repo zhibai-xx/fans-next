@@ -2,14 +2,16 @@
 
 import React, { useEffect, useRef, useState, useCallback, useMemo } from 'react';
 import { ImageCard } from './ImageCard';
-import { ImageGridProps } from '@/types/image';
+import { ImageGridProps, ImageItem } from '@/types/image';
 import { useIntersectionObserver } from '@/hooks/useIntersectionObserver';
 import { Spinner } from '@/components/Spinner';
+
+type ImageWithAspectRatio = ImageItem & { aspectRatio: number };
 
 export const ImageGrid: React.FC<ImageGridProps> = ({ images, className = '' }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const [columnCount, setColumnCount] = useState(1);
-  const [columns, setColumns] = useState<Array<Array<any>>>([]);
+  const [columns, setColumns] = useState<ImageWithAspectRatio[][]>([]);
   const loadingRef = useRef<HTMLDivElement>(null);
   const isCalculating = useRef(false);
 
@@ -30,18 +32,21 @@ export const ImageGrid: React.FC<ImageGridProps> = ({ images, className = '' }) 
 
   // 优化图片分配算法
   const distributeImages = useCallback(() => {
-    const newColumns = Array.from({ length: columnCount }, () => [] as any[]);
+    if (columnCount <= 0) return;
+    const newColumns: ImageWithAspectRatio[][] = Array.from({ length: columnCount }, () => []);
+    const columnHeights = Array.from({ length: columnCount }, () => 0);
 
     images.forEach((image) => {
-      const shortestColumn = newColumns.reduce((acc, col) => {
-        const colHeight = col.reduce((sum: number, img: any) => sum + img.aspectRatio, 0);
-        return colHeight < acc.height ? { index: acc.index + 1, height: colHeight } : acc;
-      }, { index: 0, height: Number.MAX_SAFE_INTEGER });
-
-      newColumns[shortestColumn.index].push({
+      const aspectRatio = image.width > 0 ? image.height / image.width : 1;
+      const imageWithRatio: ImageWithAspectRatio = {
         ...image,
-        aspectRatio: image.height / image.width
-      });
+        aspectRatio,
+      };
+      const shortestHeight = Math.min(...columnHeights);
+      const targetIndex = columnHeights.findIndex((height) => height === shortestHeight);
+      const columnIndex = targetIndex >= 0 ? targetIndex : 0;
+      columnHeights[columnIndex] += aspectRatio;
+      newColumns[columnIndex].push(imageWithRatio);
     });
 
     setColumns(newColumns);
@@ -104,7 +109,13 @@ export const ImageGrid: React.FC<ImageGridProps> = ({ images, className = '' }) 
 };
 
 // 懒加载图片卡片
-const LazyImageCard = React.memo(({ image, ...props }: any) => {
+interface LazyImageCardProps {
+  image: ImageWithAspectRatio;
+  className?: string;
+  priority?: boolean;
+}
+
+const LazyImageCardComponent: React.FC<LazyImageCardProps> = ({ image, className, priority }) => {
   const [isVisible, setIsVisible] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
@@ -116,8 +127,8 @@ const LazyImageCard = React.memo(({ image, ...props }: any) => {
   });
 
   return (
-    <div ref={ref} className={props.className}>
-      {isVisible && <ImageCard image={image} {...props} />}
+    <div ref={ref} className={className}>
+      {isVisible && <ImageCard image={image} className={className} priority={priority} />}
       {!isVisible && (
         <div
           className="relative rounded-lg bg-gray-100"
@@ -126,4 +137,7 @@ const LazyImageCard = React.memo(({ image, ...props }: any) => {
       )}
     </div>
   );
-});
+};
+
+const LazyImageCard = React.memo(LazyImageCardComponent);
+LazyImageCard.displayName = 'LazyImageCard';

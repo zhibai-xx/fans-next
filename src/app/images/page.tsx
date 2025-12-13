@@ -113,7 +113,7 @@ export default function ImagesPage() {
                             is_liked: likeStatuses[image.id] || false,
                             is_favorited: favoriteStatuses[image.id] || false,
                             likes_count: image.likes_count || 0,
-                            favorites_count: (image as any).favorites_count || 0,
+                            favorites_count: image.favorites_count || 0,
                         };
                     }
 
@@ -128,7 +128,7 @@ export default function ImagesPage() {
                         is_liked: false,
                         is_favorited: false,
                         likes_count: image.likes_count || 0,
-                        favorites_count: (image as any).favorites_count || 0,
+                        favorites_count: image.favorites_count || 0,
                     };
                 }
                 setInteractionStatuses(defaultStatuses);

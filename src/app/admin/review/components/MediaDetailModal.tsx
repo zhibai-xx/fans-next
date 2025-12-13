@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import Image from 'next/image';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -552,11 +553,14 @@ export function MediaDetailModal({ media, isOpen, onClose, onUpdate }: MediaDeta
                 style={previewContainerStyle}
               >
                 {media.media_type === 'IMAGE' ? (
-                  <img
+                  <Image
                     src={resolveMediaImageUrl(media.thumbnail_url || media.url)}
-                    alt={media.title}
-                    className="h-full w-full object-contain"
+                    alt={media.title || '媒体预览图'}
+                    fill
+                    className="object-contain"
+                    sizes="(max-width: 1024px) 100vw, 800px"
                     loading="lazy"
+                    unoptimized
                   />
                 ) : (
                   isOpen && <VideoPlayerWrapper key={media.id} media={media} />

@@ -216,11 +216,12 @@ export default function UsersManagementPage() {
           variant: 'destructive'
         });
       }
-    } catch (error: any) {
+    } catch (error) {
+      const message = error instanceof Error ? error.message : '操作失败，请稍后重试';
       console.error('用户操作失败:', error);
       toast({
         title: '操作失败',
-        description: error.message || '操作失败，请稍后重试',
+        description: message,
         variant: 'destructive'
       });
     } finally {
@@ -262,7 +263,7 @@ export default function UsersManagementPage() {
       setEditLoading(true);
 
       // 检查是否有变化
-      const updateData: any = {};
+      const updateData: Record<string, string> = {};
       if (editForm.username !== selectedUser.username) updateData.username = editForm.username;
       if (editForm.email !== selectedUser.email) updateData.email = editForm.email;
       if (editForm.nickname !== (selectedUser.nickname || '')) updateData.nickname = editForm.nickname;
@@ -297,11 +298,12 @@ export default function UsersManagementPage() {
           variant: 'destructive'
         });
       }
-    } catch (error: any) {
+    } catch (error) {
+      const message = error instanceof Error ? error.message : '请稍后重试';
       console.error('更新用户信息失败:', error);
       toast({
         title: '更新失败',
-        description: error.message || '请稍后重试',
+        description: message,
         variant: 'destructive'
       });
     } finally {

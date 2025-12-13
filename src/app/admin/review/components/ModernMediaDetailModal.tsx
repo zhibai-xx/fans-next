@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import Image from 'next/image';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -355,12 +356,15 @@ export function ModernMediaDetailModal({
           <Card className="overflow-visible">
             <CardContent className="p-0">
               {media.media_type === 'IMAGE' ? (
-                <div className="flex items-center justify-center rounded-lg bg-gray-100 overflow-hidden" style={previewContainerStyle}>
-                  <img
+                <div className="flex items-center justify-center rounded-lg bg-gray-100 overflow-hidden relative" style={previewContainerStyle}>
+                  <Image
                     src={resolveMediaImageUrl(media.thumbnail_url || media.url)}
-                    alt={media.title}
-                    className="h-full w-full object-contain"
+                    alt={media.title || '媒体预览图'}
+                    fill
+                    className="object-contain"
+                    sizes="(max-width: 1024px) 100vw, 800px"
                     loading="lazy"
+                    unoptimized
                   />
                 </div>
               ) : (

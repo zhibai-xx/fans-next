@@ -1,5 +1,6 @@
 'use client';
 
+import Image from 'next/image';
 import { useState, useEffect, useCallback, memo, useMemo } from 'react';
 import { useReview } from '@/hooks/useReview';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -33,18 +34,19 @@ import {
 } from 'lucide-react';
 import { ReviewService } from '@/services/review.service';
 import { resolveMediaImageUrl } from '@/lib/utils/media-url';
+import type { MediaItem as ReviewMediaItem } from '@/services/media.service';
 
 // 审核媒体项 - 对齐内容管理页面的封面逻辑
-const MediaItem = memo(({ media, isSelected, viewMode, onToggle, onViewDetail }: {
-  media: any;
+const ReviewMediaCard = memo(({ media, isSelected, viewMode, onToggle, onViewDetail }: {
+  media: ReviewMediaItem;
   isSelected: boolean;
   viewMode: 'grid' | 'list';
   onToggle: (id: string) => void;
-  onViewDetail: (media: any) => void;
+  onViewDetail: (media: ReviewMediaItem) => void;
 }) => {
   const [thumbnailLoaded, setThumbnailLoaded] = useState(false);
   const [thumbnailError, setThumbnailError] = useState(false);
-  const previewUrl = resolveMediaImageUrl(media.thumbnail_url || media.url);
+  const previewUrl = resolveMediaImageUrl(media.thumbnail_url || media.url) || '';
   const isVideo = media.media_type === 'VIDEO';
 
   const handleToggleSelection = (e: React.MouseEvent) => {
@@ -54,21 +56,25 @@ const MediaItem = memo(({ media, isSelected, viewMode, onToggle, onViewDetail }:
 
   const handleViewDetail = () => onViewDetail(media);
 
-  const renderThumbnail = (wrapperClass: string) => (
-    <div className={`relative ${wrapperClass} bg-gray-100 flex items-center justify-center`}>
-      {!thumbnailLoaded && !thumbnailError && <ImageIcon className="h-10 w-10 text-gray-300" />}
-      {!thumbnailError ? (
-        <img
-          src={previewUrl}
-          alt={media.title}
-          className={`h-full w-full object-contain transition-opacity duration-200 ${thumbnailLoaded ? 'opacity-100' : 'opacity-0'}`}
-          loading="lazy"
-          onLoad={() => setThumbnailLoaded(true)}
-          onError={() => setThumbnailError(true)}
-        />
-      ) : (
-        <div className="text-center text-xs text-gray-400">封面加载失败</div>
-      )}
+  const renderThumbnail = (wrapperClass: string) => {
+    const hasPreview = Boolean(previewUrl);
+    return (
+      <div className={`relative ${wrapperClass} bg-gray-100 flex items-center justify-center`}>
+        {!thumbnailLoaded && !thumbnailError && <ImageIcon className="h-10 w-10 text-gray-300" />}
+        {hasPreview && !thumbnailError ? (
+          <Image
+            src={previewUrl}
+            alt={media.title || '媒体封面'}
+            fill
+            sizes="(max-width: 768px) 100vw, (max-width: 1280px) 50vw, 25vw"
+            className={`object-contain transition-opacity duration-200 ${thumbnailLoaded ? 'opacity-100' : 'opacity-0'}`}
+            onLoad={() => setThumbnailLoaded(true)}
+            onError={() => setThumbnailError(true)}
+            priority={false}
+          />
+        ) : (
+          <div className="text-center text-xs text-gray-400">封面加载失败</div>
+        )}
       {isVideo && !thumbnailError && (
         <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
           <div className="bg-black/50 rounded-full p-3 shadow-md">
@@ -76,13 +82,14 @@ const MediaItem = memo(({ media, isSelected, viewMode, onToggle, onViewDetail }:
           </div>
         </div>
       )}
-      {isVideo && media.duration && (
+      {isVideo && media.duration ? (
         <div className="absolute bottom-2 right-2 bg-black/80 text-white text-xs px-2 py-1 rounded-md backdrop-blur-sm">
           {`${Math.floor(media.duration / 60)}:${(media.duration % 60).toString().padStart(2, '0')}`}
         </div>
-      )}
-    </div>
-  );
+      ) : null}
+      </div>
+    );
+  };
 
   const containerClass = `media-item border rounded-lg overflow-hidden cursor-pointer ${
     isSelected ? 'media-item-selected' : 'media-item-unselected'
@@ -131,7 +138,7 @@ const MediaItem = memo(({ media, isSelected, viewMode, onToggle, onViewDetail }:
     </div>
   );
 });
-MediaItem.displayName = 'MediaItem';
+ReviewMediaCard.displayName = 'ReviewMediaCard';
 
 // 优化的媒体网格组件
 const MediaGrid = memo(({
@@ -141,11 +148,11 @@ const MediaGrid = memo(({
   onToggle,
   onViewDetail
 }: {
-  mediaList: any[];
+  mediaList: ReviewMediaItem[];
   viewMode: 'grid' | 'list';
   selectedItems: Set<string>;
   onToggle: (id: string) => void;
-  onViewDetail: (media: any) => void;
+  onViewDetail: (media: ReviewMediaItem) => void;
 }) => {
   // 使用优化的网格类
   const gridClass = `media-grid ${viewMode === 'grid'
@@ -156,7 +163,7 @@ const MediaGrid = memo(({
     <div className={gridClass}>
       {mediaList.map((media) => {
         return (
-          <MediaItem
+          <ReviewMediaCard
             key={media.id}
             media={media}
             isSelected={selectedItems.has(media.id)}
@@ -175,7 +182,7 @@ MediaGrid.displayName = 'MediaGrid';
 export function ReviewDashboard() {
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [showShortcuts, setShowShortcuts] = useState(false);
-  const [selectedMedia, setSelectedMedia] = useState<any>(null); // 用于存储选中的媒体详情
+  const [selectedMedia, setSelectedMedia] = useState<ReviewMediaItem | null>(null); // 用于存储选中的媒体详情
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
 
   const review = useReview({

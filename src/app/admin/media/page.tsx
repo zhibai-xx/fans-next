@@ -40,6 +40,7 @@ import {
   Save
 } from 'lucide-react';
 import { AdminMediaService, type Media, type MediaFilters, type Tag, type Category } from '@/services/admin-media.service';
+import type { MediaItem } from '@/services/media.service';
 import {
   useInfiniteMedia,
   useMediaStats,
@@ -53,12 +54,13 @@ import { queryUtils } from '@/lib/query-client';
 import { useIntersectionObserverLegacy } from '@/hooks/useIntersectionObserver';
 
 const isDev = process.env.NODE_ENV !== 'production';
+type AdminMediaForPlayer = Media & Partial<Pick<MediaItem, 'video_qualities' | 'hls_url'>>;
 
 // 视频播放器包装组件 - 完全复制审核管理页面的实现
 
 
 // 管理页面视频播放器组件 - 与审核页面共用逻辑
-function AdminVideoPlayerWrapper({ media }: { media: any }) {
+function AdminVideoPlayerWrapper({ media }: { media: AdminMediaForPlayer }) {
   const videoSources = React.useMemo(
     () => buildVideoSources(media, { isAuthenticated: true }),
     [media],
@@ -1021,12 +1023,12 @@ export default function MediaManagementPage() {
           </div>
           {stats && (
             <div className="flex items-center space-x-4 text-sm text-gray-600">
-              <Badge variant="secondary">总计 {(stats as any).overview?.total || 0}</Badge>
+              <Badge variant="secondary">总计 {stats?.overview?.total ?? 0}</Badge>
               <Badge variant="outline" className="text-green-600">
-                显示 {(stats as any).overview?.visible || 0}
+                显示 {stats?.overview?.visible ?? 0}
               </Badge>
               <Badge variant="outline" className="text-gray-600">
-                隐藏 {(stats as any).overview?.hidden || 0}
+                隐藏 {stats?.overview?.hidden ?? 0}
               </Badge>
             </div>
           )}
@@ -1426,15 +1428,15 @@ export default function MediaManagementPage() {
                 <CardContent className="space-y-2">
                   <div className="flex justify-between">
                     <span>总计</span>
-                    <Badge variant="secondary">{(stats as any).overview?.total || 0}</Badge>
+                    <Badge variant="secondary">{stats?.overview?.total ?? 0}</Badge>
                   </div>
                   <div className="flex justify-between">
                     <span>显示</span>
-                    <Badge variant="outline" className="text-green-600">{(stats as any).overview?.visible || 0}</Badge>
+                    <Badge variant="outline" className="text-green-600">{stats?.overview?.visible ?? 0}</Badge>
                   </div>
                   <div className="flex justify-between">
                     <span>隐藏</span>
-                    <Badge variant="outline" className="text-gray-600">{(stats as any).overview?.hidden || 0}</Badge>
+                    <Badge variant="outline" className="text-gray-600">{stats?.overview?.hidden ?? 0}</Badge>
                   </div>
                 </CardContent>
               </Card>
@@ -1446,11 +1448,11 @@ export default function MediaManagementPage() {
                 <CardContent className="space-y-2">
                   <div className="flex justify-between">
                     <span>图片</span>
-                    <Badge variant="outline">{(stats as any).byType?.image || 0}</Badge>
+                    <Badge variant="outline">{stats?.byType?.image ?? 0}</Badge>
                   </div>
                   <div className="flex justify-between">
                     <span>视频</span>
-                    <Badge variant="outline">{(stats as any).byType?.video || 0}</Badge>
+                    <Badge variant="outline">{stats?.byType?.video ?? 0}</Badge>
                   </div>
                 </CardContent>
               </Card>
@@ -1462,11 +1464,11 @@ export default function MediaManagementPage() {
                 <CardContent className="space-y-2">
                   <div className="flex justify-between">
                     <span>今日上传</span>
-                    <Badge variant="outline">{(stats as any).recentActivity?.today || 0}</Badge>
+                    <Badge variant="outline">{stats?.recentActivity?.today ?? 0}</Badge>
                   </div>
                   <div className="flex justify-between">
                     <span>本周上传</span>
-                    <Badge variant="outline">{(stats as any).recentActivity?.thisWeek || 0}</Badge>
+                    <Badge variant="outline">{stats?.recentActivity?.thisWeek ?? 0}</Badge>
                   </div>
                 </CardContent>
               </Card>

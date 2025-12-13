@@ -1,7 +1,9 @@
 import React, { memo, useMemo } from 'react';
+import Image from 'next/image';
 import { CheckCircle } from 'lucide-react';
 import { MediaItem } from '@/services/media.service';
 import { Button } from '@/components/ui/button';
+import { resolveMediaImageUrl } from '@/lib/utils/media-url';
 
 // 高度优化的单个媒体项组件
 const OptimizedMediaItem = memo(({
@@ -24,16 +26,14 @@ const OptimizedMediaItem = memo(({
     return (
       <div className={cardClassName} onClick={onToggle}>
         <div className="aspect-square bg-gray-100 relative rounded-lg overflow-hidden flex items-center justify-center">
-          <img
-            src={media.thumbnail_url || media.url}
-            alt={media.title}
-            className="max-w-full max-h-full object-contain"
+          <Image
+            src={resolveMediaImageUrl(media.thumbnail_url || media.url)}
+            alt={media.title || '媒体缩略图'}
+            fill
+            className="object-contain"
+            sizes="(max-width: 768px) 50vw, 320px"
             loading="lazy"
-            decoding="async"
-            style={{
-              maxWidth: '100%',
-              maxHeight: '100%'
-            }}
+            unoptimized
           />
           {isSelected && (
             <div className="absolute top-2 right-2">
@@ -54,17 +54,15 @@ const OptimizedMediaItem = memo(({
   return (
     <div className={cardClassName} onClick={onToggle}>
       <div className="flex items-center p-3 space-x-3">
-        <div className="w-16 h-16 bg-gray-100 rounded flex items-center justify-center overflow-hidden flex-shrink-0">
-          <img
-            src={media.thumbnail_url || media.url}
-            alt={media.title}
-            className="max-w-full max-h-full object-contain"
+        <div className="w-16 h-16 bg-gray-100 rounded flex items-center justify-center overflow-hidden flex-shrink-0 relative">
+          <Image
+            src={resolveMediaImageUrl(media.thumbnail_url || media.url)}
+            alt={media.title || '媒体缩略图'}
+            fill
+            className="object-contain"
+            sizes="64px"
             loading="lazy"
-            decoding="async"
-            style={{
-              maxWidth: '100%',
-              maxHeight: '100%'
-            }}
+            unoptimized
           />
         </div>
         <div className="flex-1 min-w-0">

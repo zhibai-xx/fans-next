@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
@@ -49,7 +49,7 @@ export default function PerformanceDashboard() {
   const { performanceData: frontendPerformance } = usePerformanceMonitor();
 
   // 获取性能数据
-  const fetchPerformanceData = async () => {
+  const fetchPerformanceData = useCallback(async () => {
     try {
       setRefreshing(true);
       const response = await apiClient.get('/performance/overview') as { data: PerformanceData };
@@ -65,7 +65,7 @@ export default function PerformanceDashboard() {
       setLoading(false);
       setRefreshing(false);
     }
-  };
+  }, [toast]);
 
   // 清空缓存
   const clearCache = async () => {
@@ -121,15 +121,17 @@ export default function PerformanceDashboard() {
   };
 
   useEffect(() => {
-    fetchPerformanceData();
+    void fetchPerformanceData();
 
     // 定期刷新数据
-    const interval = setInterval(fetchPerformanceData, 30000); // 30秒刷新一次
+    const interval = setInterval(() => {
+      void fetchPerformanceData();
+    }, 30000); // 30秒刷新一次
 
     return () => {
       clearInterval(interval);
     };
-  }, []);
+  }, [fetchPerformanceData]);
 
   if (loading) {
     return (

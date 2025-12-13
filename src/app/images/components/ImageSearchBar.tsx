@@ -98,7 +98,10 @@ export const ImageSearchBar: React.FC<ImageSearchBarProps> = ({
     setSearchQuery(value);
   };
 
-  const handleFilterChange = (key: keyof MediaFilters, value: any) => {
+  const handleFilterChange = (
+    key: keyof MediaFilters,
+    value: string | number | boolean | undefined,
+  ) => {
     // 处理特殊的"所有"选项值
     let processedValue = value;
     if (value === 'ALL' || value === 'ALL_CATEGORIES' || value === 'ALL_STATUS') {
@@ -332,7 +335,7 @@ export const ImageSearchBar: React.FC<ImageSearchBarProps> = ({
           <div className="flex flex-wrap items-center gap-2 pt-2">
             {searchQuery && (
               <Badge variant="secondary" className="rounded-full bg-blue-50 text-blue-700 border-blue-200">
-                搜索: "{searchQuery}"
+                搜索: 「{searchQuery}」
                 <Button
                   variant="ghost"
                   size="sm"
