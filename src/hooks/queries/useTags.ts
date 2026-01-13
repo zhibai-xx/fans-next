@@ -148,8 +148,8 @@ export const useDeleteTagMutation = () => {
     },
     onSuccess: () => {
       toast({
-        title: '删除成功',
-        description: '标签已成功删除',
+        title: '下线成功',
+        description: '标签已成功下线',
       });
 
       // 使相关查询失效
@@ -173,12 +173,16 @@ export const useBatchDeleteTagsMutation = () => {
 
   return useMutation<ApiResponse<null>, unknown, string[]>({
     mutationFn: async (ids: string[]) => {
-      return AdminTagsService.batchDeleteTags(ids);
+      const response = await AdminTagsService.batchDeleteTags(ids);
+      if (response.success === false) {
+        throw new Error(response.message || '批量删除失败');
+      }
+      return response;
     },
     onSuccess: (_, ids) => {
       toast({
-        title: '批量删除成功',
-        description: `已成功删除 ${ids.length} 个标签`,
+        title: '批量下线成功',
+        description: `已成功下线 ${ids.length} 个标签`,
       });
 
       // 使相关查询失效
@@ -189,6 +193,37 @@ export const useBatchDeleteTagsMutation = () => {
       toast({
         title: '批量删除失败',
         description: getErrorDescription(error, '批量删除时发生错误，请稍后重试'),
+        variant: 'destructive',
+      });
+    },
+  });
+};
+
+// 更新标签状态（上线/下线）
+export const useUpdateTagStatusMutation = () => {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  return useMutation<ApiResponse<Tag>, unknown, { id: string; status: 'ACTIVE' | 'BLOCKED' }>({
+    mutationFn: async ({ id, status }) => {
+      const response = await AdminTagsService.updateTagStatus(id, status);
+      if (!response.success) {
+        throw new Error(response.message || '更新标签状态失败');
+      }
+      return response;
+    },
+    onSuccess: (_, variables) => {
+      toast({
+        title: variables.status === 'ACTIVE' ? '上线成功' : '下线成功',
+        description: variables.status === 'ACTIVE' ? '标签已上线' : '标签已下线',
+      });
+      queryClient.invalidateQueries({ queryKey: tagsQueryKeys.all });
+      queryClient.invalidateQueries({ queryKey: tagsQueryKeys.stats() });
+    },
+    onError: (error) => {
+      toast({
+        title: '更新失败',
+        description: getErrorDescription(error, '更新标签状态时发生错误，请稍后重试'),
         variant: 'destructive',
       });
     },
@@ -292,7 +327,11 @@ export const useBatchDeleteCategoriesMutation = () => {
 
   return useMutation<ApiResponse<null>, unknown, string[]>({
     mutationFn: async (ids: string[]) => {
-      return AdminTagsService.batchDeleteCategories(ids);
+      const response = await AdminTagsService.batchDeleteCategories(ids);
+      if (response.success === false) {
+        throw new Error(response.message || '批量删除失败');
+      }
+      return response;
     },
     onSuccess: (_, ids) => {
       toast({

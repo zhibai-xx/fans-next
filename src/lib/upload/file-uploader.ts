@@ -206,7 +206,7 @@ export class FileUploader {
           chunkSize,
           title: options.title,
           description: options.description,
-          tagIds: options.tags,
+          tagNames: options.tags,
           categoryId: options.category?.id,
         };
 

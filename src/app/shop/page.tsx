@@ -22,21 +22,21 @@ const COLLAB_SERVICES = [
 
 const DONATE_IMAGES = [
   {
-    label: "支付宝捐赠",
+    label: "通过支付宝支持",
     src: "/support/alipay-placeholder.svg",
-    tip: "替换为你自己的收款码截图即可对外展示。",
+    tip: "",
   },
   {
-    label: "微信支付捐赠",
+    label: "通过微信支持",
     src: "/support/wechat-placeholder.svg",
-    tip: "仅用于自愿捐赠，不涉及任何对价承诺。",
+    tip: "",
   },
 ];
 
 const DONATE_TIPS = [
-  "捐赠完全自愿，仅用于服务器、CDN 与备份等固定支出。",
-  "本站不提供商品、付费服务或回报权益，资金不会被用于商业活动。",
-  "如需通过其他渠道赞助，可先联系我们确认最安全的方式。",
+  "本网站为个人维护的非商业粉丝社区，所有支持行为均出于自愿。",
+  "相关支持主要用于网站基础运行与维护支出，不构成任何商品或服务交易。",
+  "无论是否支持，您都可以正常浏览和使用本站内容。",
 ];
 
 export default function SupportPage() {
@@ -68,7 +68,7 @@ export default function SupportPage() {
               ))}
             </div>
             <div>
-              <p className="text-sm uppercase tracking-[0.35em] text-gray-400 mb-2">Collaboration</p>
+              <p className="text-sm uppercase tracking-[0.35em] text-gray-400 mb-2">承接商务合作</p>
               <div className="space-y-2">
                 {COLLAB_SERVICES.map((service) => (
                   <p key={service} className="text-sm text-gray-700 dark:text-gray-200">
@@ -86,7 +86,7 @@ export default function SupportPage() {
         <Card className="border-gray-200 dark:border-gray-800">
           <CardHeader>
             <CardTitle className="text-2xl">支持我们</CardTitle>
-            <CardDescription>以下收款码仅用于赞助服务器与日常维护的固定支出。</CardDescription>
+            <CardDescription>这是一个由个人维护的非商业粉丝社区，以下内容仅用于说明支持方式。</CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
             <div className="space-y-2">
@@ -115,7 +115,7 @@ export default function SupportPage() {
               ))}
             </div>
             <p className="text-xs text-gray-500 dark:text-gray-400">
-              若你不方便使用二维码，可先通过上方联系方式沟通，我们会提供一次性的转账指引。
+              如不方便使用二维码，可先通过上方联系方式与我们沟通，确认合适的支持方式。
             </p>
           </CardContent>
         </Card>

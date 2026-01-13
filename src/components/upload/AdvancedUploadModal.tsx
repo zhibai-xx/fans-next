@@ -2,6 +2,7 @@
 
 import React, { useCallback, useEffect } from 'react';
 import { Upload, X, FileImage, FileVideo, Plus, AlertCircle, CheckCircle2, ChevronDown, ChevronUp, Copy, Zap } from 'lucide-react';
+import { useQueryClient } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -16,6 +17,7 @@ import { formatFileSize } from '@/lib/utils/format';
 import { UploadProgress } from './UploadProgress';
 import { useUploadStore } from '@/store/upload.store';
 import { useUserTags, useUserCategories } from '@/hooks/queries/useUserMedia';
+import { userMediaQueryKeys } from '@/hooks/queries/useUserMedia';
 
 interface AdvancedUploadModalProps {
   isOpen: boolean;
@@ -30,6 +32,7 @@ export default function AdvancedUploadModal({
   type,
   onUploadComplete
 }: AdvancedUploadModalProps) {
+  const queryClient = useQueryClient();
   // 使用Zustand store管理状态
   const {
     files,
@@ -112,6 +115,7 @@ export default function AdvancedUploadModal({
         if (actuallyCompletedTasks.length > 0) {
           const mediaIds = actuallyCompletedTasks.map(task => task.mediaId!).filter(Boolean);
           onUploadComplete?.(mediaIds);
+          queryClient.invalidateQueries({ queryKey: userMediaQueryKeys.tags.all });
         } else if (skippedTasks.length > 0 && actuallyCompletedTasks.length === 0) {
           // 如果所有文件都是跳过的（文件已存在），传递空数组
           onUploadComplete?.([]);
@@ -120,7 +124,7 @@ export default function AdvancedUploadModal({
     }, 500);
 
     return () => clearInterval(interval);
-  }, [isUploading, onUploadComplete, setUploadTasks, setUploadResults, setIsUploading]);
+  }, [isUploading, onUploadComplete, queryClient, setUploadTasks, setUploadResults, setIsUploading]);
 
   // 文件拖放配置
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
@@ -575,33 +579,70 @@ export default function AdvancedUploadModal({
                                     )}
 
                                     {/* 标签输入 */}
-                                    <div className="relative">
-                                      <Input
-                                        placeholder="输入标签名称..."
-                                        value={fileData.tagInput}
-                                        onChange={(e) => handleTagInput(fileData.id, e.target.value)}
-                                        onKeyDown={(e) => {
-                                          if (e.key === 'Enter' && fileData.tagInput.trim()) {
-                                            e.preventDefault();
-                                            addTag(fileData.id, fileData.tagInput.trim());
-                                          }
-                                        }}
-                                      />
+                                    <div className="space-y-2">
+                                      <div className="flex gap-2">
+                                        <div className="relative flex-1">
+                                          <Input
+                                            placeholder="输入标签名称，点击添加"
+                                            value={fileData.tagInput}
+                                            onChange={(e) => handleTagInput(fileData.id, e.target.value)}
+                                            onKeyDown={(e) => {
+                                              if (e.key === 'Enter' && fileData.tagInput.trim()) {
+                                                e.preventDefault();
+                                                addTag(fileData.id, fileData.tagInput.trim());
+                                              }
+                                            }}
+                                          />
 
-                                      {/* 标签下拉建议 */}
-                                      {fileData.showTagDropdown && fileData.filteredTags.length > 0 && (
-                                        <div className="absolute z-10 w-full mt-1 bg-white dark:bg-gray-800 border rounded-md shadow-lg max-h-32 overflow-y-auto">
-                                          {fileData.filteredTags.map((tag) => (
-                                            <button
-                                              key={tag.id}
-                                              className="w-full px-3 py-1.5 text-left text-sm hover:bg-gray-100 dark:hover:bg-gray-700"
-                                              onClick={() => addTag(fileData.id, tag.name)}
-                                            >
-                                              {tag.name}
-                                            </button>
-                                          ))}
+                                          {/* 标签下拉建议 */}
+                                          {fileData.showTagDropdown && (
+                                            <div className="absolute z-10 w-full mt-1 bg-white dark:bg-gray-800 border rounded-md shadow-lg max-h-32 overflow-y-auto">
+                                              {(() => {
+                                                const inputValue = fileData.tagInput.trim();
+                                                const hasExactMatch = fileData.filteredTags.some(
+                                                  (tag) => tag.name.toLowerCase() === inputValue.toLowerCase()
+                                                );
+
+                                                return (
+                                                  <>
+                                                    {inputValue && !hasExactMatch && (
+                                                      <button
+                                                        className="w-full px-3 py-2 text-left text-sm text-blue-600 hover:bg-blue-50 dark:hover:bg-gray-700"
+                                                        onClick={() => addTag(fileData.id, inputValue)}
+                                                      >
+                                                        创建新标签：{inputValue}
+                                                      </button>
+                                                    )}
+                                                    {fileData.filteredTags.map((tag) => (
+                                                      <button
+                                                        key={tag.id}
+                                                        className="w-full px-3 py-1.5 text-left text-sm hover:bg-gray-100 dark:hover:bg-gray-700"
+                                                        onClick={() => addTag(fileData.id, tag.name)}
+                                                      >
+                                                        {tag.name}
+                                                      </button>
+                                                    ))}
+                                                  </>
+                                                );
+                                              })()}
+                                            </div>
+                                          )}
                                         </div>
-                                      )}
+                                        <Button
+                                          type="button"
+                                          size="sm"
+                                          variant="outline"
+                                          onClick={() => {
+                                            if (fileData.tagInput.trim()) {
+                                              addTag(fileData.id, fileData.tagInput.trim());
+                                            }
+                                          }}
+                                        >
+                                          <Plus className="h-4 w-4 mr-1" />
+                                          添加
+                                        </Button>
+                                      </div>
+                                      <p className="text-xs text-gray-500">输入标签后点击添加或按回车创建新标签</p>
                                     </div>
                                   </div>
                                 </div>

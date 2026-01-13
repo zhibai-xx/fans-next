@@ -7,7 +7,7 @@ export interface FileWithMetadata {
   id: string;
   title: string;
   description: string;
-  tags: string[];
+  tags: Tag[];
   category?: Category;
   tagInput: string;
   showTagDropdown: boolean;
@@ -18,7 +18,7 @@ export interface FileWithMetadata {
 
 export interface BatchTemplate {
   description: string;
-  tags: string[];
+  tags: Tag[];
   category?: Category;
 }
 
@@ -147,11 +147,23 @@ export const useUploadStore = create<UploadState>()(
     setBatchTemplate: (template) => set({ batchTemplate: template }),
 
     applyBatchTemplate: () => {
+      const mergeTags = (current: Tag[], incoming: Tag[]) => {
+        const seen = new Set<string>();
+        const merged: Tag[] = [];
+        [...current, ...incoming].forEach((tag) => {
+          const key = tag.name.trim().toLowerCase();
+          if (!seen.has(key)) {
+            seen.add(key);
+            merged.push(tag);
+          }
+        });
+        return merged;
+      };
       const { files, batchTemplate } = get();
       const updatedFiles = files.map(file => ({
         ...file,
         description: batchTemplate.description || file.description,
-        tags: [...new Set([...file.tags, ...batchTemplate.tags])],
+        tags: mergeTags(file.tags, batchTemplate.tags),
         category: batchTemplate.category || file.category,
       }));
       set({ files: updatedFiles });

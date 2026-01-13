@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Label } from '@/components/ui/label';
@@ -29,6 +30,7 @@ import {
   useUpdateTagMutation,
   useDeleteTagMutation,
   useBatchDeleteTagsMutation,
+  useUpdateTagStatusMutation,
   useCreateCategoryMutation,
   useUpdateCategoryMutation,
   useDeleteCategoryMutation,
@@ -40,6 +42,8 @@ interface Tag {
   id: string;
   name: string;
   created_at: string;
+  source?: 'ADMIN' | 'USER';
+  status?: 'ACTIVE' | 'BLOCKED';
   _count?: {
     media_tags: number;
   };
@@ -59,6 +63,8 @@ interface Category {
 function TagManagement() {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
+  const [sourceFilter, setSourceFilter] = useState<'ALL' | 'ADMIN' | 'USER'>('ALL');
+  const [statusFilter, setStatusFilter] = useState<'ALL' | 'ACTIVE' | 'BLOCKED'>('ALL');
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [editingTag, setEditingTag] = useState<Tag | null>(null);
   const [formData, setFormData] = useState({ name: '' });
@@ -71,6 +77,13 @@ function TagManagement() {
   const updateTagMutation = useUpdateTagMutation();
   const deleteTagMutation = useDeleteTagMutation();
   const batchDeleteTagsMutation = useBatchDeleteTagsMutation();
+  const updateTagStatusMutation = useUpdateTagStatusMutation();
+
+  const filteredTags = tags.filter((tag) => {
+    const sourceMatch = sourceFilter === 'ALL' || tag.source === sourceFilter;
+    const statusMatch = statusFilter === 'ALL' || tag.status === statusFilter;
+    return sourceMatch && statusMatch;
+  });
 
   // 处理表单提交
   const handleSubmit = async (e: React.FormEvent) => {
@@ -136,7 +149,11 @@ function TagManagement() {
 
   // 全选/取消全选
   const toggleSelectAll = () => {
-    setSelectedTags(selectedTags.length === tags.length ? [] : tags.map(tag => tag.id));
+    setSelectedTags(
+      selectedTags.length === filteredTags.length
+        ? []
+        : filteredTags.map(tag => tag.id)
+    );
   };
 
   if (error) {
@@ -156,7 +173,7 @@ function TagManagement() {
     <div className="space-y-6">
       {/* 操作栏 */}
       <div className="flex flex-col sm:flex-row gap-4 justify-between">
-        <div className="flex items-center space-x-2">
+        <div className="flex flex-wrap items-center gap-2">
           <div className="relative">
             <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
             <Input
@@ -167,15 +184,37 @@ function TagManagement() {
             />
           </div>
 
+          <Select value={sourceFilter} onValueChange={(value) => setSourceFilter(value as 'ALL' | 'ADMIN' | 'USER')}>
+            <SelectTrigger className="w-32">
+              <SelectValue placeholder="来源" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="ALL">全部来源</SelectItem>
+              <SelectItem value="ADMIN">管理员</SelectItem>
+              <SelectItem value="USER">用户</SelectItem>
+            </SelectContent>
+          </Select>
+
+          <Select value={statusFilter} onValueChange={(value) => setStatusFilter(value as 'ALL' | 'ACTIVE' | 'BLOCKED')}>
+            <SelectTrigger className="w-32">
+              <SelectValue placeholder="状态" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="ALL">全部状态</SelectItem>
+              <SelectItem value="ACTIVE">正常</SelectItem>
+              <SelectItem value="BLOCKED">已下线</SelectItem>
+            </SelectContent>
+          </Select>
+
           {selectedTags.length > 0 && (
             <Button
               variant="destructive"
               size="sm"
               onClick={handleBatchDelete}
-              disabled={batchDeleteTagsMutation.isPending}
+              disabled={batchDeleteTagsMutation.isPending || updateTagStatusMutation.isPending}
             >
               <Trash2 className="w-4 h-4 mr-2" />
-              删除选中 ({selectedTags.length})
+              下线选中 ({selectedTags.length})
             </Button>
           )}
         </div>
@@ -248,7 +287,7 @@ function TagManagement() {
               size="sm"
               onClick={toggleSelectAll}
             >
-              {selectedTags.length === tags.length ? (
+              {selectedTags.length === filteredTags.length ? (
                 <CheckSquare className="w-4 h-4 mr-2" />
               ) : (
                 <Square className="w-4 h-4 mr-2" />
@@ -271,7 +310,7 @@ function TagManagement() {
             </div>
           ) : (
             <div className="space-y-2">
-              {tags.map((tag) => (
+              {filteredTags.map((tag) => (
                 <div key={tag.id}
                   className="flex items-center justify-between p-3 border rounded-lg hover:bg-gray-50 transition-colors"
                 >
@@ -290,7 +329,21 @@ function TagManagement() {
                     </Button>
 
                     <div>
-                      <h3 className="font-medium">{tag.name}</h3>
+                      <div className="flex items-center gap-2">
+                        <h3 className="font-medium">{tag.name}</h3>
+                        <span
+                          className={`text-xs px-2 py-0.5 rounded-full ${
+                            tag.status === 'BLOCKED'
+                              ? 'bg-red-100 text-red-600'
+                              : 'bg-green-100 text-green-600'
+                          }`}
+                        >
+                          {tag.status === 'BLOCKED' ? '已下线' : '正常'}
+                        </span>
+                        <span className="text-xs px-2 py-0.5 rounded-full bg-gray-100 text-gray-600">
+                          {tag.source === 'ADMIN' ? '管理员' : '用户'}
+                        </span>
+                      </div>
                       <p className="text-sm text-gray-500">
                         使用次数: {tag._count?.media_tags || 0} •
                         创建时间: {new Date(tag.created_at).toLocaleDateString()}
@@ -309,14 +362,25 @@ function TagManagement() {
                     >
                       <Edit className="w-4 h-4" />
                     </Button>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => handleDelete(tag)}
-                      disabled={deleteTagMutation.isPending}
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </Button>
+                    {tag.status === 'BLOCKED' ? (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => updateTagStatusMutation.mutateAsync({ id: tag.id, status: 'ACTIVE' })}
+                        disabled={updateTagStatusMutation.isPending}
+                      >
+                        上线
+                      </Button>
+                    ) : (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleDelete(tag)}
+                        disabled={deleteTagMutation.isPending}
+                      >
+                        下线
+                      </Button>
+                    )}
                   </div>
                 </div>
               ))}
@@ -325,15 +389,15 @@ function TagManagement() {
         </CardContent>
       </Card>
 
-      {/* 删除确认对话框 */}
+      {/* 下线确认对话框 */}
       <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>确认删除</AlertDialogTitle>
+            <AlertDialogTitle>确认下线</AlertDialogTitle>
             <AlertDialogDescription>
               {deleteTarget.type === 'single' && deleteTarget.data
-                ? `确定要删除标签&quot;${deleteTarget.data.name}&quot;吗？此操作无法撤销。`
-                : `确定要删除选中的 ${selectedTags.length} 个标签吗？此操作无法撤销。`
+                ? `确定要下线标签&quot;${deleteTarget.data.name}&quot;吗？`
+                : `确定要下线选中的 ${selectedTags.length} 个标签吗？`
               }
             </AlertDialogDescription>
           </AlertDialogHeader>
@@ -347,7 +411,7 @@ function TagManagement() {
               {(deleteTagMutation.isPending || batchDeleteTagsMutation.isPending) && (
                 <LoadingSpinner size="sm" className="mr-2" />
               )}
-              删除
+              下线
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

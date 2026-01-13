@@ -23,6 +23,7 @@ export interface InitUploadRequest {
   chunkSize?: number;
   title: string;
   description?: string;
+  tagNames?: string[];
   tagIds?: string[];
   categoryId?: string;
 }

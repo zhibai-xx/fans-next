@@ -285,7 +285,15 @@ export default function ImagesPage() {
     }, [favoriteImageMutation]);
 
     // 上传完成处理
-    const handleUploadComplete = useCallback(() => {
+    const handleUploadComplete = useCallback((mediaIds: string[]) => {
+        if (mediaIds.length === 0) {
+            toast({
+                title: '无需上传',
+                description: '图片已存在，无需重复上传',
+            });
+            return;
+        }
+
         // 刷新图片列表
         userMediaQueryUtils.invalidateImages(queryClient);
         toast({

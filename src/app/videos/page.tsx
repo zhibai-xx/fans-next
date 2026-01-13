@@ -160,6 +160,13 @@ export default function ModernVideosPage() {
             {/* 上传按钮 */}
             <VideoUploadButton
               onUploadComplete={(mediaIds) => {
+                if (mediaIds.length === 0) {
+                  toast({
+                    title: '无需上传',
+                    description: '视频已存在，无需重复上传',
+                  });
+                  return;
+                }
                 toast({
                   title: '上传成功',
                   description: `已成功上传 ${mediaIds.length} 个视频`,

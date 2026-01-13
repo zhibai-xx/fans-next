@@ -6,6 +6,8 @@ export interface Tag {
   id: string;
   name: string;
   created_at: string;
+  source?: 'ADMIN' | 'USER';
+  status?: 'ACTIVE' | 'BLOCKED';
   _count?: {
     media_tags: number;
   };
@@ -67,6 +69,13 @@ export class AdminTagsService {
    */
   static async updateTag(id: string, data: { name: string }): Promise<ApiResponse<Tag>> {
     return apiClient.put<ApiResponse<Tag>>(`/admin/tags/${id}`, data);
+  }
+
+  /**
+   * 更新标签状态
+   */
+  static async updateTagStatus(id: string, status: 'ACTIVE' | 'BLOCKED'): Promise<ApiResponse<Tag>> {
+    return apiClient.patch<ApiResponse<Tag>>(`/admin/tags/${id}/status`, { status });
   }
 
   /**

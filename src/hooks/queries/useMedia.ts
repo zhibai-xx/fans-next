@@ -136,10 +136,11 @@ export function useUpdateMediaVisibilityMutation() {
       }
       return response;
     },
-    onSuccess: () => {
+    onSuccess: (_data, variables) => {
+      const actionText = variables.visibility === 'VISIBLE' ? '显示' : '隐藏';
       toast({
         title: '更新成功',
-        description: `媒体已${variables.visibility === 'VISIBLE' ? '显示' : '隐藏'}`,
+        description: `媒体已${actionText}`,
       });
       queryUtils.invalidateMedia(); // 刷新媒体列表
     },
@@ -165,10 +166,11 @@ export function useBatchUpdateMediaVisibilityMutation() {
       }
       return response;
     },
-    onSuccess: () => {
+    onSuccess: (_data, variables) => {
+      const actionText = variables.visibility === 'VISIBLE' ? '显示' : '隐藏';
       toast({
         title: '批量更新成功',
-        description: `${variables.mediaIds.length} 个媒体已${variables.visibility === 'VISIBLE' ? '显示' : '隐藏'}`,
+        description: `${variables.mediaIds.length} 个媒体已${actionText}`,
       });
       queryUtils.invalidateMedia(); // 刷新媒体列表
     },
