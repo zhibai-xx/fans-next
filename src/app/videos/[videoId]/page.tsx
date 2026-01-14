@@ -147,7 +147,7 @@ export default function ModernVideoDetailPage({ params }: VideoDetailPageProps) 
 
   if (videoSources.length === 0) {
     return (
-      <div className="min-h-screen bg-slate-50 dark:bg-slate-950">
+      <div className="min-h-screen bg-transparent">
         <div className="mx-auto flex h-[60vh] max-w-3xl flex-col items-center justify-center gap-4 px-4 text-center text-slate-500 dark:text-slate-400">
           <p className="text-lg font-semibold">视频资源暂时不可用</p>
           <p className="text-sm">请稍后刷新重试或联系管理员处理</p>
@@ -268,13 +268,13 @@ export default function ModernVideoDetailPage({ params }: VideoDetailPageProps) 
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 pb-10 dark:bg-slate-950">
-      <div className="mx-auto max-w-6xl px-4 py-6 lg:px-6">
+    <div className="min-h-screen bg-transparent pb-10">
+      <div className="mx-auto max-w-6xl px-6 py-6 lg:px-8">
         <Button
           variant="ghost"
           size="sm"
           onClick={() => router.back()}
-          className="mb-4 text-slate-600 hover:bg-slate-100 dark:text-slate-200 dark:hover:bg-slate-800/70"
+          className="mb-4 text-gray-600 hover:bg-gray-100"
         >
           <ArrowLeft className="mr-2 h-4 w-4" />
           返回
@@ -283,7 +283,7 @@ export default function ModernVideoDetailPage({ params }: VideoDetailPageProps) 
         <div className="grid gap-6 lg:grid-cols-[minmax(0,2fr)_minmax(320px,1fr)]">
           <div className="space-y-6">
             <div
-              className="overflow-hidden rounded-xl border border-slate-200 bg-black shadow-sm dark:border-slate-800"
+              className="overflow-hidden rounded-2xl border border-gray-200/60 bg-black shadow-sm"
               style={containerStyle}
             >
               <RobustVideoPlayer
@@ -313,24 +313,24 @@ export default function ModernVideoDetailPage({ params }: VideoDetailPageProps) 
               />
             </div>
 
-            <section className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900">
-              <h1 className="text-2xl font-semibold text-slate-900 dark:text-white md:text-3xl">{video.title}</h1>
-              <div className="mt-4 grid gap-4 text-sm text-slate-600 dark:text-slate-300 sm:grid-cols-4">
+            <section className="rounded-2xl border border-gray-200/60 bg-white/80 p-6 shadow-sm">
+              <h1 className="text-2xl font-semibold text-gray-900 md:text-3xl">{video.title}</h1>
+              <div className="mt-4 grid gap-4 text-sm text-gray-600 sm:grid-cols-4">
                 {stats.map((item) => (
                   <div key={item.label} className="flex items-center gap-2">
-                    <item.icon className="h-4 w-4 text-slate-400 dark:text-slate-500" />
+                    <item.icon className="h-4 w-4 text-gray-400" />
                     <div>
-                      <p className="text-xs text-slate-500 dark:text-slate-400">{item.label}</p>
-                      <p className="text-sm font-semibold text-slate-900 dark:text-white">{item.value}</p>
+                      <p className="text-xs text-gray-500">{item.label}</p>
+                      <p className="text-sm font-semibold text-gray-900">{item.value}</p>
                     </div>
                   </div>
                 ))}
                 {typeof video.duration === 'number' && (
                   <div className="flex items-center gap-2">
-                    <Clock className="h-4 w-4 text-slate-400 dark:text-slate-500" />
+                    <Clock className="h-4 w-4 text-gray-400" />
                     <div>
-                      <p className="text-xs text-slate-500 dark:text-slate-400">时长</p>
-                      <p className="text-sm font-semibold text-slate-900 dark:text-white">
+                      <p className="text-xs text-gray-500">时长</p>
+                      <p className="text-sm font-semibold text-gray-900">
                         {formatDuration(video.duration)}
                       </p>
                     </div>
@@ -339,25 +339,33 @@ export default function ModernVideoDetailPage({ params }: VideoDetailPageProps) 
               </div>
             </section>
 
-            <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+            <section className="rounded-2xl border border-gray-200/60 bg-white/80 p-5 shadow-sm">
               <div className="flex flex-wrap gap-3">
                 <Button
-                  variant={isLiked ? 'default' : 'outline'}
+                  variant="outline"
                   size="sm"
+                  data-tone="like"
+                  data-active={isLiked ? 'true' : 'false'}
                   onClick={handleLike}
                   disabled={likeMutation.isPending}
-                  className={isLiked ? 'bg-rose-500 hover:bg-rose-600 text-white' : ''}
+                  className={isLiked
+                    ? 'bg-red-100 text-red-600 border-red-200'
+                    : 'bg-white/80 border-red-200/60 text-red-500 hover:bg-red-50 hover:text-red-600 hover:border-red-200'}
                 >
                   <Heart className={`mr-2 h-4 w-4 ${isLiked ? 'fill-current' : ''}`} />
                   喜欢
                   {likeCount > 0 && <span className="ml-1 text-xs opacity-80">({formatCompactNumber(likeCount)})</span>}
                 </Button>
                 <Button
-                  variant={isFavorited ? 'default' : 'outline'}
+                  variant="outline"
                   size="sm"
+                  data-tone="favorite"
+                  data-active={isFavorited ? 'true' : 'false'}
                   onClick={handleFavorite}
                   disabled={favoriteMutation.isPending}
-                  className={isFavorited ? 'bg-blue-500 hover:bg-blue-600 text-white' : ''}
+                  className={isFavorited
+                    ? 'bg-amber-100 text-amber-700 border-amber-200'
+                    : 'bg-white/80 border-amber-200/60 text-amber-600 hover:bg-amber-50 hover:text-amber-700 hover:border-amber-200'}
                 >
                   <Bookmark className={`mr-2 h-4 w-4 ${isFavorited ? 'fill-current' : ''}`} />
                   收藏
@@ -380,7 +388,7 @@ export default function ModernVideoDetailPage({ params }: VideoDetailPageProps) 
               </div>
             </section>
 
-            <section className="flex items-center justify-between gap-4 rounded-xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+            <section className="flex items-center justify-between gap-4 rounded-2xl border border-gray-200/60 bg-white/80 p-5 shadow-sm">
               <div className="flex items-center gap-3">
                 <UserAvatar
                   src={video.user.avatar_url}
@@ -389,8 +397,8 @@ export default function ModernVideoDetailPage({ params }: VideoDetailPageProps) 
                   withBorder
                 />
                 <div>
-                  <p className="text-sm font-semibold text-slate-900 dark:text-white">{video.user.username}</p>
-                  <p className="flex items-center gap-1 text-xs text-slate-500 dark:text-slate-400">
+                  <p className="text-sm font-semibold text-gray-900">{video.user.username}</p>
+                  <p className="flex items-center gap-1 text-xs text-gray-500">
                     <Users className="h-3 w-3" />
                     创作者
                   </p>
@@ -400,17 +408,17 @@ export default function ModernVideoDetailPage({ params }: VideoDetailPageProps) 
             </section>
 
             {video.description && (
-              <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+              <section className="rounded-2xl border border-gray-200/60 bg-white/80 p-5 shadow-sm">
                 <button
                   type="button"
                   onClick={() => setShowDescription((prev) => !prev)}
-                  className="flex w-full items-center justify-between text-left text-sm font-semibold text-slate-900 dark:text-white"
+                  className="flex w-full items-center justify-between text-left text-sm font-semibold text-gray-900"
                 >
                   <span>视频简介</span>
                   {showDescription ? <Clock className="h-4 w-4 rotate-90" /> : <Clock className="h-4 w-4 -rotate-90" />}
                 </button>
                 {showDescription && (
-                  <p className="mt-3 whitespace-pre-wrap text-sm leading-relaxed text-slate-600 dark:text-slate-300">
+                  <p className="mt-3 whitespace-pre-wrap text-sm leading-relaxed text-gray-600">
                     {video.description}
                   </p>
                 )}
@@ -418,11 +426,11 @@ export default function ModernVideoDetailPage({ params }: VideoDetailPageProps) 
             )}
 
             {tags.length > 0 && (
-              <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900">
-                <h2 className="text-sm font-semibold text-slate-900 dark:text-white">相关标签</h2>
+              <section className="rounded-2xl border border-gray-200/60 bg-white/80 p-5 shadow-sm">
+                <h2 className="text-sm font-semibold text-gray-900">相关标签</h2>
                 <div className="mt-3 flex flex-wrap gap-2">
                   {tags.map((tag) => (
-                    <Badge key={tag.id ?? tag.name} variant="secondary" className="rounded-full">
+                    <Badge key={tag.id ?? tag.name} variant="secondary" className="rounded-full bg-white/80">
                       #{tag.name}
                     </Badge>
                   ))}
@@ -431,7 +439,7 @@ export default function ModernVideoDetailPage({ params }: VideoDetailPageProps) 
             )}
           </div>
 
-          <aside className="flex h-[720px] flex-col rounded-xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+          <aside className="flex h-[720px] flex-col rounded-2xl border border-gray-200/60 bg-white/80 p-4 shadow-sm">
             <VideoComments
               videoId={video.id}
               commentsCount={commentsTotal}
@@ -447,22 +455,22 @@ export default function ModernVideoDetailPage({ params }: VideoDetailPageProps) 
 
 function VideoDetailSkeleton() {
   return (
-    <div className="min-h-screen bg-white dark:bg-slate-950">
-      <div className="aspect-video animate-pulse bg-slate-200 dark:bg-slate-800" />
+    <div className="min-h-screen bg-transparent">
+      <div className="aspect-video animate-pulse bg-[color:var(--theme-surface-alt)]" />
       <div className="mx-auto max-w-6xl px-4 py-6">
         <div className="grid gap-6 lg:grid-cols-[minmax(0,2fr)_minmax(320px,1fr)]">
           <div className="space-y-6">
-            <div className="h-56 animate-pulse rounded-xl bg-slate-200 dark:bg-slate-800" />
-            <div className="h-32 animate-pulse rounded-xl bg-slate-200 dark:bg-slate-800" />
-            <div className="h-24 animate-pulse rounded-xl bg-slate-200 dark:bg-slate-800" />
+            <div className="h-56 animate-pulse rounded-2xl bg-[color:var(--theme-surface)]" />
+            <div className="h-32 animate-pulse rounded-2xl bg-[color:var(--theme-surface)]" />
+            <div className="h-24 animate-pulse rounded-2xl bg-[color:var(--theme-surface)]" />
           </div>
           <div className="space-y-4">
             {Array.from({ length: 5 }).map((_, index) => (
               <div key={index} className="flex gap-3">
-                <div className="h-20 w-32 animate-pulse rounded-md bg-slate-200 dark:bg-slate-800" />
+                <div className="h-20 w-32 animate-pulse rounded-md bg-[color:var(--theme-surface)]" />
                 <div className="flex-1 space-y-2">
-                  <div className="h-4 w-3/4 animate-pulse rounded bg-slate-200 dark:bg-slate-800" />
-                  <div className="h-3 w-1/2 animate-pulse rounded bg-slate-200 dark:bg-slate-800" />
+                  <div className="h-4 w-3/4 animate-pulse rounded bg-[color:var(--theme-surface)]" />
+                  <div className="h-3 w-1/2 animate-pulse rounded bg-[color:var(--theme-surface)]" />
                 </div>
               </div>
             ))}

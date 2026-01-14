@@ -17,11 +17,13 @@ export default async function ProfilePage() {
   }
 
   return (
-    <div className="container mx-auto py-8">
-      <h1 className="text-3xl font-bold mb-8">个人中心</h1>
-      
-      <div className="bg-white dark:bg-gray-900 rounded-lg shadow p-6">
-        <ProfileTabs />
+    <div className="min-h-screen bg-transparent">
+      <div className="mx-auto max-w-6xl px-6 py-6">
+        <h1 className="text-2xl font-semibold text-gray-900 mb-6">个人中心</h1>
+
+        <div className="rounded-2xl border border-gray-200/60 bg-white/80 shadow-sm p-6">
+          <ProfileTabs />
+        </div>
       </div>
     </div>
   );

@@ -305,7 +305,7 @@ export default function ImagesPage() {
 
 
     return (
-        <div className="min-h-screen bg-gray-50/30">
+        <div className="min-h-screen bg-transparent">
             <div className="max-w-7xl mx-auto px-6 py-6">
                 {/* 顶部工具栏 */}
                 <div className="flex items-center justify-between mb-6">

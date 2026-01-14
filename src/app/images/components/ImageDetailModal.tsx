@@ -136,6 +136,24 @@ export const ImageDetailModal: React.FC<ImageDetailModalProps> = ({
     }
   };
 
+  const baseActionClass = 'border-2 transition-all duration-200 hover:-translate-y-0.5 hover:brightness-105';
+  const getActionStyle = (tone: 'like' | 'favorite' | 'neutral') => ({
+    backgroundColor:
+      tone === 'like'
+        ? 'rgba(248, 113, 113, 0.12)'
+        : tone === 'favorite'
+        ? 'rgba(251, 191, 36, 0.12)'
+        : 'rgba(255, 255, 255, 0.9)',
+    borderColor:
+      tone === 'like'
+        ? 'rgba(248, 113, 113, 0.45)'
+        : tone === 'favorite'
+        ? 'rgba(251, 191, 36, 0.45)'
+        : 'var(--theme-border)',
+    color: tone === 'like' ? '#E11D48' : tone === 'favorite' ? '#D97706' : 'var(--theme-text)',
+    boxShadow: 'var(--theme-shadow-block)',
+  });
+
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-w-7xl w-[90vw] h-[90vh] p-0 overflow-hidden">
@@ -229,7 +247,7 @@ export const ImageDetailModal: React.FC<ImageDetailModalProps> = ({
                       <Heart className={`w-4 h-4 mr-1 ${interactionStatus?.is_liked ? 'fill-current' : ''}`} />
                       <span className="font-medium">{formatNumber(interactionStatus?.likes_count || image.likes_count)}</span>
                     </div>
-                    <div className={`flex items-center ${interactionStatus?.is_favorited ? 'text-blue-500' : 'text-gray-600 dark:text-gray-400'}`}>
+                    <div className={`flex items-center ${interactionStatus?.is_favorited ? 'text-amber-500' : 'text-gray-600 dark:text-gray-400'}`}>
                       <Bookmark className={`w-4 h-4 mr-1 ${interactionStatus?.is_favorited ? 'fill-current' : ''}`} />
                       <span className="font-medium">{formatNumber(interactionStatus?.favorites_count || image.favorites_count)}</span>
                     </div>
@@ -337,34 +355,30 @@ export const ImageDetailModal: React.FC<ImageDetailModalProps> = ({
                 {/* 主要操作按钮 */}
                 <div className="grid grid-cols-2 gap-2">
                   <Button
-                    variant={(interactionStatus?.is_liked) ? "default" : "outline"}
+                    variant="outline"
                     size="sm"
                     onClick={() => {
                       if (onLike) {
                         onLike(image.id, interactionStatus?.is_liked || false);
                       }
                     }}
-                    className={`transition-all duration-300 transform hover:scale-105 ${interactionStatus?.is_liked
-                      ? 'bg-gradient-to-r from-red-500 to-pink-500 hover:from-red-600 hover:to-pink-600 text-white shadow-lg shadow-red-500/25 border-red-500'
-                      : 'hover:border-red-300 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20'
-                      }`}
+                    className={baseActionClass}
+                    style={getActionStyle(interactionStatus?.is_liked ? 'like' : 'neutral')}
                   >
                     <Heart className={`w-4 h-4 mr-2 ${interactionStatus?.is_liked ? 'fill-current' : ''}`} />
                     <span className="font-medium">点赞</span>
                   </Button>
 
                   <Button
-                    variant={(interactionStatus?.is_favorited) ? "default" : "outline"}
+                    variant="outline"
                     size="sm"
                     onClick={() => {
                       if (onFavorite) {
                         onFavorite(image.id, interactionStatus?.is_favorited || false);
                       }
                     }}
-                    className={`transition-all duration-300 transform hover:scale-105 ${interactionStatus?.is_favorited
-                      ? 'bg-gradient-to-r from-blue-500 to-indigo-500 hover:from-blue-600 hover:to-indigo-600 text-white shadow-lg shadow-blue-500/25 border-blue-500'
-                      : 'hover:border-blue-300 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20'
-                      }`}
+                    className={baseActionClass}
+                    style={getActionStyle(interactionStatus?.is_favorited ? 'favorite' : 'neutral')}
                   >
                     <Bookmark className={`w-4 h-4 mr-2 ${interactionStatus?.is_favorited ? 'fill-current' : ''}`} />
                     <span className="font-medium">收藏</span>
@@ -377,7 +391,8 @@ export const ImageDetailModal: React.FC<ImageDetailModalProps> = ({
                     variant="outline"
                     size="sm"
                     onClick={handleDownload}
-                    className="transition-all duration-300 transform hover:scale-105 hover:border-green-300 hover:text-green-600 hover:bg-green-50 dark:hover:bg-green-900/20 group"
+                    className={baseActionClass}
+                    style={getActionStyle('neutral')}
                   >
                     <Download className="w-4 h-4 mr-2 group-hover:animate-bounce" />
                     <span className="font-medium">下载</span>
@@ -387,7 +402,8 @@ export const ImageDetailModal: React.FC<ImageDetailModalProps> = ({
                     variant="outline"
                     size="sm"
                     onClick={handleShare}
-                    className="transition-all duration-300 transform hover:scale-105 hover:border-purple-300 hover:text-purple-600 hover:bg-purple-50 dark:hover:bg-purple-900/20 group"
+                    className={baseActionClass}
+                    style={getActionStyle('neutral')}
                   >
                     <Share2 className="w-4 h-4 mr-2 group-hover:rotate-12 transition-transform duration-300" />
                     <span className="font-medium">分享</span>

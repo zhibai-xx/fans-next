@@ -265,7 +265,7 @@ export function ModernVideoCard({ video, className, showActions = true }: Modern
               <Button
                 variant="ghost"
                 size="sm"
-                className={`p-2 h-8 ${isFavorited ? 'text-blue-500 hover:text-blue-600' : 'text-gray-500 hover:text-blue-500'}`}
+                className={`p-2 h-8 ${isFavorited ? 'text-amber-500 hover:text-amber-600' : 'text-gray-500 hover:text-amber-500'}`}
                 onClick={handleFavorite}
                 disabled={favoriteMutation.isPending}
               >

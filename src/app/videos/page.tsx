@@ -114,44 +114,43 @@ export default function ModernVideosPage() {
   }, []);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 dark:from-gray-900 dark:via-blue-950 dark:to-indigo-950">
-      <div className="container mx-auto px-4 py-8 max-w-7xl">
+    <div className="min-h-screen bg-transparent">
+      <div className="mx-auto max-w-7xl px-6 py-6">
         {/* 页面头部 */}
-        <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between mb-8">
-          <div className="mb-4 lg:mb-0">
-            <h1 className="text-4xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent mb-2">
-              精彩视频
-            </h1>
-            <div className="flex items-center space-x-4 text-gray-600 dark:text-gray-300">
-              <span className="flex items-center">
-                <Grid className="w-4 h-4 mr-1" />
-                共 {totalCount.toLocaleString()} 个视频
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between mb-6">
+          <div className="flex items-center gap-3 text-sm text-gray-600 dark:text-gray-300">
+            <span className="flex items-center">
+              <Grid className="w-4 h-4 mr-1" />
+              {totalCount.toLocaleString()} 个视频
+            </span>
+            {activeTab !== 'all' && (
+              <span className="rounded-full border border-[color:var(--theme-accent)] bg-[color:var(--theme-accent-soft)] px-3 py-1 text-xs font-medium text-gray-700">
+                {activeTab === 'trending' ? '热门推荐' : '最新发布'}
               </span>
-              {activeTab !== 'all' && (
-                <Badge variant="secondary" className="bg-blue-100 text-blue-800">
-                  {activeTab === 'trending' ? '热门推荐' : '最新发布'}
-                </Badge>
-              )}
-            </div>
+            )}
           </div>
 
           {/* 右侧操作按钮 */}
-          <div className="flex items-center space-x-3">
+          <div className="flex items-center gap-3">
             {/* 视图切换 */}
-            <div className="flex rounded-lg border border-gray-200 overflow-hidden">
+            <div className="flex items-center rounded-full border border-gray-200/60 bg-white/80 p-1 shadow-sm">
               <Button
-                variant={viewMode === 'grid' ? 'default' : 'ghost'}
+                variant="ghost"
                 size="sm"
                 onClick={() => setViewMode('grid')}
-                className="rounded-none"
+                className={viewMode === 'grid'
+                  ? 'rounded-full bg-[color:var(--theme-accent-soft)] text-gray-900'
+                  : 'rounded-full text-gray-500 hover:text-gray-700'}
               >
                 <Grid className="w-4 h-4" />
               </Button>
               <Button
-                variant={viewMode === 'list' ? 'default' : 'ghost'}
+                variant="ghost"
                 size="sm"
                 onClick={() => setViewMode('list')}
-                className="rounded-none"
+                className={viewMode === 'list'
+                  ? 'rounded-full bg-[color:var(--theme-accent-soft)] text-gray-900'
+                  : 'rounded-full text-gray-500 hover:text-gray-700'}
               >
                 <List className="w-4 h-4" />
               </Button>
@@ -178,53 +177,59 @@ export default function ModernVideosPage() {
           </div>
         </div>
 
-        {/* 内容标签 */}
-        <div className="flex items-center justify-center mb-6">
-          <div className="flex rounded-lg border border-gray-200 bg-white/60 backdrop-blur-sm p-1">
-            <Button
-              variant={activeTab === 'all' ? 'default' : 'ghost'}
-              size="sm"
-              onClick={() => handleTabChange('all')}
-              className={activeTab === 'all' ? 'bg-blue-600 text-white' : ''}
-            >
-              <Grid className="w-4 h-4 mr-2" />
-              全部
-            </Button>
-            <Button
-              variant={activeTab === 'trending' ? 'default' : 'ghost'}
-              size="sm"
-              onClick={() => handleTabChange('trending')}
-              className={activeTab === 'trending' ? 'bg-red-600 text-white' : ''}
-            >
-              <TrendingUp className="w-4 h-4 mr-2" />
-              热门
-            </Button>
-            <Button
-              variant={activeTab === 'latest' ? 'default' : 'ghost'}
-              size="sm"
-              onClick={() => handleTabChange('latest')}
-              className={activeTab === 'latest' ? 'bg-green-600 text-white' : ''}
-            >
-              <Clock className="w-4 h-4 mr-2" />
-              最新
-            </Button>
+        {/* 筛选与搜索 */}
+        <div className="mb-6">
+          <div className="rounded-2xl border border-gray-200/60 bg-white/80 shadow-sm p-5">
+            <div className="flex flex-wrap items-center gap-2">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => handleTabChange('all')}
+                className={activeTab === 'all'
+                  ? 'rounded-full border border-[color:var(--theme-accent)] bg-[color:var(--theme-accent-soft)] text-gray-900'
+                  : 'rounded-full text-gray-600 hover:bg-gray-50'}
+              >
+                <Grid className="w-4 h-4 mr-2" />
+                全部
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => handleTabChange('trending')}
+                className={activeTab === 'trending'
+                  ? 'rounded-full border border-[color:var(--theme-accent)] bg-[color:var(--theme-accent-soft)] text-gray-900'
+                  : 'rounded-full text-gray-600 hover:bg-gray-50'}
+              >
+                <TrendingUp className="w-4 h-4 mr-2" />
+                热门
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => handleTabChange('latest')}
+                className={activeTab === 'latest'
+                  ? 'rounded-full border border-[color:var(--theme-accent)] bg-[color:var(--theme-accent-soft)] text-gray-900'
+                  : 'rounded-full text-gray-600 hover:bg-gray-50'}
+              >
+                <Clock className="w-4 h-4 mr-2" />
+                最新
+              </Button>
+            </div>
+            <div className="mt-4">
+              <SearchBar
+                onSearch={handleSearch}
+                placeholder="搜索您感兴趣的视频内容..."
+              />
+            </div>
           </div>
-        </div>
-
-        {/* 搜索栏 - 在所有tab下都显示 */}
-        <div className="mb-8">
-          <SearchBar
-            onSearch={handleSearch}
-            placeholder="搜索您感兴趣的视频内容..."
-          />
         </div>
 
         {/* 当前筛选条件显示 */}
         {searchQuery && (
           <div className="flex items-center space-x-2 mb-6">
-            <Filter className="w-4 h-4 text-gray-500" />
+            <Filter className="w-4 h-4 text-gray-400" />
             <span className="text-sm text-gray-600">当前筛选:</span>
-            <Badge variant="outline" className="bg-white/60">
+            <Badge variant="outline" className="bg-white/80 border-gray-200/60">
               搜索: {searchQuery}
             </Badge>
           </div>
@@ -250,7 +255,7 @@ export default function ModernVideosPage() {
               <Button
                 variant="outline"
                 onClick={() => fetchNextPage()}
-                className="bg-white/60 backdrop-blur-sm"
+                className="bg-white/80 backdrop-blur-sm"
               >
                 点击加载更多
               </Button>
@@ -269,7 +274,7 @@ export default function ModernVideosPage() {
 
         {/* 空状态提示 */}
         {!isLoading && videos.length === 0 && (
-          <Card className="p-12 text-center bg-white/60 backdrop-blur-sm">
+          <Card className="rounded-2xl border border-gray-200/60 bg-white/80 p-12 text-center shadow-sm">
             <div className="w-20 h-20 mx-auto mb-4 text-gray-300">
               <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
@@ -289,7 +294,7 @@ export default function ModernVideosPage() {
                 清除搜索条件
               </Button>
             ) : (
-              <Button className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700">
+              <Button className="gap-2">
                 <Upload className="w-4 h-4 mr-2" />
                 上传第一个视频
               </Button>

@@ -482,7 +482,7 @@ export const MyFavorites: React.FC<MyFavoritesProps> = ({
 
     if (viewMode === 'list') {
       return (
-        <Card key={item.id} className="mb-4">
+        <Card key={item.id} className="mb-4 rounded-2xl border border-gray-200/60 bg-white/80 shadow-sm">
           <CardContent className="p-4">
             <div className="flex gap-4">
               {/* 媒体预览 */}
@@ -587,7 +587,7 @@ export const MyFavorites: React.FC<MyFavoritesProps> = ({
 
     // 网格视图
     return (
-      <Card key={item.id} className="overflow-hidden cursor-pointer" onClick={() => handleMediaClick(item)}>
+      <Card key={item.id} className="overflow-hidden cursor-pointer rounded-2xl border border-gray-200/60 bg-white/80 shadow-sm" onClick={() => handleMediaClick(item)}>
         <div className="relative aspect-square">
           <Image
             src={resolvedThumbnail}
@@ -676,17 +676,17 @@ export const MyFavorites: React.FC<MyFavoritesProps> = ({
     <div className={cn('max-w-7xl mx-auto p-6', className)}>
       {/* 页面标题 */}
       <div className="mb-6">
-        <h1 className="text-3xl font-bold flex items-center">
+        <h1 className="text-2xl font-semibold flex items-center text-gray-900">
           <Bookmark className="h-8 w-8 mr-3 text-amber-600" />
           我的收藏
         </h1>
-        <p className="text-gray-600 mt-2">
+        <p className="text-gray-600 mt-2 text-sm">
           总共收藏了 {total} 个内容
         </p>
       </div>
 
       {/* 筛选和搜索栏 */}
-      <div className="bg-white rounded-lg border p-4 mb-6">
+      <div className="bg-white/80 rounded-2xl border border-gray-200/60 shadow-sm p-5 mb-6">
         <div className="flex flex-col sm:flex-row gap-4">
           {/* 搜索框 */}
           <div className="flex-1">
@@ -696,7 +696,7 @@ export const MyFavorites: React.FC<MyFavoritesProps> = ({
                 placeholder="搜索收藏的内容..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10"
+                className="pl-10 rounded-full border-gray-200/60 bg-white/80 focus:border-[color:var(--theme-accent)]"
               />
             </div>
           </div>
@@ -706,7 +706,7 @@ export const MyFavorites: React.FC<MyFavoritesProps> = ({
             value={filterType}
             onValueChange={(value) => setFilterType(value as FavoritesFilterType)}
           >
-            <SelectTrigger className="w-32">
+            <SelectTrigger className="w-32 rounded-full border-gray-200/60 bg-white/80">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -721,7 +721,7 @@ export const MyFavorites: React.FC<MyFavoritesProps> = ({
             value={sortBy}
             onValueChange={(value) => setSortBy(value as FavoritesSortKey)}
           >
-            <SelectTrigger className="w-32">
+            <SelectTrigger className="w-32 rounded-full border-gray-200/60 bg-white/80">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -732,20 +732,24 @@ export const MyFavorites: React.FC<MyFavoritesProps> = ({
           </Select>
 
           {/* 视图模式 */}
-          <div className="flex rounded-lg border">
+          <div className="flex rounded-full border border-gray-200/60 bg-white/80 p-1">
             <Button
-              variant={viewMode === 'grid' ? 'default' : 'ghost'}
+              variant="ghost"
               size="sm"
               onClick={() => setViewMode('grid')}
-              className="rounded-r-none"
+              className={viewMode === 'grid'
+                ? 'rounded-full bg-[color:var(--theme-accent-soft)] text-gray-900'
+                : 'rounded-full text-gray-500 hover:text-gray-700'}
             >
               <Grid className="h-4 w-4" />
             </Button>
             <Button
-              variant={viewMode === 'list' ? 'default' : 'ghost'}
+              variant="ghost"
               size="sm"
               onClick={() => setViewMode('list')}
-              className="rounded-l-none"
+              className={viewMode === 'list'
+                ? 'rounded-full bg-[color:var(--theme-accent-soft)] text-gray-900'
+                : 'rounded-full text-gray-500 hover:text-gray-700'}
             >
               <List className="h-4 w-4" />
             </Button>

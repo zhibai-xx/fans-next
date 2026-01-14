@@ -234,16 +234,15 @@ export const InteractionButtons: React.FC<InteractionButtonsProps> = ({
     <div className={cn('flex items-center space-x-2', className)}>
       {/* 点赞按钮 */}
       <Button
-        variant={likeStatus.is_liked ? 'default' : 'outline'}
+        variant="outline"
         size="sm"
         onClick={handleLike}
         disabled={isLikeLoading}
+        data-tone="like"
+        data-active={likeStatus.is_liked ? 'true' : 'false'}
         className={cn(
           currentSize.button,
           'transition-all duration-200',
-          likeStatus.is_liked
-            ? 'bg-red-500 hover:bg-red-600 text-white border-red-500'
-            : 'hover:bg-red-50 hover:text-red-600 hover:border-red-300',
           isLikeLoading && 'opacity-50 cursor-not-allowed'
         )}
       >
@@ -263,16 +262,15 @@ export const InteractionButtons: React.FC<InteractionButtonsProps> = ({
 
       {/* 收藏按钮 */}
       <Button
-        variant={favoriteStatus.is_favorited ? 'default' : 'outline'}
+        variant="outline"
         size="sm"
         onClick={handleFavorite}
         disabled={isFavoriteLoading}
+        data-tone="favorite"
+        data-active={favoriteStatus.is_favorited ? 'true' : 'false'}
         className={cn(
           currentSize.button,
           'transition-all duration-200',
-          favoriteStatus.is_favorited
-            ? 'bg-amber-500 hover:bg-amber-600 text-white border-amber-500'
-            : 'hover:bg-amber-50 hover:text-amber-600 hover:border-amber-300',
           isFavoriteLoading && 'opacity-50 cursor-not-allowed'
         )}
       >

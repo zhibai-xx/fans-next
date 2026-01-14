@@ -275,6 +275,139 @@ main[data-sidebar-collapsed] {
 
 /* 图片展示优化样式 */
 @layer components {
+  :root[data-color-theme='clay-a'] .btn-base {
+    border-width: 2px;
+    border-radius: 12px;
+    box-shadow: 6px 6px 0 rgba(58, 63, 83, 0.08);
+    transition: transform 0.15s ease, box-shadow 0.15s ease, background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+  }
+
+  :root[data-color-theme='clay-a'] .btn-base:hover {
+    transform: translateY(-1px);
+    box-shadow: 8px 8px 0 rgba(58, 63, 83, 0.1);
+  }
+
+  :root[data-color-theme='clay-a'] .btn-base[data-variant='default'] {
+    background-color: var(--theme-accent-soft);
+    border-color: var(--theme-accent);
+    color: var(--theme-text);
+  }
+
+  :root[data-color-theme='clay-a'] .btn-base[data-variant='secondary'] {
+    background-color: var(--theme-cool-soft);
+    border-color: var(--theme-cool);
+    color: var(--theme-text);
+  }
+
+  :root[data-color-theme='clay-a'] .btn-base[data-variant='outline'] {
+    background-color: rgba(255, 255, 255, 0.9);
+    border-color: var(--theme-border);
+    color: var(--theme-text);
+  }
+
+  :root[data-color-theme='clay-a'] .btn-base[data-variant='destructive'] {
+    background-color: hsl(var(--destructive) / 0.16);
+    border-color: hsl(var(--destructive));
+    color: var(--theme-text);
+  }
+
+  :root[data-color-theme='clay-a'] .btn-base[data-variant='ghost'],
+  :root[data-color-theme='clay-a'] .btn-base[data-variant='link'] {
+    border-color: transparent;
+    background-color: transparent;
+    box-shadow: none;
+  }
+
+  :root[data-color-theme='clay-b'] .btn-base {
+    border-width: 1px;
+    border-radius: 6px;
+    box-shadow: none;
+    transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+  }
+
+  :root[data-color-theme='clay-b'] .btn-base[data-variant='default'] {
+    background-color: transparent;
+    border-color: var(--theme-accent);
+    color: var(--theme-text);
+  }
+
+  :root[data-color-theme='clay-b'] .btn-base[data-variant='default']:hover {
+    background-color: rgba(255, 143, 166, 0.08);
+  }
+
+  :root[data-color-theme='clay-b'] .btn-base[data-variant='secondary'] {
+    background-color: transparent;
+    border-color: var(--theme-cool);
+    color: var(--theme-text);
+  }
+
+  :root[data-color-theme='clay-b'] .btn-base[data-variant='secondary']:hover {
+    background-color: rgba(127, 211, 193, 0.1);
+  }
+
+  :root[data-color-theme='clay-b'] .btn-base[data-variant='outline'] {
+    background-color: transparent;
+    border-color: var(--theme-border);
+    color: var(--theme-text-muted);
+  }
+
+  :root[data-color-theme='clay-b'] .btn-base[data-variant='outline']:hover {
+    color: var(--theme-text);
+    background-color: rgba(255, 255, 255, 0.7);
+  }
+
+  :root[data-color-theme='clay-b'] .btn-base[data-variant='destructive'] {
+    background-color: transparent;
+    border-color: #ff7a8d;
+    color: var(--theme-text);
+  }
+
+  :root[data-color-theme='clay-b'] .btn-base[data-variant='destructive']:hover {
+    background-color: rgba(255, 122, 141, 0.08);
+  }
+
+  :root[data-color-theme='clay-b'] .btn-base[data-variant='ghost'],
+  :root[data-color-theme='clay-b'] .btn-base[data-variant='link'] {
+    border-color: transparent;
+    background-color: transparent;
+    box-shadow: none;
+  }
+
+  :root[data-color-theme] .btn-base[data-variant='outline'][data-tone='like'] {
+    background-color: rgba(255, 255, 255, 0.85);
+    border-color: rgba(248, 113, 113, 0.35);
+    color: #e11d48;
+  }
+
+  :root[data-color-theme] .btn-base[data-variant='outline'][data-tone='like'][data-active='true'] {
+    background-color: rgba(248, 113, 113, 0.12);
+    border-color: rgba(248, 113, 113, 0.55);
+    color: #e11d48;
+  }
+
+  :root[data-color-theme] .btn-base[data-variant='outline'][data-tone='like']:hover {
+    background-color: rgba(248, 113, 113, 0.12);
+    border-color: rgba(248, 113, 113, 0.55);
+    color: #e11d48;
+  }
+
+  :root[data-color-theme] .btn-base[data-variant='outline'][data-tone='favorite'] {
+    background-color: rgba(255, 255, 255, 0.85);
+    border-color: rgba(251, 191, 36, 0.35);
+    color: #d97706;
+  }
+
+  :root[data-color-theme] .btn-base[data-variant='outline'][data-tone='favorite'][data-active='true'] {
+    background-color: rgba(251, 191, 36, 0.12);
+    border-color: rgba(251, 191, 36, 0.55);
+    color: #d97706;
+  }
+
+  :root[data-color-theme] .btn-base[data-variant='outline'][data-tone='favorite']:hover {
+    background-color: rgba(251, 191, 36, 0.12);
+    border-color: rgba(251, 191, 36, 0.55);
+    color: #d97706;
+  }
 
   /* 文本截断 */
   .line-clamp-1 {

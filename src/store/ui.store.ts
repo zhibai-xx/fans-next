@@ -1,8 +1,12 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
+import type { ColorThemeId } from '@/theme/color-themes';
 
 // 主题类型
 export type Theme = 'light' | 'dark' | 'system';
+
+// 颜色主题类型
+export type ColorTheme = ColorThemeId;
 
 // 侧边栏状态
 export type SidebarState = 'expanded' | 'collapsed' | 'hidden';
@@ -34,6 +38,8 @@ interface UIState {
   // 主题
   theme: Theme;
   setTheme: (theme: Theme) => void;
+  colorTheme: ColorTheme;
+  setColorTheme: (theme: ColorTheme) => void;
 
   // 侧边栏
   sidebarState: SidebarState;
@@ -87,6 +93,8 @@ export const useUIStore = create<UIState>()(
       // 主题
       theme: 'system',
       setTheme: (theme) => set({ theme }),
+      colorTheme: 'clay-a',
+      setColorTheme: (colorTheme) => set({ colorTheme }),
 
       // 侧边栏
       sidebarState: 'expanded',
@@ -159,6 +167,7 @@ export const useUIStore = create<UIState>()(
       name: 'ui-storage',
       partialize: (state) => ({
         theme: state.theme,
+        colorTheme: state.colorTheme,
         sidebarState: state.sidebarState,
         layoutMode: state.layoutMode,
         notifications: state.notifications,
@@ -170,6 +179,7 @@ export const useUIStore = create<UIState>()(
 
 // 选择器 hooks
 export const useTheme = () => useUIStore((state) => state.theme);
+export const useColorTheme = () => useUIStore((state) => state.colorTheme);
 export const useSidebarState = () => useUIStore((state) => state.sidebarState);
 export const useLayoutMode = () => useUIStore((state) => state.layoutMode);
 export const useUploadModal = () => useUIStore((state) => state.uploadModal);

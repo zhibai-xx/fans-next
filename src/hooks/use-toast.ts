@@ -142,8 +142,26 @@ function dispatch(action: Action) {
 
 type Toast = Omit<ToasterToast, "id">
 
+const normalizeToastText = (value?: React.ReactNode): string => {
+  if (typeof value === "string" || typeof value === "number") {
+    return String(value)
+  }
+  return ""
+}
+
+const inferToastVariant = (
+  title?: React.ReactNode,
+  description?: React.ReactNode
+): ToastProps["variant"] | undefined => {
+  const text = `${normalizeToastText(title)} ${normalizeToastText(description)}`.trim()
+  if (/失败|错误|异常|出错/.test(text)) return "destructive"
+  if (/成功|完成|已完成|已成功/.test(text)) return "success"
+  return undefined
+}
+
 function toast({ ...props }: Toast) {
   const id = genId()
+  const resolvedVariant = props.variant ?? inferToastVariant(props.title, props.description)
 
   const update = (props: ToasterToast) =>
     dispatch({
@@ -156,6 +174,7 @@ function toast({ ...props }: Toast) {
     type: actionTypes.ADD_TOAST,
     toast: {
       ...props,
+      ...(resolvedVariant ? { variant: resolvedVariant } : {}),
       id,
       open: true,
       onOpenChange: (open) => {

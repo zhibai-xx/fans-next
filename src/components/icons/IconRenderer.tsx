@@ -46,6 +46,13 @@ export const IconRenderer: React.FC<IconRendererProps> = ({ iconName }) => {
         <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 10.5V6a3.75 3.75 0 1 0-7.5 0v4.5m11.356-1.993 1.263 12c.07.665-.45 1.243-1.119 1.243H4.25a1.125 1.125 0 0 1-1.12-1.243l1.264-12A1.125 1.125 0 0 1 5.513 7.5h12.974c.576 0 1.059.435 1.119 1.007ZM8.625 10.5a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Zm7.5 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Z"></path>
       </svg>
     );
+  } else if (iconName.includes('support')) {
+    return (
+      <svg width="30" height="30" viewBox="0 0 24 24" strokeWidth="1.5" fill="none" xmlns="http://www.w3.org/2000/svg" color="currentColor">
+        <path d="M12 6.5c1.657-1.927 4.5-1.25 4.5 1.25 0 2.75-4.5 5.5-4.5 5.5s-4.5-2.75-4.5-5.5c0-2.5 2.843-3.177 4.5-1.25z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+        <path d="M4 13.5c1.2 1.5 3.2 2.5 5.5 2.5h5c1.381 0 2.5-1.119 2.5-2.5 0-.69-.28-1.315-.732-1.768" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+      </svg>
+    );
   }
 
   // 默认返回一个简单图标

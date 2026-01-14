@@ -142,9 +142,18 @@ export function SearchBar({
   }
 
   return (
-    <div className="relative w-full max-w-md">
+    <div className="relative w-full">
       <form onSubmit={handleSubmit}>
         <div className="relative">
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+          >
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+          </svg>
           <Input
             ref={inputRef}
             type="text"
@@ -153,13 +162,13 @@ export function SearchBar({
             onChange={(e) => setQuery(e.target.value)}
             onFocus={() => setShowSuggestions(true)}
             autoFocus={autoFocus}
-            className="w-full pl-4 pr-10 rounded-full"
+            className="w-full rounded-full border-gray-200/60 bg-white/80 py-3 pl-10 pr-10 text-base transition-all duration-200 focus:border-[color:var(--theme-accent)]"
           />
           <Button
             type="submit"
             variant="ghost"
             size="sm"
-            className="absolute right-1 top-1/2 -translate-y-1/2 h-8 w-8 p-0 hover:bg-transparent"
+            className="absolute right-2 top-1/2 h-7 w-7 -translate-y-1/2 rounded-full p-0 text-gray-500 hover:bg-[color:var(--theme-accent-soft)] hover:text-gray-700"
           >
             <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
@@ -172,11 +181,11 @@ export function SearchBar({
       {showSuggestions && suggestions.length > 0 && (
         <div
           ref={suggestionRef}
-          className="absolute mt-1 w-full bg-white dark:bg-gray-800 rounded-md shadow-lg z-10 border border-gray-200 dark:border-gray-700"
+          className="absolute mt-2 w-full rounded-2xl border border-gray-200/60 bg-white/95 shadow-xl z-10 dark:border-gray-800 dark:bg-gray-900"
         >
-          <ul className="py-1">
+          <ul className="py-2">
             {searchHistory.length > 0 && query === '' && (
-              <li className="px-3 py-2 text-xs text-gray-500 dark:text-gray-400">
+              <li className="px-4 py-2 text-xs text-gray-500 dark:text-gray-400">
                 最近搜索
               </li>
             )}
@@ -184,7 +193,7 @@ export function SearchBar({
             {suggestions.map((suggestion, index) => (
               <li
                 key={index}
-                className="px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer flex items-center"
+                className="flex cursor-pointer items-center gap-2 px-4 py-2 text-sm text-gray-700 transition-colors hover:bg-[color:var(--theme-accent-soft)] dark:text-gray-200"
                 onClick={() => handleSuggestionClick(suggestion)}
               >
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-2 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">

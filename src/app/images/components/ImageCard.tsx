@@ -209,6 +209,7 @@ export const ImageCard: React.FC<ImageCardProps> = ({
           <ActionButton
             icon={<BookmarkIcon />}
             onClick={handleFavorite}
+            tone="favorite"
             active={interactionStatus.is_favorited}
             count={interactionStatus.favorites_count}
             loading={isFavoriteLoading}
@@ -216,6 +217,7 @@ export const ImageCard: React.FC<ImageCardProps> = ({
           <ActionButton
             icon={<HeartIcon />}
             onClick={handleLike}
+            tone="like"
             active={interactionStatus.is_liked}
             count={interactionStatus.likes_count}
             loading={isLikeLoading}
@@ -262,6 +264,7 @@ interface ActionButtonProps {
   icon: React.ReactNode;
   onClick: () => void;
   active?: boolean;
+  tone?: 'like' | 'favorite';
   count?: number;
   loading?: boolean;
 }
@@ -270,28 +273,36 @@ const ActionButton: React.FC<ActionButtonProps> = ({
   icon,
   onClick,
   active = false,
+  tone,
   count,
   loading = false
-}) => (
-  <Button
-    variant="ghost"
-    size="sm"
-    onClick={onClick}
-    disabled={loading}
-    className={`p-2 h-auto w-auto rounded-full bg-black/30 hover:bg-black/50 transition-colors ${active
-      ? 'text-red-500 hover:text-red-400'
-      : 'text-white hover:text-gray-200'
-      } ${loading ? 'opacity-50 cursor-not-allowed' : ''}`}
-  >
-    {loading ? (
-      <div className="animate-spin h-4 w-4 border-2 border-current border-t-transparent rounded-full" />
-    ) : (
-      icon
-    )}
-    {count !== undefined && count > 0 && !loading && (
-      <span className="ml-1 text-xs font-medium">
-        {count > 999 ? `${(count / 1000).toFixed(1)}k` : count}
-      </span>
-    )}
-  </Button>
-);
+}) => {
+  const activeClass =
+    tone === 'favorite'
+      ? 'text-amber-500 hover:text-amber-400'
+      : 'text-red-500 hover:text-red-400';
+
+  return (
+    <Button
+      variant="ghost"
+      size="sm"
+      onClick={onClick}
+      disabled={loading}
+      className={`p-2 h-auto w-auto rounded-full bg-black/30 hover:bg-black/50 transition-colors ${active
+        ? activeClass
+        : 'text-white hover:text-gray-200'
+        } ${loading ? 'opacity-50 cursor-not-allowed' : ''}`}
+    >
+      {loading ? (
+        <div className="animate-spin h-4 w-4 border-2 border-current border-t-transparent rounded-full" />
+      ) : (
+        icon
+      )}
+      {count !== undefined && count > 0 && !loading && (
+        <span className="ml-1 text-xs font-medium">
+          {count > 999 ? `${(count / 1000).toFixed(1)}k` : count}
+        </span>
+      )}
+    </Button>
+  );
+};
