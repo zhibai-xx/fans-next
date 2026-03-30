@@ -109,7 +109,7 @@ const defaultConfig: AppConfig = {
 
   features: {
     systemIngest: true,
-    videoUpload: true,
+    videoUpload: process.env.NEXT_PUBLIC_ENABLE_VIDEO_FEATURE === 'true',
     adminPanel: true,
     performanceMonitor: process.env.NODE_ENV === 'development',
     notifications: true,

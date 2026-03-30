@@ -26,6 +26,8 @@ import { useRouter } from 'next/navigation';
 import VideoPlayerWrapper from '@/components/video/VideoPlayerWrapper';
 import { buildVideoSources } from '@/lib/utils/video-sources';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { useAuth } from '@/hooks/useAuth';
+import { isVideoFeatureEnabled } from '@/lib/features';
 
 type FavoritesFilterType = 'all' | 'IMAGE' | 'VIDEO';
 type FavoritesSortKey = 'created_at' | 'likes' | 'views';
@@ -83,6 +85,7 @@ export const MyFavorites: React.FC<MyFavoritesProps> = ({
 }) => {
   const { toast } = useToast();
   const router = useRouter();
+  const { isAuthenticated } = useAuth();
 
   // 状态管理
   const [favorites, setFavorites] = useState<FavoriteItem[]>([]);
@@ -152,7 +155,7 @@ export const MyFavorites: React.FC<MyFavoritesProps> = ({
         setTotal(response.pagination.total);
         setTotalPages(response.pagination.totalPages);
       } else {
-        throw new Error(response.message || '加载收藏列表失败');
+        throw new Error('加载收藏列表失败');
       }
     } catch (error) {
       console.error('加载收藏列表失败:', error);
@@ -182,7 +185,25 @@ export const MyFavorites: React.FC<MyFavoritesProps> = ({
    */
   const loadInteractionStatuses = useCallback(async (mediaIds: string[]) => {
     try {
-      if (mediaIds.length === 0) return;
+      if (mediaIds.length === 0) {
+        setInteractionStatuses({});
+        return;
+      }
+
+      const defaultStatuses: Record<string, MediaInteractionStatus> = {};
+      mediaIds.forEach(mediaId => {
+        defaultStatuses[mediaId] = {
+          is_liked: false,
+          is_favorited: false,
+          likes_count: favorites.find(f => f.media.id === mediaId)?.media.likes_count || 0,
+          favorites_count: favorites.find(f => f.media.id === mediaId)?.media.favorites_count || 0,
+        };
+      });
+
+      if (!isAuthenticated) {
+        setInteractionStatuses(defaultStatuses);
+        return;
+      }
 
       const [likeResponse, favoriteResponse] = await Promise.all([
         InteractionService.getBatchLikeStatus(mediaIds),
@@ -208,8 +229,18 @@ export const MyFavorites: React.FC<MyFavoritesProps> = ({
       }
     } catch (error) {
       console.error('加载互动状态失败:', error);
+      const fallbackStatuses: Record<string, MediaInteractionStatus> = {};
+      mediaIds.forEach(mediaId => {
+        fallbackStatuses[mediaId] = {
+          is_liked: false,
+          is_favorited: false,
+          likes_count: favorites.find(f => f.media.id === mediaId)?.media.likes_count || 0,
+          favorites_count: favorites.find(f => f.media.id === mediaId)?.media.favorites_count || 0,
+        };
+      });
+      setInteractionStatuses(fallbackStatuses);
     }
-  }, [favorites]);
+  }, [favorites, isAuthenticated]);
 
   // 收藏列表变化时加载互动状态
   useEffect(() => {
@@ -297,13 +328,12 @@ export const MyFavorites: React.FC<MyFavoritesProps> = ({
       created_at: media.created_at,
       updated_at: media.updated_at,
       user: {
-        id: media.user?.id || 0,
         uuid: media.user?.uuid || '',
         username: media.user?.username || '未知用户',
         avatar_url: media.user?.avatar_url || undefined,
       },
       tags: media.tags || [],
-      category: media.category || null,
+      category: media.category || undefined,
       video_qualities: media.video_qualities || [],
     }),
     [],
@@ -395,6 +425,9 @@ export const MyFavorites: React.FC<MyFavoritesProps> = ({
    */
   const filteredFavorites = favorites
     .filter(item => {
+      if (!isVideoFeatureEnabled && item.media.media_type === 'VIDEO') {
+        return false;
+      }
       // 类型筛选
       if (filterType !== 'all' && item.media.media_type !== filterType) {
         return false;
@@ -712,7 +745,9 @@ export const MyFavorites: React.FC<MyFavoritesProps> = ({
             <SelectContent>
               <SelectItem value="all">全部</SelectItem>
               <SelectItem value="IMAGE">图片</SelectItem>
-              <SelectItem value="VIDEO">视频</SelectItem>
+              {isVideoFeatureEnabled ? (
+                <SelectItem value="VIDEO">视频</SelectItem>
+              ) : null}
             </SelectContent>
           </Select>
 

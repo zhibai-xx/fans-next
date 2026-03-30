@@ -8,6 +8,7 @@ import { InteractionService } from '@/services/interaction.service';
 import type { MediaInteractionStatus } from '@/types/interaction';
 import { useToast } from '@/hooks/use-toast';
 import { requestMediaDownload } from '@/lib/utils/media-download';
+import { handleApiError } from '@/lib/utils/error-handler';
 
 interface ImageCardProps {
   image: ImageItem;
@@ -174,7 +175,7 @@ export const ImageCard: React.FC<ImageCardProps> = ({
       console.error('下载失败:', error);
       toast({
         title: '下载失败',
-        description: '图片下载失败，请重试',
+        description: handleApiError(error, '图片下载失败，请重试'),
         variant: 'destructive',
       });
     }

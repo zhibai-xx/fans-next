@@ -21,7 +21,9 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'),
+  metadataBase: new URL(
+    process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3001',
+  ),
   title: "张婧仪粉丝站 | 最新动态",
   description: "汇聚偶像图片、视频和粉丝互动社区",
   openGraph: {

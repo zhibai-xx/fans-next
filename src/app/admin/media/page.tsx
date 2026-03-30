@@ -39,7 +39,14 @@ import {
   Hash,
   Save
 } from 'lucide-react';
-import { AdminMediaService, type Media, type MediaFilters, type Tag, type Category } from '@/services/admin-media.service';
+import {
+  AdminMediaService,
+  type Media,
+  type MediaFilters,
+  type MediaStats,
+  type Tag,
+  type Category,
+} from '@/services/admin-media.service';
 import type { MediaItem } from '@/services/media.service';
 import {
   useInfiniteMedia,
@@ -779,7 +786,8 @@ export default function MediaManagementPage() {
     refetch
   } = useInfiniteMedia(apiFilters, 24);
 
-  const { data: stats } = useMediaStats();
+  const mediaStatsQuery = useMediaStats();
+  const stats = mediaStatsQuery.data as MediaStats | undefined;
 
   // Mutation hooks
   const updateVisibilityMutation = useUpdateMediaVisibilityMutation();

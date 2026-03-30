@@ -1,8 +1,9 @@
 import { useMutation } from '@tanstack/react-query';
 import { signIn, signOut } from 'next-auth/react';
-import { useAuthStore } from '@/store/auth.store';
+import { useAuthStore, useUser, useAuthLoading } from '@/store/auth.store';
 import { useToast } from '@/hooks/use-toast';
 import { queryUtils } from '@/lib/query-client';
+import { authService } from '@/services/auth.service';
 
 // 登录mutation
 export const useLoginMutation = () => {
@@ -55,6 +56,11 @@ export const useLogoutMutation = () => {
   return useMutation({
     mutationFn: async () => {
       setLoading(true);
+      try {
+        await authService.logout();
+      } catch {
+        // 即使后端登出失败，也继续清理本地会话，避免前端卡死在已登录状态
+      }
       await signOut({ redirect: false });
     },
     onSuccess: () => {
@@ -114,7 +120,9 @@ export const useUpdateUserMutation = () => {
 
 // 检查认证状态
 export const useAuthCheck = () => {
-  const { isAuthenticated, user, isLoading } = useAuthStore();
+  const user = useUser();
+  const isLoading = useAuthLoading();
+  const isAuthenticated = Boolean(user);
 
   return {
     isAuthenticated,

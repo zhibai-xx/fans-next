@@ -12,6 +12,7 @@ export class DownloadService {
     const response = await apiClient.post<{ success: boolean; data: DownloadRequestData }>(
       `/media/${mediaId}/download`,
       {},
+      { withAuth: false },
     );
     return response.data;
   }

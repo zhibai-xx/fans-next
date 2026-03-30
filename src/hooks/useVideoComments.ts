@@ -3,6 +3,8 @@ import { CommentService } from '@/services/comment.service';
 import type {
   CommentQueryParams,
   CreateVideoCommentPayload,
+  CreateVideoCommentResponse,
+  VideoCommentListResponse,
 } from '@/types/comment';
 
 const commentKeys = {
@@ -13,11 +15,10 @@ const commentKeys = {
 };
 
 export function useVideoComments(videoId: string, params: CommentQueryParams) {
-  return useQuery({
+  return useQuery<VideoCommentListResponse, Error>({
     queryKey: commentKeys.list(videoId, params),
     queryFn: () => CommentService.getVideoComments(videoId, params),
     enabled: Boolean(videoId),
-    keepPreviousData: true,
     staleTime: 60_000,
   });
 }
@@ -25,7 +26,7 @@ export function useVideoComments(videoId: string, params: CommentQueryParams) {
 export function useCreateVideoComment(videoId: string) {
   const queryClient = useQueryClient();
 
-  return useMutation({
+  return useMutation<CreateVideoCommentResponse, Error, CreateVideoCommentPayload>({
     mutationFn: (payload: CreateVideoCommentPayload) =>
       CommentService.createVideoComment(videoId, payload),
     onSuccess: () => {

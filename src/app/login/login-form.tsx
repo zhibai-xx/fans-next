@@ -1,20 +1,48 @@
 'use client';
 
-import { useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useEffect, useState } from 'react';
+import Link from 'next/link';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useLoginMutation } from '@/hooks/mutations/useAuthMutations';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { useToast } from '@/hooks/use-toast';
+
+const AUTH_EXPIRED_TOAST_KEY = 'auth_expired_toast_message';
 
 export default function LoginForm() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const { toast } = useToast();
   const [formData, setFormData] = useState({
     username: '',
     password: '',
   });
 
   const loginMutation = useLoginMutation();
+
+  useEffect(() => {
+    if (searchParams.get('reason') !== 'session-expired') {
+      return;
+    }
+
+    const storedMessage =
+      typeof window !== 'undefined'
+        ? window.sessionStorage.getItem(AUTH_EXPIRED_TOAST_KEY)
+        : null;
+    const message = storedMessage || '登录状态已失效，建议重新登录后继续操作';
+
+    toast({
+      title: '请重新登录',
+      description: message,
+      variant: 'destructive',
+    });
+
+    if (typeof window !== 'undefined') {
+      window.sessionStorage.removeItem(AUTH_EXPIRED_TOAST_KEY);
+    }
+  }, [searchParams, toast]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
@@ -62,12 +90,12 @@ export default function LoginForm() {
           <Label htmlFor="password">
             密码
           </Label>
-          <a
+          <Link
             href="/forgot-password"
             className="text-sm text-blue-600 hover:text-blue-500 dark:text-blue-400"
           >
             忘记密码？
-          </a>
+          </Link>
         </div>
         <Input
           id="password"

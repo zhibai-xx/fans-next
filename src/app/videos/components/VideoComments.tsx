@@ -9,7 +9,11 @@ import { formatDistanceToNow } from 'date-fns';
 import { zhCN } from 'date-fns/locale';
 import { useAuth } from '@/hooks/useAuth';
 import { useVideoComments, useCreateVideoComment } from '@/hooks/useVideoComments';
-import type { VideoComment, CommentSortOption } from '@/types/comment';
+import type {
+  VideoComment,
+  CommentSortOption,
+  VideoCommentListResponse,
+} from '@/types/comment';
 import { UserAvatar } from '@/components/avatar/UserAvatar';
 
 interface VideoCommentsProps {
@@ -94,10 +98,11 @@ export function VideoComments({
 
   const commentQuery = useVideoComments(videoId, queryParams);
   const createComment = useCreateVideoComment(videoId);
+  const commentData = commentQuery.data as VideoCommentListResponse | undefined;
 
   const isLoading = commentQuery.isLoading || authLoading;
-  const comments = commentQuery.data?.data ?? [];
-  const displayedCount = commentQuery.data?.pagination.total ?? commentsCount ?? 0;
+  const comments = commentData?.data ?? [];
+  const displayedCount = commentData?.pagination.total ?? commentsCount ?? 0;
 
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();

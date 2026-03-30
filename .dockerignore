@@ -1,0 +1,10 @@
+node_modules
+.next
+npm-debug.log
+tests
+docs
+.git
+.github
+.cursor
+media-management-error.png
+unused-files-report.json

@@ -14,6 +14,7 @@ import { triggerBrowserDownload } from '@/lib/utils/download-helper';
 import { VideoService } from '@/services/video.service';
 import { Button } from '@/components/ui/button';
 import { ArrowUpRight, Download as DownloadIcon } from 'lucide-react';
+import { isVideoFeatureEnabled } from '@/lib/features';
 
 type DownloadRecord = {
   id: string;
@@ -43,16 +44,21 @@ export default function DownloadsList() {
       setIsLoading(true);
       setError(null);
       const response = await userService.getDownloads();
-      const records = response.data?.map((record: Download) => ({
-        id: record.id,
-        mediaId: record.media_id,
-        mediaType: record.media_type,
-        title: record.title,
-        thumbnailUrl: record.thumbnail_url,
-        fileSize: record.file_size,
-        fileType: record.file_type,
-        downloadedAt: record.downloaded_at,
-      })) || [];
+      const records =
+        response.data
+          ?.filter((record: Download) =>
+            isVideoFeatureEnabled ? true : record.media_type !== 'VIDEO',
+          )
+          .map((record: Download) => ({
+            id: record.id,
+            mediaId: record.media_id,
+            mediaType: record.media_type,
+            title: record.title,
+            thumbnailUrl: record.thumbnail_url,
+            fileSize: record.file_size,
+            fileType: record.file_type,
+            downloadedAt: record.downloaded_at,
+          })) || [];
       setDownloads(records);
     } catch (err) {
       console.error('获取下载记录失败:', err);
@@ -116,12 +122,14 @@ export default function DownloadsList() {
         >
           浏览图片内容
         </Link>
-        <Link
-          href="/videos"
-          className="text-blue-600 hover:text-blue-500 block mt-2"
-        >
-          浏览视频内容
-        </Link>
+        {isVideoFeatureEnabled ? (
+          <Link
+            href="/videos"
+            className="text-blue-600 hover:text-blue-500 block mt-2"
+          >
+            浏览视频内容
+          </Link>
+        ) : null}
       </div>
     );
   }

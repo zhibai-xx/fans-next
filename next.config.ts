@@ -1,6 +1,11 @@
 // next.config.ts
 import type { NextConfig } from "next";
 
+const backendOrigin =
+  process.env.BACKEND_INTERNAL_ORIGIN || 'http://127.0.0.1:3000';
+
+const buildBackendDestination = (path: string) => `${backendOrigin}${path}`;
+
 const nextConfig: NextConfig = {
   images: {
     dangerouslyAllowSVG: true, // 允许 SVG 优化
@@ -35,32 +40,32 @@ const nextConfig: NextConfig = {
       // 代理后端业务API路径
       {
         source: '/api/upload/:path*',
-        destination: 'http://localhost:3000/api/upload/:path*',
+        destination: buildBackendDestination('/api/upload/:path*'),
       },
       {
         source: '/api/admin/:path*',
-        destination: 'http://localhost:3000/api/admin/:path*',
+        destination: buildBackendDestination('/api/admin/:path*'),
       },
       {
         source: '/api/media/:path*',
-        destination: 'http://localhost:3000/api/media/:path*',
+        destination: buildBackendDestination('/api/media/:path*'),
       },
       {
         source: '/api/users/:path*',
-        destination: 'http://localhost:3000/api/users/:path*',
+        destination: buildBackendDestination('/api/users/:path*'),
       },
       {
         source: '/api/tags/:path*',
-        destination: 'http://localhost:3000/api/tags/:path*',
+        destination: buildBackendDestination('/api/tags/:path*'),
       },
       {
         source: '/api/categories/:path*',
-        destination: 'http://localhost:3000/api/categories/:path*',
+        destination: buildBackendDestination('/api/categories/:path*'),
       },
       // 代理静态文件
       {
         source: '/processed/:path*',
-        destination: 'http://localhost:3000/processed/:path*',
+        destination: buildBackendDestination('/processed/:path*'),
       },
     ];
   },

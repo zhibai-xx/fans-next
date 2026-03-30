@@ -204,6 +204,20 @@ interface MediaFormState {
   tag_ids: string[];
 }
 
+const toEditableReviewStatus = (
+  status: ReviewStatus,
+): 'PENDING_REVIEW' | 'APPROVED' | 'REJECTED' | undefined => {
+  if (
+    status === 'PENDING_REVIEW' ||
+    status === 'APPROVED' ||
+    status === 'REJECTED'
+  ) {
+    return status;
+  }
+
+  return undefined;
+};
+
 export function MediaDetailModal({ media, isOpen, onClose, onUpdate }: MediaDetailModalProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -292,7 +306,7 @@ export function MediaDetailModal({ media, isOpen, onClose, onUpdate }: MediaDeta
         category_id: formData.category_id && formData.category_id !== 'none' && formData.category_id.trim() !== ''
           ? formData.category_id
           : undefined,
-        status: formData.status,
+        status: toEditableReviewStatus(formData.status),
         tag_ids: formData.tag_ids
       };
 

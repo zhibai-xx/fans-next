@@ -7,6 +7,7 @@ import { AuthNavButtons } from '@/components/auth-nav-buttons';
 import { colorThemes } from '@/theme/color-themes';
 import { applyColorTheme } from '@/theme/apply-color-theme';
 import { useEffect } from 'react';
+import { isVideoFeatureEnabled } from '@/lib/features';
 
 interface RootLayoutClientProps {
   children: React.ReactNode;
@@ -15,9 +16,16 @@ interface RootLayoutClientProps {
 const PRIMARY_LINKS = [
   { href: '/', icon: '/icons/fire.svg', label: '首页' },
   { href: '/images', icon: '/icons/images.svg', label: '图片' },
-  { href: '/videos', icon: '/icons/video.svg', label: '视频' },
   { href: '/profile', icon: '/icons/profile.svg', label: '个人' },
 ];
+
+const NAV_LINKS = isVideoFeatureEnabled
+  ? [
+      ...PRIMARY_LINKS.slice(0, 2),
+      { href: '/videos', icon: '/icons/video.svg', label: '视频' },
+      ...PRIMARY_LINKS.slice(2),
+    ]
+  : PRIMARY_LINKS;
 
 const SECONDARY_LINKS = [
   { href: '/shop', icon: '/icons/support.svg', label: '支持我们' },
@@ -94,7 +102,7 @@ export function RootLayoutClient({ children }: RootLayoutClientProps) {
           <p className="text-[10px] uppercase tracking-[0.2em] mb-2" style={{ color: 'var(--theme-text-muted)' }}>
             导航
           </p>
-          {PRIMARY_LINKS.map((link) => (
+          {NAV_LINKS.map((link) => (
             <NavItem
               key={link.href}
               href={link.href}

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { VideoItem, VideoService } from '@/services/video.service';
@@ -33,14 +33,15 @@ interface ModernVideoCardProps {
 export function ModernVideoCard({ video, className, showActions = true }: ModernVideoCardProps) {
   const { toast } = useToast();
   const [isHovered, setIsHovered] = useState(false);
-  const [isLiked, setIsLiked] = useState(false);
-  const [isFavorited, setIsFavorited] = useState(false);
-  const [likeCount, setLikeCount] = useState(video.likes_count || 0);
+  const [optimisticLiked, setOptimisticLiked] = useState<boolean | null>(null);
+  const [optimisticFavorited, setOptimisticFavorited] = useState<boolean | null>(null);
+  const [optimisticLikeCount, setOptimisticLikeCount] = useState<number | null>(null);
 
   // Mutations
   const likeMutation = useLikeVideoMutation();
   const favoriteMutation = useFavoriteVideoMutation();
   const { data: interactionStatus } = useVideoInteractionStatus(video.id);
+  const interactionData = interactionStatus?.data;
 
   const tags = useMemo(() => {
     if (video.tags?.length) {
@@ -54,21 +55,12 @@ export function ModernVideoCard({ video, className, showActions = true }: Modern
       );
   }, [video]);
 
-  useEffect(() => {
-    if (interactionStatus?.data) {
-      setIsLiked(interactionStatus.data.isLiked);
-      setIsFavorited(interactionStatus.data.isFavorited);
-      setLikeCount(
-        interactionStatus.data.likesCount ?? video.likes_count ?? 0
-      );
-      return;
-    }
-
-    // 默认回退到视频原始统计
-    setIsLiked(false);
-    setIsFavorited(false);
-    setLikeCount(video.likes_count || 0);
-  }, [interactionStatus?.data, video.id, video.likes_count]);
+  const baseIsLiked = interactionData?.isLiked ?? false;
+  const baseIsFavorited = interactionData?.isFavorited ?? false;
+  const baseLikeCount = interactionData?.likesCount ?? video.likes_count ?? 0;
+  const isLiked = optimisticLiked ?? baseIsLiked;
+  const isFavorited = optimisticFavorited ?? baseIsFavorited;
+  const likeCount = optimisticLikeCount ?? baseLikeCount;
 
   const handleLike = (e: React.MouseEvent) => {
     e.preventDefault();
@@ -76,15 +68,19 @@ export function ModernVideoCard({ video, className, showActions = true }: Modern
     const newLikedState = !isLiked;
     const delta = newLikedState ? 1 : -1;
 
-    setIsLiked(newLikedState);
-    setLikeCount((prev) => Math.max(0, (prev || 0) + delta));
+    setOptimisticLiked(newLikedState);
+    setOptimisticLikeCount(Math.max(0, likeCount + delta));
 
     likeMutation.mutate(
       { videoId: video.id, isLiked: newLikedState },
       {
         onError: () => {
-          setIsLiked(!newLikedState);
-          setLikeCount((prev) => Math.max(0, (prev || 0) - delta));
+          setOptimisticLiked(null);
+          setOptimisticLikeCount(null);
+        },
+        onSettled: () => {
+          setOptimisticLiked(null);
+          setOptimisticLikeCount(null);
         },
       }
     );
@@ -94,12 +90,15 @@ export function ModernVideoCard({ video, className, showActions = true }: Modern
     e.preventDefault();
     e.stopPropagation();
     const newFavoritedState = !isFavorited;
-    setIsFavorited(newFavoritedState);
+    setOptimisticFavorited(newFavoritedState);
     favoriteMutation.mutate(
       { videoId: video.id, isFavorited: newFavoritedState },
       {
         onError: () => {
-          setIsFavorited(!newFavoritedState);
+          setOptimisticFavorited(null);
+        },
+        onSettled: () => {
+          setOptimisticFavorited(null);
         },
       }
     );

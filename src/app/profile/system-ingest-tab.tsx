@@ -18,6 +18,11 @@ import {
 } from '@/services/system-ingest.service';
 import OptimizedSystemIngestFileCard from '../system-ingest/components/OptimizedSystemIngestFileCard';
 import { PermissionGuard } from '@/components/auth/PermissionGuard';
+import {
+  availableSystemIngestTypes,
+  isVideoFeatureEnabled,
+  type AvailableSystemIngestType,
+} from '@/lib/features';
 
 // 分页配置
 const ITEMS_PER_PAGE = 15; // 个人中心中减少每页数量
@@ -56,7 +61,7 @@ export default function SystemIngestTab() {
   const [scanResult, setScanResult] = useState<SystemIngestScanResult | null>(null);
   const [selectedFiles, setSelectedFiles] = useState<Set<string>>(new Set());
   const [customScanPath, setCustomScanPath] = useState<string>('');
-  const [filterType, setFilterType] = useState<'all' | 'image' | 'video' | 'gif'>('all');
+  const [filterType, setFilterType] = useState<AvailableSystemIngestType>('all');
   const [filterUser, setFilterUser] = useState<string>('all');
   const [currentPage, setCurrentPage] = useState(1);
   const [uploadResults, setUploadResults] = useState<SystemIngestUploadResult[]>([]);
@@ -68,6 +73,9 @@ export default function SystemIngestTab() {
     const files: FlattenedFile[] = [];
     scanResult.users.forEach(user => {
       user.files.forEach(file => {
+        if (!isVideoFeatureEnabled && file.type === 'video') {
+          return;
+        }
         files.push({ ...file, userId: user.userId });
       });
     });
@@ -104,6 +112,7 @@ export default function SystemIngestTab() {
       paginatedFiles
     };
   }, [filteredFiles, currentPage]);
+  const visibleTotalFiles = allFiles.length;
 
   // 重置分页当过滤条件改变时
   useEffect(() => {
@@ -259,7 +268,7 @@ export default function SystemIngestTab() {
                   </div>
                   <div className="text-center">
                     <div className="text-2xl font-bold text-green-600">
-                      {scanResult.totalFiles}
+                      {visibleTotalFiles}
                     </div>
                     <div className="text-sm text-gray-500">总文件</div>
                   </div>
@@ -283,16 +292,23 @@ export default function SystemIngestTab() {
                     <Label htmlFor="filterType">类型:</Label>
                     <Select
                       value={filterType}
-                      onValueChange={(value: 'all' | 'image' | 'video' | 'gif') => setFilterType(value)}
+                      onValueChange={(value: AvailableSystemIngestType) => setFilterType(value)}
                     >
                       <SelectTrigger className="w-32">
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="all">全部</SelectItem>
-                        <SelectItem value="image">图片</SelectItem>
-                        <SelectItem value="video">视频</SelectItem>
-                        <SelectItem value="gif">GIF</SelectItem>
+                        {availableSystemIngestTypes.map((type) => (
+                          <SelectItem key={type} value={type}>
+                            {type === 'all'
+                              ? '全部'
+                              : type === 'image'
+                                ? '图片'
+                                : type === 'video'
+                                  ? '视频'
+                                  : 'GIF'}
+                          </SelectItem>
+                        ))}
                       </SelectContent>
                     </Select>
                   </div>

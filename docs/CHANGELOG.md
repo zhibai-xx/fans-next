@@ -1,4 +1,29 @@
-﻿# 2025-11-13
+﻿# 2026-03-17
+- 上线前部署收口：`next.config.ts` 的后端代理目标改为 `BACKEND_INTERNAL_ORIGIN` 环境变量，不再写死 `localhost:3000`，便于云上反向代理或容器内网部署
+- 新增前端容器化文件：`Dockerfile` 与 `.dockerignore`，可直接构建生产镜像并以 `3001` 端口启动
+- 新增前端环境变量模板项 `NEXT_PUBLIC_ENABLE_VIDEO_FEATURE`，与本轮视频首发关闭策略保持一致
+- 首发阶段新增前端视频功能开关 `NEXT_PUBLIC_ENABLE_VIDEO_FEATURE=false`，默认隐藏侧栏/首页中的视频入口，并由 `proxy.ts` 将 `/videos*` 统一重定向到 `/images`
+- 上传与导入入口同步收紧：视频上传按钮隐藏，上传器会拒绝视频文件；`system-ingest` 页面与个人中心导入页默认只展示图片/GIF 文件与筛选项
+- 用户侧残留入口收口：下载记录与收藏列表在视频关闭时不再暴露视频项或视频筛选，避免旧数据继续把用户带入已关闭模块
+- 主要改动文件：`next.config.ts`、`Dockerfile`、`.dockerignore`、`src/lib/features.ts`、`src/proxy.ts`、`src/app/components/RootLayoutClient.tsx`、`src/app/page.tsx`、`src/components/upload/AdvancedUploadModal.tsx`、`src/components/VideoUploadButton.tsx`、`src/app/system-ingest/page.tsx`、`src/app/profile/system-ingest-tab.tsx`、`src/app/profile/downloads-list.tsx`、`src/components/interaction/MyFavorites.tsx`
+- 接口契约变更：否
+
+# 2026-02-12
+- 认证过期联动修复：`ApiClient` 统一识别 401/`jwt expired`，自动清理 Zustand 登录态并触发 NextAuth `signOut`，前端收到事件后跳转 `/login?reason=session-expired`，避免侧栏继续显示过期用户信息
+- API 基础地址改为同源 `/api`，避免直连 `http://localhost:3000` 导致的跨域与会话一致性问题，统一走 Next.js 代理
+- 互动服务鉴权守卫：未登录时不再请求批量点赞/收藏状态接口，返回安全默认值；点赞/收藏写操作在未登录时直接提示，减少无效请求与控制台噪音
+- NextAuth 会话增强：接入 `refresh_token`，JWT 回调在 access token 临近过期时自动调用 `/api/users/refresh-token` 续期，续期失败时自动触发会话失效流程
+- 登出流程增强：前端登出前先调用 `/api/users/logout`，配合后端 `session_version` 机制即时失效旧 token，避免多端残留会话
+- 新增“上线最小交付清单（前端）”决策，明确本地达标、上云参数、部署验证与回滚步骤
+- 涉及文件：`src/lib/api-client.ts`、`src/hooks/useAuthSync.ts`、`src/components/providers/auth-provider.tsx`、`src/services/interaction.service.ts`、`src/services/video.service.ts`、`src/services/auth.service.ts`、`src/app/api/auth/[...nextauth]/route.ts`
+- 接口契约变更：是（依赖后端登录响应新增 `refresh_token` 与刷新接口）
+
+# 2026-03-16
+- `system-ingest` 页面新增自定义扫描路径输入，扫描 Query Key 绑定路径值，切换真实采集目录时不再复用旧缓存
+- 新增前端 E2E 冒烟脚本 `tests/e2e/auth-system-ingest.smoke.mjs`，覆盖游客访问、管理员登录、后台访问与系统导入扫描主链路
+- 前端质量校验保持通过：`npm run lint`、`npm run typecheck`、`npm run build`、`npm run test:e2e:smoke`
+
+# 2025-11-13
 - 统一 API Client/服务返回类型：新增全局 ApiResponse/Pagination 类型，修复 admin-media/tags 服务与 TanStack Query hooks 里的 `any`，确保响应携带 success/data/pagination
 - 前端重点组件补齐类型：ImageGrid/LazyImageCard 加显式 props 与 `displayName`，RobustVideoPlayer 的 window/videojs/错误回调去除 `any`，useAuthSync 映射 NextAuth session 到 Zustand
 

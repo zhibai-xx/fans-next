@@ -42,6 +42,21 @@ export class UploadRecordService {
   }
 
   /**
+   * 获取单条上传记录
+   * TODO: 后端补充 `GET /user-uploads/:id` 后替换为精确接口
+   */
+  static async getRecord(recordId: string): Promise<UploadRecord> {
+    const response = await this.getRecords({ page: 0, limit: 100 });
+    const record = response.records.find((item) => item.id === recordId);
+
+    if (!record) {
+      throw new Error('未找到上传记录');
+    }
+
+    return record;
+  }
+
+  /**
    * 删除媒体记录
    */
   static async deleteRecord(recordId: string): Promise<void> {
@@ -50,6 +65,13 @@ export class UploadRecordService {
     } catch (error) {
       throw handleApiError(error, '删除记录失败');
     }
+  }
+
+  /**
+   * 批量删除上传记录
+   */
+  static async batchDeleteRecords(recordIds: string[]): Promise<void> {
+    await Promise.all(recordIds.map((recordId) => this.deleteRecord(recordId)));
   }
 
   /**

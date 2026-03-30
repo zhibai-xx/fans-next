@@ -80,7 +80,10 @@ export class AdminUsersService {
       )
     };
 
-    const response = await apiClient.get('/admin/users', { params });
+    const response = await apiClient.get<PaginatedResponse<User>>(
+      '/admin/users',
+      { params },
+    );
     return response;
   }
 
@@ -88,7 +91,7 @@ export class AdminUsersService {
    * 获取用户详情
    */
   static async getUserById(id: number): Promise<ApiResponse<User>> {
-    const response = await apiClient.get(`/admin/users/${id}`);
+    const response = await apiClient.get<ApiResponse<User>>(`/admin/users/${id}`);
     return response;
   }
 
@@ -99,7 +102,10 @@ export class AdminUsersService {
     id: number,
     status: 'ACTIVE' | 'SUSPENDED'
   ): Promise<ApiResponse<User>> {
-    const response = await apiClient.put(`/admin/users/${id}/status`, { status });
+    const response = await apiClient.put<ApiResponse<User>>(
+      `/admin/users/${id}/status`,
+      { status },
+    );
     return response;
   }
 
@@ -110,7 +116,10 @@ export class AdminUsersService {
     id: number,
     role: 'USER' | 'ADMIN'
   ): Promise<ApiResponse<User>> {
-    const response = await apiClient.put(`/admin/users/${id}/role`, { role });
+    const response = await apiClient.put<ApiResponse<User>>(
+      `/admin/users/${id}/role`,
+      { role },
+    );
     return response;
   }
 
@@ -126,7 +135,10 @@ export class AdminUsersService {
       phoneNumber?: string;
     }
   ): Promise<ApiResponse<User>> {
-    const response = await apiClient.put(`/admin/users/${id}`, updateData);
+    const response = await apiClient.put<ApiResponse<User>>(
+      `/admin/users/${id}`,
+      updateData,
+    );
     return response;
   }
 
@@ -134,7 +146,9 @@ export class AdminUsersService {
    * 获取用户统计概览
    */
   static async getUserStats(): Promise<ApiResponse<UserStats>> {
-    const response = await apiClient.get('/admin/users/stats/overview');
+    const response = await apiClient.get<ApiResponse<UserStats>>(
+      '/admin/users/stats/overview',
+    );
     return response;
   }
 }

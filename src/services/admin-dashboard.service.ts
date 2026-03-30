@@ -64,21 +64,21 @@ export class AdminDashboardService {
    * 获取管理面板统计数据
    */
   static async getDashboardStats(): Promise<ApiResponse<DashboardStats>> {
-    return await apiClient.get('/admin/dashboard/stats');
+    return await apiClient.get<ApiResponse<DashboardStats>>('/admin/dashboard/stats');
   }
 
   /**
    * 获取近期活动日志
    */
   static async getRecentActivities(): Promise<ApiResponse<RecentActivity[]>> {
-    return await apiClient.get('/admin/dashboard/recent-activities');
+    return await apiClient.get<ApiResponse<RecentActivity[]>>('/admin/dashboard/recent-activities');
   }
 
   /**
    * 获取系统状态信息
    */
   static async getSystemStatus(): Promise<ApiResponse<SystemStatus>> {
-    return await apiClient.get('/admin/dashboard/system-status');
+    return await apiClient.get<ApiResponse<SystemStatus>>('/admin/dashboard/system-status');
   }
 
   /**
@@ -172,4 +172,3 @@ export class AdminDashboardService {
     }
   }
 }
-

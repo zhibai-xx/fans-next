@@ -11,7 +11,13 @@ import { SystemIngestFile } from '@/services/system-ingest.service';
 interface OptimizedSystemIngestFileCardProps {
   file: SystemIngestFile;
   isSelected: boolean;
-  onToggleSelection: () => void;
+  onToggleSelection?: () => void;
+  onSelect?: (selected: boolean) => void;
+  onUpload?: () => void;
+  onDelete?: () => void;
+  onPreview?: () => void;
+  isUploading?: boolean;
+  isDeleting?: boolean;
   isVisible?: boolean; // 用于懒加载控制
 }
 
@@ -81,6 +87,7 @@ const OptimizedSystemIngestFileCard: React.FC<OptimizedSystemIngestFileCardProps
   file,
   isSelected,
   onToggleSelection,
+  onSelect,
   isVisible = true,
 }) => {
   const [imageError, setImageError] = useState(false);
@@ -251,8 +258,13 @@ const OptimizedSystemIngestFileCard: React.FC<OptimizedSystemIngestFileCardProps
   const handleToggleSelection = useCallback((e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    onToggleSelection();
-  }, [onToggleSelection]);
+    if (onToggleSelection) {
+      onToggleSelection();
+      return;
+    }
+
+    onSelect?.(!isSelected);
+  }, [isSelected, onSelect, onToggleSelection]);
 
   // 格式化文件大小
   const formatFileSize = useCallback((bytes: number): string => {

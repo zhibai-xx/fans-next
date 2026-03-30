@@ -18,6 +18,7 @@ import { UploadProgress } from './UploadProgress';
 import { useUploadStore } from '@/store/upload.store';
 import { useUserTags, useUserCategories } from '@/hooks/queries/useUserMedia';
 import { userMediaQueryKeys } from '@/hooks/queries/useUserMedia';
+import { isVideoFeatureEnabled } from '@/lib/features';
 
 interface AdvancedUploadModalProps {
   isOpen: boolean;
@@ -32,6 +33,10 @@ export default function AdvancedUploadModal({
   type,
   onUploadComplete
 }: AdvancedUploadModalProps) {
+  const effectiveType =
+    !isVideoFeatureEnabled && (type === 'video' || type === 'both')
+      ? 'image'
+      : type;
   const queryClient = useQueryClient();
   // 使用Zustand store管理状态
   const {
@@ -128,9 +133,9 @@ export default function AdvancedUploadModal({
 
   // 文件拖放配置
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
-    accept: type === 'image'
+    accept: effectiveType === 'image'
       ? { 'image/*': [] }
-      : type === 'video'
+      : effectiveType === 'video'
         ? { 'video/*': [] }
         : { 'image/*': [], 'video/*': [] },
     onDrop: (acceptedFiles) => {
@@ -280,7 +285,7 @@ export default function AdvancedUploadModal({
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Upload className="h-5 w-5" />
-            高级上传 - {type === 'image' ? '图片' : type === 'video' ? '视频' : '图片和视频'}
+            高级上传 - {effectiveType === 'image' ? '图片' : effectiveType === 'video' ? '视频' : '图片和视频'}
           </DialogTitle>
           <DialogDescription>
             拖拽文件到此处或点击选择文件，支持批量上传和元数据编辑
@@ -309,7 +314,7 @@ export default function AdvancedUploadModal({
                 或者 <span className="text-blue-500 underline">点击选择文件</span>
               </p>
               <p className="text-xs text-gray-400 mt-2">
-                支持 {type === 'image' ? '图片格式' : type === 'video' ? '视频格式' : '图片和视频格式'}
+                支持 {effectiveType === 'image' ? '图片格式' : effectiveType === 'video' ? '视频格式' : '图片和视频格式'}
               </p>
             </div>
           )}
@@ -344,7 +349,7 @@ export default function AdvancedUploadModal({
                       />
                     </div>
 
-                    {(type === 'video' || type === 'both') && (
+                    {(effectiveType === 'video' || effectiveType === 'both') && (
                       <div>
                         <Label htmlFor="batch-category">批量分类</Label>
                         <Select

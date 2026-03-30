@@ -69,8 +69,7 @@ export const ImageGrid: React.FC<ImageGridProps> = ({ images, className = '' }) 
   }, [calculateLayout, distributeImages]);
 
   // 使用Intersection Observer实现懒加载
-  useIntersectionObserver({
-    target: loadingRef,
+  useIntersectionObserver(loadingRef, {
     onIntersect: () => distributeImages(),
     rootMargin: '200px',
   });
@@ -119,8 +118,7 @@ const LazyImageCardComponent: React.FC<LazyImageCardProps> = ({ image, className
   const [isVisible, setIsVisible] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
-  useIntersectionObserver({
-    target: ref, // 现在类型匹配 RefObject<HTMLDivElement | null>
+  useIntersectionObserver(ref, {
     onIntersect: () => setIsVisible(true),
     once: true,
     rootMargin: '200px'

@@ -4,6 +4,11 @@ import { MediaService, MediaTag, MediaCategory, MediaFilters } from '@/services/
 import { VideoService, IncrementViewPayload } from '@/services/video.service';
 import { InteractionService } from '@/services/interaction.service';
 import { useToast } from '@/hooks/use-toast';
+import {
+  AUTH_REQUIRED_TITLE,
+  handleApiError,
+  isAuthRequiredMessage,
+} from '@/lib/utils/error-handler';
 
 // 查询键工厂
 export const userMediaQueryKeys = {
@@ -130,9 +135,10 @@ export function useLikeImageMutation() {
       });
     },
     onError: (error) => {
+      const message = handleApiError(error, '点赞操作失败，请重试');
       toast({
-        title: '操作失败',
-        description: error instanceof Error ? error.message : '点赞操作失败，请重试',
+        title: isAuthRequiredMessage(message) ? AUTH_REQUIRED_TITLE : '操作失败',
+        description: message,
         variant: 'destructive',
       });
     },
@@ -159,9 +165,10 @@ export function useFavoriteImageMutation() {
       });
     },
     onError: (error) => {
+      const message = handleApiError(error, '收藏操作失败，请重试');
       toast({
-        title: '操作失败',
-        description: error instanceof Error ? error.message : '收藏操作失败，请重试',
+        title: isAuthRequiredMessage(message) ? AUTH_REQUIRED_TITLE : '操作失败',
+        description: message,
         variant: 'destructive',
       });
     },
@@ -199,7 +206,18 @@ export const userMediaQueryUtils = {
   prefetchNextImages: (queryClient: QueryClient, filters?: MediaFilters) => {
     queryClient.prefetchInfiniteQuery({
       queryKey: userMediaQueryKeys.images.infinite(filters),
-      // queryFn 会在需要时自动调用
+      queryFn: async ({ pageParam = 1 }) => {
+        return MediaService.getMediaList({
+          skip: (pageParam - 1) * 24,
+          take: 24,
+          filters: {
+            ...filters,
+            type: 'IMAGE',
+            status: 'APPROVED',
+          },
+        });
+      },
+      initialPageParam: 1,
     });
   },
 };

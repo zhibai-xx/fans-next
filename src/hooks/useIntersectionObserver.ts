@@ -1,11 +1,12 @@
 import { useEffect } from 'react';
 
 interface UseIntersectionObserverOptions {
-  target?: React.RefObject<Element>;
+  target?: React.RefObject<Element | null>;
   onIntersect: () => void;
   threshold?: number;
   rootMargin?: string;
   enabled?: boolean;
+  once?: boolean;
 }
 
 /**
@@ -13,8 +14,14 @@ interface UseIntersectionObserverOptions {
  * 用于检测元素是否进入视口，常用于无限滚动
  */
 export function useIntersectionObserver(
-  target: React.RefObject<Element>,
-  { onIntersect, threshold = 0, rootMargin = '0px', enabled = true }: UseIntersectionObserverOptions
+  target: React.RefObject<Element | null>,
+  {
+    onIntersect,
+    threshold = 0,
+    rootMargin = '0px',
+    enabled = true,
+    once = false,
+  }: UseIntersectionObserverOptions
 ) {
   useEffect(() => {
     if (!enabled || !target.current) return;
@@ -24,6 +31,9 @@ export function useIntersectionObserver(
         entries.forEach((entry) => {
           if (entry.isIntersecting) {
             onIntersect();
+            if (once) {
+              observer.unobserve(entry.target);
+            }
           }
         });
       },
@@ -38,7 +48,7 @@ export function useIntersectionObserver(
     return () => {
       observer.disconnect();
     };
-  }, [target, onIntersect, threshold, rootMargin, enabled]);
+  }, [target, onIntersect, threshold, rootMargin, enabled, once]);
 }
 
 /**
@@ -46,7 +56,14 @@ export function useIntersectionObserver(
  * 保持向后兼容性的版本
  */
 export function useIntersectionObserverLegacy(options: UseIntersectionObserverOptions) {
-  const { target, onIntersect, threshold = 0, rootMargin = '0px', enabled = true } = options || {};
+  const {
+    target,
+    onIntersect,
+    threshold = 0,
+    rootMargin = '0px',
+    enabled = true,
+    once = false,
+  } = options || {};
 
   useEffect(() => {
     if (!enabled || !target?.current) return;
@@ -56,6 +73,9 @@ export function useIntersectionObserverLegacy(options: UseIntersectionObserverOp
         entries.forEach((entry) => {
           if (entry.isIntersecting) {
             onIntersect();
+            if (once) {
+              observer.unobserve(entry.target);
+            }
           }
         });
       },
@@ -70,5 +90,5 @@ export function useIntersectionObserverLegacy(options: UseIntersectionObserverOp
     return () => {
       observer.disconnect();
     };
-  }, [target, onIntersect, threshold, rootMargin, enabled]);
+  }, [target, onIntersect, threshold, rootMargin, enabled, once]);
 }

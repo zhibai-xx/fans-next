@@ -32,7 +32,8 @@ import {
 } from 'lucide-react';
 import {
   UploadRecord,
-  UploadFilters
+  UploadFilters,
+  UploadStats,
 } from '@/types/upload-record';
 import { ResubmitModal } from './components/ResubmitModal';
 import { useIntersectionObserverLegacy } from '@/hooks/useIntersectionObserver';
@@ -53,7 +54,11 @@ const USER_MEDIA_TAB_CONFIG = [
   { value: 'approved', label: '已通过', statKey: 'approved' },
   { value: 'rejected', label: '已拒绝', statKey: 'rejected' },
   { value: 'deleted', label: '已删除', statKey: 'user_deleted' },
-] as const;
+] as const satisfies ReadonlyArray<{
+  value: string;
+  label: string;
+  statKey: keyof UploadStats;
+}>;
 
 const TAB_STATUS_MAP: Record<
   (typeof USER_MEDIA_TAB_CONFIG)[number]['value'],
@@ -115,7 +120,7 @@ export default function UserUploadsPage() {
     : false;
   const tabItems = USER_MEDIA_TAB_CONFIG.map((tab) => ({
     ...tab,
-    count: stats ? (stats as Record<string, number>)[tab.statKey] ?? 0 : 0,
+    count: stats ? stats[tab.statKey] ?? 0 : 0,
   }));
 
   // 合并所有页面的记录数据

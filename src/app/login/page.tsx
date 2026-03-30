@@ -1,4 +1,6 @@
-import { Metadata } from 'next';
+import { Suspense } from 'react';
+import type { Metadata } from 'next';
+import Link from 'next/link';
 import LoginForm from './login-form';
 
 export const metadata: Metadata = {
@@ -17,17 +19,19 @@ export default function LoginPage() {
           </p>
         </div>
         
-        <LoginForm />
-        
+        <Suspense fallback={null}>
+          <LoginForm />
+        </Suspense>
+
         <div className="mt-6 text-center text-sm">
           <span className="text-gray-500 dark:text-gray-400">
             还没有账号？{' '}
           </span>
-          <a href="/signup" className="text-blue-600 hover:text-blue-500 dark:text-blue-400">
+          <Link href="/signup" className="text-blue-600 hover:text-blue-500 dark:text-blue-400">
             立即注册
-          </a>
+          </Link>
         </div>
       </div>
     </div>
   );
-} 
+}

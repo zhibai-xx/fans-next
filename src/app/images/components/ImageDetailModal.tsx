@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import Image from 'next/image';
 import { Heart, Bookmark, Download, Share2, Eye, Calendar, Tag, FileText, Folder, BarChart3, Monitor, HardDrive, Clock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -11,6 +11,7 @@ import type { MediaInteractionStatus } from '@/types/interaction';
 import { requestMediaDownload } from '@/lib/utils/media-download';
 import { useToast } from '@/hooks/use-toast';
 import { UserAvatar } from '@/components/avatar/UserAvatar';
+import { handleApiError } from '@/lib/utils/error-handler';
 
 // 图片URL规范化函数
 const normalizeImageUrl = (imageUrl: string): string => {
@@ -67,14 +68,11 @@ export const ImageDetailModal: React.FC<ImageDetailModalProps> = ({
   canGoNext = false,
   canGoPrevious = false
 }) => {
-  const [imageLoaded, setImageLoaded] = useState(false);
+  const [loadedImageSrc, setLoadedImageSrc] = useState<string | null>(null);
   const { toast } = useToast();
 
-  useEffect(() => {
-    if (image) {
-      setImageLoaded(false);
-    }
-  }, [image]);
+  const imageSrc = image ? normalizeImageUrl(image.url) : '';
+  const imageLoaded = loadedImageSrc === imageSrc;
 
   if (!image) return null;
 
@@ -111,7 +109,7 @@ export const ImageDetailModal: React.FC<ImageDetailModalProps> = ({
       console.error('下载失败:', error);
       toast({
         title: '下载失败',
-        description: '图片下载失败，请稍后重试',
+        description: handleApiError(error, '图片下载失败，请稍后重试'),
         variant: 'destructive',
       });
     }
@@ -168,13 +166,13 @@ export const ImageDetailModal: React.FC<ImageDetailModalProps> = ({
               )}
 
               <Image
-                src={normalizeImageUrl(image.url)}
+                src={imageSrc}
                 alt={image.title}
                 fill
                 sizes="(max-width: 1024px) 100vw, 70vw"
                 className={`object-contain transition-opacity duration-500 ${imageLoaded ? 'opacity-100' : 'opacity-0'
                   }`}
-                onLoad={() => setImageLoaded(true)}
+                onLoad={() => setLoadedImageSrc(imageSrc)}
               />
             </div>
 

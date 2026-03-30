@@ -1,5 +1,9 @@
 import type { ApiErrorPayload } from '@/types/api';
 
+export const AUTH_REQUIRED_TITLE = '请先登录';
+export const AUTH_REQUIRED_DESCRIPTION = '登录状态已失效，请先登录后继续操作';
+export const DOWNLOAD_LOGIN_HINT = '登录后可获得更稳定的下载体验';
+
 type ApiResponseError = {
   response?: {
     data?: ApiErrorPayload;
@@ -43,8 +47,25 @@ function processErrorMessage(message: string): string {
   }
 
   // 处理授权错误
-  if (message.includes('未授权') || message.includes('Unauthorized')) {
-    return '登录已过期，请重新登录';
+  if (
+    message.includes('未授权') ||
+    message.includes('Unauthorized') ||
+    message.includes('jwt expired') ||
+    message.includes('token expired') ||
+    message.includes('请先登录') ||
+    message.includes('登录状态已失效')
+  ) {
+    return AUTH_REQUIRED_DESCRIPTION;
+  }
+
+  // 处理游客下载限速错误
+  if (message.includes('下载过于频繁')) {
+    return `${message}，${DOWNLOAD_LOGIN_HINT}`;
+  }
+
+  // 处理下载签名过期
+  if (message.includes('下载链接已过期')) {
+    return `${message} 请重新发起下载。`;
   }
 
   // 处理网络错误
@@ -118,4 +139,13 @@ export function handleApiError(error: unknown, defaultMessage?: string): string 
 
   // 否则使用提供的默认消息或通用消息
   return defaultMessage || '操作失败，请稍后重试';
-} 
+}
+
+export function isAuthRequiredMessage(message: string): boolean {
+  return (
+    message.includes('请先登录') ||
+    message.includes('登录状态已失效') ||
+    message.includes('未授权') ||
+    message.includes('Unauthorized')
+  );
+}

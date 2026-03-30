@@ -8,6 +8,7 @@ import {
   MergeChunksRequest
 } from '@/types/upload';
 import SparkMD5 from 'spark-md5';
+import { isVideoFeatureEnabled } from '@/lib/features';
 
 export interface ExtendedUploadOptions extends UploadOptions {
   chunkSize?: number;
@@ -196,6 +197,9 @@ export class FileUploader {
 
         // 2. 初始化上传
         const fileType = options.file.type.startsWith('image/') ? FileType.IMAGE : FileType.VIDEO;
+        if (fileType === FileType.VIDEO && !isVideoFeatureEnabled) {
+          throw new Error('视频上传已关闭，当前阶段仅开放图片内容');
+        }
         const chunkSize = options.chunkSize || PERFORMANCE_CONFIG.DEFAULT_CHUNK_SIZE;
 
         const initRequest: InitUploadRequest = {

@@ -10,17 +10,18 @@ import type { QueryClient } from '@tanstack/react-query';
 // 系统导入查询键
 export const systemIngestQueryKeys = {
   all: ['system-ingest'] as const,
-  scan: () => [...systemIngestQueryKeys.all, 'scan'] as const,
+  scan: (customPath?: string) =>
+    [...systemIngestQueryKeys.all, 'scan', customPath ?? 'default'] as const,
   files: (userId?: string, page?: number, limit?: number) =>
     [...systemIngestQueryKeys.all, 'files', userId, page, limit] as const,
 };
 
 // 扫描系统导入目录
-export function useScanSystemIngestFiles() {
+export function useScanSystemIngestFiles(customPath?: string) {
   return useQuery<SystemIngestScanResult>({
-    queryKey: systemIngestQueryKeys.scan(),
+    queryKey: systemIngestQueryKeys.scan(customPath),
     queryFn: async () => {
-      return systemIngestService.scanFiles();
+      return systemIngestService.scanFiles(customPath?.trim() || undefined);
     },
     enabled: false,
     staleTime: 1000 * 60 * 5,
@@ -160,14 +161,19 @@ export function usePreviewFileMutation() {
 export const systemIngestQueryUtils = {
   invalidateAll: (queryClient: QueryClient) =>
     queryClient.invalidateQueries({ queryKey: systemIngestQueryKeys.all }),
-  invalidateScan: (queryClient: QueryClient) =>
-    queryClient.invalidateQueries({ queryKey: systemIngestQueryKeys.scan() }),
+  invalidateScan: (queryClient: QueryClient, customPath?: string) =>
+    queryClient.invalidateQueries({
+      queryKey: systemIngestQueryKeys.scan(customPath),
+    }),
   invalidateUserFiles: (queryClient: QueryClient, userId?: string) =>
     queryClient.invalidateQueries({
       queryKey: userId ? systemIngestQueryKeys.files(userId) : systemIngestQueryKeys.all,
     }),
-  setScanResult: (queryClient: QueryClient, data: SystemIngestScanResult) =>
-    queryClient.setQueryData(systemIngestQueryKeys.scan(), data),
+  setScanResult: (
+    queryClient: QueryClient,
+    data: SystemIngestScanResult,
+    customPath?: string,
+  ) => queryClient.setQueryData(systemIngestQueryKeys.scan(customPath), data),
   setUserFiles: (
     queryClient: QueryClient,
     userId: string,

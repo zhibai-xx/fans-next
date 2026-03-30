@@ -112,7 +112,7 @@ export interface UploadOptions {
 export interface Tag {
   id: string;
   name: string;
-  created_at: string;
+  created_at?: string;
 }
 
 // 分类类型
@@ -120,7 +120,7 @@ export interface Category {
   id: string;
   name: string;
   description?: string;
-  created_at: string;
+  created_at?: string;
 }
 
 // 创建标签请求
@@ -133,6 +133,13 @@ export interface CreateTagResponse {
   tag: Tag;
 }
 
+export interface CreateCategoryRequest {
+  name: string;
+  description?: string;
+}
+
+export type CreateCategoryResponse = Category;
+
 // 获取标签响应
 export interface GetTagsResponse {
   tags: Tag[];
@@ -141,4 +148,4 @@ export interface GetTagsResponse {
 // 获取分类响应
 export interface GetCategoriesResponse {
   categories: Category[];
-} 
+}

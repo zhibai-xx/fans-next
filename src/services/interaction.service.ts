@@ -1,4 +1,5 @@
-import { apiClient } from '@/lib/api-client';
+import { ApiError, apiClient } from '@/lib/api-client';
+import { getSession } from 'next-auth/react';
 import type {
   LikeResponse,
   FavoriteResponse,
@@ -12,11 +13,58 @@ import type {
   InteractionApiResponse
 } from '@/types/interaction';
 
+const AUTH_REQUIRED_MESSAGE = '登录状态已失效，请先登录后继续操作';
+
 /**
  * 互动服务类 - 处理点赞、收藏等互动功能
  */
 export class InteractionService {
   private static readonly BASE_URL = '/media/interaction';
+
+  private static async hasValidSession(): Promise<boolean> {
+    const session = await getSession();
+    return Boolean(session?.accessToken);
+  }
+
+  private static isRecoverableAuthError(error: unknown): boolean {
+    if (!(error instanceof ApiError)) {
+      return false;
+    }
+
+    return (
+      error.status === 401 ||
+      (typeof error.message === 'string' &&
+        error.message.includes('登录状态已失效'))
+    );
+  }
+
+  private static buildBatchLikeStatus(mediaIds: string[]): InteractionApiResponse<BatchLikeStatus> {
+    const likesStatus = mediaIds.reduce<Record<string, boolean>>((acc, mediaId) => {
+      acc[mediaId] = false;
+      return acc;
+    }, {});
+
+    return {
+      success: true,
+      data: {
+        likes_status: likesStatus,
+      },
+    };
+  }
+
+  private static buildBatchFavoriteStatus(mediaIds: string[]): InteractionApiResponse<BatchFavoriteStatus> {
+    const favoriteStatus = mediaIds.reduce<Record<string, boolean>>((acc, mediaId) => {
+      acc[mediaId] = false;
+      return acc;
+    }, {});
+
+    return {
+      success: true,
+      data: {
+        favorites_status: favoriteStatus,
+      },
+    };
+  }
 
   // ===========================================
   // 点赞相关方法
@@ -26,7 +74,11 @@ export class InteractionService {
    * 点赞媒体
    */
   static async likeMedia(mediaId: string): Promise<InteractionApiResponse<LikeResponse>> {
-    const response = await apiClient.post(`${this.BASE_URL}/like`, {
+    if (!(await this.hasValidSession())) {
+      throw new Error(AUTH_REQUIRED_MESSAGE);
+    }
+
+    const response = await apiClient.post<InteractionApiResponse<LikeResponse>>(`${this.BASE_URL}/like`, {
       media_id: mediaId,
     });
     return response;
@@ -36,7 +88,11 @@ export class InteractionService {
    * 取消点赞
    */
   static async unlikeMedia(mediaId: string): Promise<InteractionApiResponse> {
-    const response = await apiClient.delete(`${this.BASE_URL}/like/${mediaId}`);
+    if (!(await this.hasValidSession())) {
+      throw new Error(AUTH_REQUIRED_MESSAGE);
+    }
+
+    const response = await apiClient.delete<InteractionApiResponse>(`${this.BASE_URL}/like/${mediaId}`);
     return response;
   }
 
@@ -44,7 +100,17 @@ export class InteractionService {
    * 获取点赞状态
    */
   static async getLikeStatus(mediaId: string): Promise<InteractionApiResponse<LikeStatus>> {
-    const response = await apiClient.get(`${this.BASE_URL}/like/status/${mediaId}`);
+    if (!(await this.hasValidSession())) {
+      return {
+        success: true,
+        data: {
+          is_liked: false,
+          likes_count: 0,
+        },
+      };
+    }
+
+    const response = await apiClient.get<InteractionApiResponse<LikeStatus>>(`${this.BASE_URL}/like/status/${mediaId}`);
     return response;
   }
 
@@ -67,7 +133,11 @@ export class InteractionService {
    * 收藏媒体
    */
   static async favoriteMedia(mediaId: string): Promise<InteractionApiResponse<FavoriteResponse>> {
-    const response = await apiClient.post(`${this.BASE_URL}/favorite`, {
+    if (!(await this.hasValidSession())) {
+      throw new Error(AUTH_REQUIRED_MESSAGE);
+    }
+
+    const response = await apiClient.post<InteractionApiResponse<FavoriteResponse>>(`${this.BASE_URL}/favorite`, {
       media_id: mediaId,
     });
     return response;
@@ -77,7 +147,11 @@ export class InteractionService {
    * 取消收藏
    */
   static async unfavoriteMedia(mediaId: string): Promise<InteractionApiResponse> {
-    const response = await apiClient.delete(`${this.BASE_URL}/favorite/${mediaId}`);
+    if (!(await this.hasValidSession())) {
+      throw new Error(AUTH_REQUIRED_MESSAGE);
+    }
+
+    const response = await apiClient.delete<InteractionApiResponse>(`${this.BASE_URL}/favorite/${mediaId}`);
     return response;
   }
 
@@ -85,7 +159,17 @@ export class InteractionService {
    * 获取收藏状态
    */
   static async getFavoriteStatus(mediaId: string): Promise<InteractionApiResponse<FavoriteStatus>> {
-    const response = await apiClient.get(`${this.BASE_URL}/favorite/status/${mediaId}`);
+    if (!(await this.hasValidSession())) {
+      return {
+        success: true,
+        data: {
+          is_favorited: false,
+          favorites_count: 0,
+        },
+      };
+    }
+
+    const response = await apiClient.get<InteractionApiResponse<FavoriteStatus>>(`${this.BASE_URL}/favorite/status/${mediaId}`);
     return response;
   }
 
@@ -104,8 +188,21 @@ export class InteractionService {
    * 获取我的收藏列表
    */
   static async getMyFavorites(params: FavoriteListQuery = {}): Promise<FavoriteListResponse> {
+    if (!(await this.hasValidSession())) {
+      return {
+        success: true,
+        data: [],
+        pagination: {
+          page: params.page ?? 1,
+          limit: params.limit ?? 20,
+          total: 0,
+          totalPages: 0,
+        },
+      };
+    }
+
     const { page = 1, limit = 20 } = params;
-    return apiClient.get(`${this.BASE_URL}/favorites/my`, {
+    return apiClient.get<FavoriteListResponse>(`${this.BASE_URL}/favorites/my`, {
       params: { page, limit },
     });
   }
@@ -118,7 +215,19 @@ export class InteractionService {
    * 获取媒体互动状态（点赞+收藏）
    */
   static async getMediaInteractionStatus(mediaId: string): Promise<InteractionApiResponse<MediaInteractionStatus>> {
-    const response = await apiClient.get(`${this.BASE_URL}/status/${mediaId}`);
+    if (!(await this.hasValidSession())) {
+      return {
+        success: true,
+        data: {
+          is_liked: false,
+          is_favorited: false,
+          likes_count: 0,
+          favorites_count: 0,
+        },
+      };
+    }
+
+    const response = await apiClient.get<InteractionApiResponse<MediaInteractionStatus>>(`${this.BASE_URL}/status/${mediaId}`);
     return response;
   }
 
@@ -126,20 +235,42 @@ export class InteractionService {
    * 批量获取点赞状态
    */
   static async getBatchLikeStatus(mediaIds: string[]): Promise<InteractionApiResponse<BatchLikeStatus>> {
-    const response = await apiClient.post(`${this.BASE_URL}/batch/like-status`, {
-      media_ids: mediaIds,
-    });
-    return response;
+    if (!(await this.hasValidSession())) {
+      return this.buildBatchLikeStatus(mediaIds);
+    }
+
+    try {
+      const response = await apiClient.post<InteractionApiResponse<BatchLikeStatus>>(`${this.BASE_URL}/batch/like-status`, {
+        media_ids: mediaIds,
+      });
+      return response;
+    } catch (error) {
+      if (this.isRecoverableAuthError(error)) {
+        return this.buildBatchLikeStatus(mediaIds);
+      }
+      throw error;
+    }
   }
 
   /**
    * 批量获取收藏状态
    */
   static async getBatchFavoriteStatus(mediaIds: string[]): Promise<InteractionApiResponse<BatchFavoriteStatus>> {
-    const response = await apiClient.post(`${this.BASE_URL}/batch/favorite-status`, {
-      media_ids: mediaIds,
-    });
-    return response;
+    if (!(await this.hasValidSession())) {
+      return this.buildBatchFavoriteStatus(mediaIds);
+    }
+
+    try {
+      const response = await apiClient.post<InteractionApiResponse<BatchFavoriteStatus>>(`${this.BASE_URL}/batch/favorite-status`, {
+        media_ids: mediaIds,
+      });
+      return response;
+    } catch (error) {
+      if (this.isRecoverableAuthError(error)) {
+        return this.buildBatchFavoriteStatus(mediaIds);
+      }
+      throw error;
+    }
   }
 
   // ===========================================

@@ -36,9 +36,12 @@ export const ImageSearchBar: React.FC<ImageSearchBarProps> = ({
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [showFilters, setShowFilters] = useState(false);
-  const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [filterButtonRect, setFilterButtonRect] = useState<DOMRect | null>(null);
   const filterButtonRef = useRef<HTMLButtonElement>(null);
+  const selectedTags = useMemo(
+    () => (currentFilters.tagId ? [currentFilters.tagId] : []),
+    [currentFilters.tagId]
+  );
 
   // 搜索防抖
   useEffect(() => {
@@ -48,15 +51,6 @@ export const ImageSearchBar: React.FC<ImageSearchBarProps> = ({
 
     return () => clearTimeout(timer);
   }, [searchQuery, onSearch]);
-
-  // 同步标签状态
-  useEffect(() => {
-    if (currentFilters.tagId && !selectedTags.includes(currentFilters.tagId)) {
-      setSelectedTags([currentFilters.tagId]);
-    } else if (!currentFilters.tagId && selectedTags.length > 0) {
-      setSelectedTags([]);
-    }
-  }, [currentFilters.tagId, selectedTags]);
 
   // 更新筛选按钮位置
   useEffect(() => {
@@ -116,17 +110,14 @@ export const ImageSearchBar: React.FC<ImageSearchBarProps> = ({
     // 目前只支持单标签筛选
     if (selectedTags.includes(tagId)) {
       // 取消选择
-      setSelectedTags([]);
       handleFilterChange('tagId', undefined);
     } else {
       // 选择新标签（替换之前的选择）
-      setSelectedTags([tagId]);
       handleFilterChange('tagId', tagId);
     }
   };
 
   const clearAllFilters = () => {
-    setSelectedTags([]);
     onFilterChange({
       type: 'IMAGE', // 保持图片类型
       status: 'APPROVED', // 保持已发布状态

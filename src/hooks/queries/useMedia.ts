@@ -1,44 +1,17 @@
 import { useQuery, useMutation, useInfiniteQuery } from '@tanstack/react-query';
-import { AdminMediaService, Media, MediaFilters, MediaStats, PaginatedResponse, Tag, Category } from '@/services/admin-media.service';
-import { queryKeys, queryUtils } from '@/lib/query-client';
+import { AdminMediaService, type MediaFilters } from '@/services/admin-media.service';
+import { mediaQueryOptions } from '@/hooks/queries/media-query-options';
+import { queryUtils } from '@/lib/query-client';
 import { useToast } from '@/hooks/use-toast';
 
 // 无限滚动媒体列表
 export function useInfiniteMedia(filters: MediaFilters, limit: number = 24) {
-  return useInfiniteQuery({
-    queryKey: queryKeys.media.list(filters, 1, limit),
-    queryFn: async ({ pageParam = 1 }) => {
-      const response = await AdminMediaService.getAllMedia(filters, pageParam, limit);
-      if (!response.success) {
-        throw new Error(response.message || 'Failed to fetch media');
-      }
-      return response;
-    },
-    getNextPageParam: (lastPage) => {
-      const { pagination } = lastPage;
-      return pagination.page < pagination.totalPages ? pagination.page + 1 : undefined;
-    },
-    initialPageParam: 1,
-    staleTime: 1000 * 60, // 1 minute
-  });
+  return useInfiniteQuery(mediaQueryOptions.infiniteList(filters, limit));
 }
 
 // 媒体管理 - 分页版本（非无限滚动）
 export function useMediaManagement(filters: MediaFilters, page: number, limit: number) {
-  const queryKey = queryKeys.media.list(filters, page, limit);
-
-  const { data, isLoading, error, isError, refetch } = useQuery<PaginatedResponse<Media>, Error>({
-    queryKey: queryKey,
-    queryFn: async () => {
-      const response = await AdminMediaService.getAllMedia(filters, page, limit);
-      if (!response.success) {
-        throw new Error(response.message || 'Failed to fetch media');
-      }
-      return response;
-    },
-    placeholderData: (previousData) => previousData, // Keep previous data while fetching new
-    staleTime: 1000 * 60, // 1 minute
-  });
+  const { data, isLoading, error, isError, refetch } = useQuery(mediaQueryOptions.list(filters, page, limit));
 
   const media = data?.data || [];
   const pagination = data?.pagination || { page: 1, limit: 20, total: 0, totalPages: 0 };
@@ -55,48 +28,17 @@ export function useMediaManagement(filters: MediaFilters, page: number, limit: n
 
 // 媒体统计数据
 export function useMediaStats() {
-  return useQuery<MediaStats, Error>({
-    queryKey: queryKeys.media.stats(),
-    queryFn: async () => {
-      const response = await AdminMediaService.getMediaStats();
-      if (!response.success) {
-        throw new Error(response.message || 'Failed to fetch media stats');
-      }
-      return response.data;
-    },
-    staleTime: 1000 * 60 * 5, // 5 minutes
-    refetchInterval: 1000 * 60 * 5, // Refetch every 5 minutes
-  });
+  return useQuery(mediaQueryOptions.stats());
 }
 
 // 标签使用统计
 export function useTagUsageStats() {
-  return useQuery<Tag[], Error>({
-    queryKey: queryKeys.tags.usage(),
-    queryFn: async () => {
-      const response = await AdminMediaService.getTagUsageStats();
-      if (!response.success) {
-        throw new Error(response.message || 'Failed to fetch tag stats');
-      }
-      return response.data;
-    },
-    staleTime: 1000 * 60 * 5, // 5 minutes
-  });
+  return useQuery(mediaQueryOptions.tagUsage());
 }
 
 // 分类使用统计
 export function useCategoryUsageStats() {
-  return useQuery<Category[], Error>({
-    queryKey: queryKeys.categories.usage(),
-    queryFn: async () => {
-      const response = await AdminMediaService.getCategoryUsageStats();
-      if (!response.success) {
-        throw new Error(response.message || 'Failed to fetch category stats');
-      }
-      return response.data;
-    },
-    staleTime: 1000 * 60 * 5, // 5 minutes
-  });
+  return useQuery(mediaQueryOptions.categoryUsage());
 }
 
 // 媒体类型选项
@@ -206,7 +148,7 @@ export function useUpdateMediaInfoMutation() {
         title: updates.title,
         description: updates.description,
         tag_ids: updates.tags,
-        category_id: updates.categoryId,
+        category_id: updates.categoryId ?? undefined,
       };
 
       const response = await AdminMediaService.updateMediaInfo(mediaId, backendUpdates);

@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getToken } from 'next-auth/jwt';
 
+const isVideoFeatureEnabled =
+  process.env.NEXT_PUBLIC_ENABLE_VIDEO_FEATURE === 'true';
+
 // 需要登录才能访问的路径
 const protectedPaths = [
   '/community',
@@ -23,15 +26,18 @@ const isAdminOnlyPath = (path: string) => {
   return adminOnlyPaths.some((adminPath) => path.startsWith(adminPath));
 };
 
-export async function middleware(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
+
+  if (!isVideoFeatureEnabled && pathname.startsWith('/videos')) {
+    return NextResponse.redirect(new URL('/images', request.url));
+  }
 
   // 跳过静态资源和API路径
   if (
     pathname.startsWith('/_next') ||
     pathname.startsWith('/images') ||
     pathname.startsWith('/icons') ||
-    pathname.startsWith('/videos') ||
     pathname.startsWith('/api') ||
     pathname === '/login' ||
     pathname === '/signup' ||

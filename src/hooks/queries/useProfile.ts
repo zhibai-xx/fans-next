@@ -2,40 +2,37 @@ import { useQuery, useMutation } from '@tanstack/react-query';
 import { useMemo } from 'react';
 import { userService, UserProfile, UpdateProfileRequest } from '@/services/user.service';
 import { useToast } from '@/hooks/use-toast';
-import { useAuthStore } from '@/store/auth.store';
-import type { User } from '@/store/auth.store';
+import { useAuthStore, useUser } from '@/store/auth.store';
 import { queryUtils } from '@/lib/query-client';
+import { mergeProfileIntoStoreUser } from '@/lib/auth/user-mappers';
+import { profileQueryKeys, profileQueryOptions } from '@/hooks/queries/profile-query-options';
 
-// Profile-related query keys
-export const profileQueryKeys = {
-  profile: ['profile'] as const,
-  downloads: ['profile', 'downloads'] as const,
-  favorites: ['profile', 'favorites'] as const,
-  uploads: ['profile', 'uploads'] as const,
-  systemIngest: ['profile', 'system-ingest'] as const,
+type UpdateProfileMutate = (
+  variables: UpdateProfileRequest,
+  options?: {
+    onSuccess?: (updatedProfile: UserProfile) => void | Promise<void>;
+    onError?: (error: Error) => void;
+  },
+) => void;
+
+type ProfileFormState = {
+  profile: UserProfile | undefined;
+  isLoading: boolean;
+  error: Error | null;
+  initialFormData: UpdateProfileRequest;
+  updateProfile: UpdateProfileMutate;
+  isUpdating: boolean;
+  updateError: Error | null;
 };
 
 // Get user profile
 export const useUserProfile = () => {
-  const isAuthenticated = useAuthStore(state => state.isAuthenticated);
+  const user = useUser();
+  const isAuthenticated = Boolean(user);
 
-  return useQuery<UserProfile, Error>({
-    queryKey: profileQueryKeys.profile,
-    queryFn: async () => {
-      if (!isAuthenticated) {
-        throw new Error('用户未登录');
-      }
-      return await userService.getProfile();
-    },
-    enabled: isAuthenticated, // 只有在认证时才执行查询
-    staleTime: 1000 * 60 * 5, // 5 minutes
-    retry: (failureCount, error) => {
-      // 如果是认证错误，不要重试
-      if (error.message.includes('未登录') || error.message.includes('过期')) {
-        return false;
-      }
-      return failureCount < 3;
-    },
+  return useQuery({
+    ...profileQueryOptions.profile(isAuthenticated),
+    enabled: isAuthenticated,
   });
 };
 
@@ -67,19 +64,7 @@ export const useUpdateProfileMutation = () => {
 
       // 更新Zustand中的用户信息
       const currentUser = useAuthStore.getState().user;
-      if (currentUser) {
-        const mergedUser: User = {
-          ...currentUser,
-          ...updatedProfile,
-          email: updatedProfile.email || currentUser.email,
-          nickname: updatedProfile.nickname || currentUser.nickname,
-          phoneNumber: updatedProfile.phoneNumber || currentUser.phoneNumber,
-          avatar_url: updatedProfile.avatar_url || currentUser.avatar_url,
-        };
-        setUser(mergedUser);
-      } else {
-        setUser(updatedProfile as User);
-      }
+      setUser(mergeProfileIntoStoreUser(currentUser, updatedProfile));
 
       // 使profile查询失效，触发重新获取
       queryUtils.invalidateQuery(profileQueryKeys.profile);
@@ -112,19 +97,7 @@ export const useAvatarUploadMutation = () => {
       });
 
       const currentUser = useAuthStore.getState().user;
-      if (currentUser) {
-        const mergedUser: User = {
-          ...currentUser,
-          ...updatedProfile,
-          email: updatedProfile.email || currentUser.email,
-          nickname: updatedProfile.nickname || currentUser.nickname,
-          phoneNumber: updatedProfile.phoneNumber || currentUser.phoneNumber,
-          avatar_url: updatedProfile.avatar_url || currentUser.avatar_url,
-        };
-        setUser(mergedUser);
-      } else {
-        setUser(updatedProfile as User);
-      }
+      setUser(mergeProfileIntoStoreUser(currentUser, updatedProfile));
 
       queryUtils.invalidateQuery(profileQueryKeys.profile);
     },
@@ -175,68 +148,39 @@ export const useChangePasswordMutation = () => {
 
 // Get user downloads
 export const useUserDownloads = () => {
-  const isAuthenticated = useAuthStore(state => state.isAuthenticated);
+  const user = useUser();
+  const isAuthenticated = Boolean(user);
 
   return useQuery({
-    queryKey: profileQueryKeys.downloads,
-    queryFn: async () => {
-      if (!isAuthenticated) {
-        throw new Error('用户未登录');
-      }
-      return userService.getDownloads();
-    },
+    ...profileQueryOptions.downloads(isAuthenticated),
     enabled: isAuthenticated,
-    staleTime: 1000 * 60 * 2, // 2 minutes
   });
 };
 
 // Get user favorites
 export const useUserFavorites = () => {
-  const isAuthenticated = useAuthStore(state => state.isAuthenticated);
+  const user = useUser();
+  const isAuthenticated = Boolean(user);
 
   return useQuery({
-    queryKey: profileQueryKeys.favorites,
-    queryFn: async () => {
-      if (!isAuthenticated) {
-        throw new Error('用户未登录');
-      }
-      // 这里需要实现收藏记录的API
-      return [];
-    },
+    ...profileQueryOptions.favorites(isAuthenticated),
     enabled: isAuthenticated,
-    staleTime: 1000 * 60 * 2, // 2 minutes
   });
 };
 
 // Get user uploads with pagination
 export const useUserUploads = (page: number = 1, limit: number = 20) => {
-  const isAuthenticated = useAuthStore(state => state.isAuthenticated);
+  const user = useUser();
+  const isAuthenticated = Boolean(user);
 
   return useQuery({
-    queryKey: [...profileQueryKeys.uploads, page, limit],
-    queryFn: async () => {
-      if (!isAuthenticated) {
-        throw new Error('用户未登录');
-      }
-      // 这里需要实现用户上传记录的API
-      return {
-        data: [],
-        pagination: {
-          page,
-          limit,
-          total: 0,
-          totalPages: 0,
-        },
-      };
-    },
+    ...profileQueryOptions.uploads(isAuthenticated, page, limit),
     enabled: isAuthenticated,
-    staleTime: 1000 * 60 * 2, // 2 minutes
-    placeholderData: (previousData) => previousData,
   });
 };
 
 // Profile form state management hook
-export const useProfileForm = () => {
+export const useProfileForm = (): ProfileFormState => {
   const { data: profile, isLoading: isProfileLoading, error: profileError } = useUserProfile();
   const updateProfileMutation = useUpdateProfileMutation();
 
@@ -260,11 +204,11 @@ export const useProfileForm = () => {
   return {
     profile,
     isLoading: isProfileLoading,
-    error: profileError,
+    error: profileError ?? null,
     initialFormData,
     updateProfile: updateProfileMutation.mutate,
     isUpdating: updateProfileMutation.isPending,
-    updateError: updateProfileMutation.error,
+    updateError: updateProfileMutation.error ?? null,
   };
 };
 

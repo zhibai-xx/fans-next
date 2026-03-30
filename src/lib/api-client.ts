@@ -1,5 +1,6 @@
-import { getSession } from 'next-auth/react';
+import { getSession, signOut } from 'next-auth/react';
 import type { ApiErrorPayload } from '@/types/api';
+import { useAuthStore } from '@/store/auth.store';
 
 type RequestMethod = 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
 
@@ -23,12 +24,24 @@ export class ApiError extends Error {
 }
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000/api';
+const AUTH_EXPIRED_MESSAGE_KEYWORDS = [
+  'jwt expired',
+  'token expired',
+  '未授权',
+  'unauthorized',
+  '会话已失效',
+  'session expired',
+  'refresh token 无效',
+  'refresh token 已失效',
+  '请重新登录',
+];
 
 export class ApiClient {
   private baseUrl: string;
+  private isHandlingAuthExpired = false;
 
   constructor(baseUrl = API_URL) {
-    this.baseUrl = baseUrl;
+    this.baseUrl = baseUrl.replace(/\/$/, '');
   }
 
   /**
@@ -72,11 +85,49 @@ export class ApiClient {
       if (session?.accessToken) {
         headers['Authorization'] = `Bearer ${session.accessToken}`;
       } else {
-        throw new Error('未授权访问');
+        throw new ApiError(401, '未授权访问');
       }
     }
 
     return headers;
+  }
+
+  /**
+   * 判断是否为会话过期错误
+   */
+  private isSessionExpiredError(status: number, message: string): boolean {
+    if (status !== 401) {
+      return false;
+    }
+
+    const normalizedMessage = message.toLowerCase();
+    return AUTH_EXPIRED_MESSAGE_KEYWORDS.some((keyword) =>
+      normalizedMessage.includes(keyword)
+    );
+  }
+
+  /**
+   * 处理会话过期：清理本地状态 + 触发NextAuth登出
+   */
+  private async handleSessionExpired(errorMessage: string): Promise<void> {
+    if (this.isHandlingAuthExpired || typeof window === 'undefined') {
+      return;
+    }
+
+    this.isHandlingAuthExpired = true;
+
+    try {
+      useAuthStore.getState().logout();
+      await signOut({ redirect: false });
+      window.dispatchEvent(
+        new CustomEvent('auth:expired', { detail: { message: errorMessage } })
+      );
+    } catch {
+      // 兜底：即使NextAuth退出失败，也要保证前端本地态清理
+      useAuthStore.getState().logout();
+    } finally {
+      this.isHandlingAuthExpired = false;
+    }
   }
 
   /**
@@ -118,6 +169,10 @@ export class ApiClient {
           errorPayload.message ||
           errorPayload.error ||
           errorMessage;
+      }
+
+      if (this.isSessionExpiredError(response.status, errorMessage)) {
+        await this.handleSessionExpired(errorMessage);
       }
 
       throw new ApiError(response.status, errorMessage, errorPayload);
@@ -188,6 +243,9 @@ export class ApiClient {
       return await this.handleResponse<T>(response);
     } catch (error) {
       if (error instanceof ApiError) {
+        if (this.isSessionExpiredError(error.status, error.message)) {
+          await this.handleSessionExpired(error.message);
+        }
         throw error;
       }
 
@@ -221,5 +279,12 @@ export class ApiClient {
   }
 }
 
+const resolveApiBaseUrl = (): string => {
+  if (typeof window === 'undefined') {
+    return API_URL;
+  }
+  return '/api';
+};
+
 // 创建默认API客户端实例
-export const apiClient = new ApiClient(); 
+export const apiClient = new ApiClient(resolveApiBaseUrl());

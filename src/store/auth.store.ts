@@ -20,7 +20,6 @@ export interface User {
 interface AuthState {
   // 状态
   user: User | null;
-  isAuthenticated: boolean;
   isLoading: boolean;
 
   // 操作
@@ -36,13 +35,14 @@ interface AuthState {
 }
 
 // 权限配置
-const PERMISSIONS = {
+const PERMISSIONS: Record<string, readonly User['role'][]> = {
   ADMIN_ACCESS: ['ADMIN'],
+  USER_ACCESS: ['USER', 'ADMIN'],
   USER_MANAGEMENT: ['ADMIN'],
   MEDIA_MANAGEMENT: ['ADMIN'],
   REVIEW_MANAGEMENT: ['ADMIN'],
   SYSTEM_MONITORING: ['ADMIN'],
-} as const;
+};
 
 // 创建认证 store
 export const useAuthStore = create<AuthState>()(
@@ -50,13 +50,11 @@ export const useAuthStore = create<AuthState>()(
     (set, get) => ({
       // 初始状态
       user: null,
-      isAuthenticated: false,
       isLoading: true, // 初始加载状态
 
       // 设置用户
       setUser: (user) => set({
         user,
-        isAuthenticated: !!user,
         isLoading: false
       }),
 
@@ -66,14 +64,12 @@ export const useAuthStore = create<AuthState>()(
       // 登录
       login: (user) => set({
         user,
-        isAuthenticated: true,
         isLoading: false
       }),
 
       // 登出
       logout: () => set({
         user: null,
-        isAuthenticated: false,
         isLoading: false
       }),
 
@@ -103,19 +99,15 @@ export const useAuthStore = create<AuthState>()(
     }),
     {
       name: 'auth-storage', // localStorage key
-      skipHydration: true, // 跳过 SSR hydration，避免服务端和客户端状态不一致
-      partialize: (state) => ({
-        user: state.user,
-        isAuthenticated: state.isAuthenticated,
-        // 不持久化 isLoading 状态
-      }),
+      skipHydration: true, // 保留手动 rehydrate 流程，但不再持久化认证快照，避免展示过期登录态
+      partialize: () => ({}),
     }
   )
 );
 
 // 选择器 hooks（用于性能优化）
 export const useUser = () => useAuthStore((state) => state.user);
-export const useIsAuthenticated = () => useAuthStore((state) => state.isAuthenticated);
+export const useIsAuthenticated = () => useAuthStore((state) => Boolean(state.user));
 export const useIsAdmin = () => useAuthStore((state) => state.isAdmin());
 export const useAuthLoading = () => useAuthStore((state) => state.isLoading);
 
@@ -124,12 +116,15 @@ export const useHasPermission = (permission: string) =>
   useAuthStore((state) => state.hasPermission(permission));
 
 export const useRequireAuth = () => {
-  const { isAuthenticated, user } = useAuthStore();
+  const user = useAuthStore((state) => state.user);
+  const isAuthenticated = Boolean(user);
   return { isAuthenticated, user, isRequired: !isAuthenticated };
 };
 
 export const useRequireAdmin = () => {
-  const { isAuthenticated, isAdmin } = useAuthStore();
+  const user = useAuthStore((state) => state.user);
+  const isAdmin = useAuthStore((state) => state.isAdmin);
+  const isAuthenticated = Boolean(user);
   return {
     isAuthenticated,
     isAdmin: isAdmin(),

@@ -55,10 +55,7 @@ export const useCreateTagMutation = () => {
 
   return useMutation({
     mutationFn: async (tagName: string) => {
-      const response = await uploadService.createTag(tagName);
-      if (!response.success) {
-        throw new Error(response.message || 'Failed to create tag');
-      }
+      const response = await uploadService.createTag({ name: tagName });
       return response.tag;
     },
     onSuccess: (newTag) => {
@@ -91,11 +88,7 @@ export const useCreateCategoryMutation = () => {
 
   return useMutation({
     mutationFn: async (categoryName: string) => {
-      const response = await uploadService.createCategory(categoryName);
-      if (!response.success) {
-        throw new Error(response.message || 'Failed to create category');
-      }
-      return response.category;
+      return uploadService.createCategory({ name: categoryName });
     },
     onSuccess: (newCategory) => {
       toast({

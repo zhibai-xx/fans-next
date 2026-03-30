@@ -6,16 +6,7 @@ import {
   useAuthLoading,
   useAuthStore
 } from '@/store/auth.store';
-
-// 保持向后兼容的User接口，映射到Zustand的User类型
-export interface User {
-  id: string;
-  username: string;
-  email: string;
-  role: 'USER' | 'ADMIN';
-  nickname?: string;
-  avatar_url?: string;
-}
+import { mapStoreUserToAuthViewUser, type AuthViewUser } from '@/lib/auth/user-mappers';
 
 export function useAuth() {
   const { data: session, status } = useSession();
@@ -29,14 +20,7 @@ export function useAuth() {
   const authStore = useAuthStore();
 
   // 转换Zustand用户格式为兼容格式
-  const user: User | null = zustandUser ? {
-    id: zustandUser.uuid || zustandUser.id.toString(),
-    username: zustandUser.username,
-    email: zustandUser.email,
-    role: zustandUser.role,
-    nickname: zustandUser.nickname,
-    avatar_url: zustandUser.avatar_url,
-  } : null;
+  const user: AuthViewUser | null = mapStoreUserToAuthViewUser(zustandUser);
 
   // 权限检查函数 - 使用Zustand的逻辑
   const hasRole = (role: 'USER' | 'ADMIN'): boolean => {

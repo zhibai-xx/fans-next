@@ -169,6 +169,17 @@ export const usePerformanceMonitor = () => {
     }
   }, [recordMetric]);
 
+  // 计算平均持续时间
+  const calculateAverageDuration = useCallback(
+    (metrics: PerformanceMetric[], type: PerformanceMetric['type']) => {
+      const typeMetrics = metrics.filter(m => m.type === type);
+      return typeMetrics.length > 0
+        ? typeMetrics.reduce((sum, m) => sum + m.duration, 0) / typeMetrics.length
+        : 0;
+    },
+    []
+  );
+
   // 获取性能报告
   const getPerformanceReport = useCallback(() => {
     const metrics = metricsRef.current;
@@ -197,15 +208,7 @@ export const usePerformanceMonitor = () => {
     };
 
     return report;
-  }, []);
-
-  // 计算平均持续时间
-  const calculateAverageDuration = (metrics: PerformanceMetric[], type: string) => {
-    const typeMetrics = metrics.filter(m => m.type === type);
-    return typeMetrics.length > 0
-      ? typeMetrics.reduce((sum, m) => sum + m.duration, 0) / typeMetrics.length
-      : 0;
-  };
+  }, [calculateAverageDuration]);
 
   // 清空性能数据
   const clearMetrics = useCallback(() => {

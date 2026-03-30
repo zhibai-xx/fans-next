@@ -124,8 +124,10 @@ export default function MediaRecyclePage() {
 
   const items = useMemo(() => recycleQuery.data?.data ?? [], [recycleQuery.data]);
   const pagination = recycleQuery.data?.pagination;
-
-  useEffect(() => setSelectedIds([]), [items]);
+  const selectedIdsInView = useMemo(() => {
+    const itemIdSet = new Set(items.map((item) => item.id));
+    return selectedIds.filter((id) => itemIdSet.has(id));
+  }, [items, selectedIds]);
 
   const toggleSelect = (id: string, checked: boolean) => {
     setSelectedIds((prev) =>
@@ -151,7 +153,7 @@ export default function MediaRecyclePage() {
       Icon: ShieldCheck,
       color: 'text-emerald-500',
       title: '已选待恢复',
-      value: selectedIds.length,
+      value: selectedIdsInView.length,
       note: '确认后恢复原状态',
     },
     {
@@ -217,8 +219,8 @@ export default function MediaRecyclePage() {
           </Button>
           <Button
             className="gap-2"
-            disabled={selectedIds.length === 0 || restoreMutation.isPending}
-            onClick={() => setConfirmState({ type: 'restore', ids: selectedIds })}
+            disabled={selectedIdsInView.length === 0 || restoreMutation.isPending}
+            onClick={() => setConfirmState({ type: 'restore', ids: selectedIdsInView })}
           >
             <RotateCcw className="h-4 w-4" />
             恢复
@@ -226,8 +228,8 @@ export default function MediaRecyclePage() {
           <Button
             variant="destructive"
             className="gap-2"
-            disabled={selectedIds.length === 0 || hardDeleteMutation.isPending}
-            onClick={() => setConfirmState({ type: 'hard-delete', ids: selectedIds })}
+            disabled={selectedIdsInView.length === 0 || hardDeleteMutation.isPending}
+            onClick={() => setConfirmState({ type: 'hard-delete', ids: selectedIdsInView })}
           >
             <Trash2 className="h-4 w-4" />
             彻底删除
@@ -250,13 +252,13 @@ export default function MediaRecyclePage() {
 
       <div className="flex items-center gap-2 text-sm text-gray-600">
         <Checkbox
-          checked={items.length > 0 && selectedIds.length === items.length}
+          checked={items.length > 0 && selectedIdsInView.length === items.length}
           onCheckedChange={(checked) =>
             setSelectedIds(checked ? items.map((item) => item.id) : [])
           }
         />
         <span>
-          已选 {selectedIds.length} 项（共 {pagination?.total ?? 0} 项）
+          已选 {selectedIdsInView.length} 项（共 {pagination?.total ?? 0} 项）
         </span>
       </div>
 
@@ -270,7 +272,7 @@ export default function MediaRecyclePage() {
               <div className="flex items-start justify-between gap-4">
                 <div className="flex items-start gap-3">
                   <Checkbox
-                    checked={selectedIds.includes(item.id)}
+                    checked={selectedIdsInView.includes(item.id)}
                     onCheckedChange={(checked) => toggleSelect(item.id, !!checked)}
                   />
                   <div className="space-y-1">

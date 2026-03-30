@@ -4,6 +4,7 @@ import type { MediaSourceMetadata } from '@/types/media';
 export interface MediaUser {
   uuid: string;
   username: string;
+  nickname?: string;
   avatar_url?: string;
 }
 

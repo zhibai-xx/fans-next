@@ -11,6 +11,8 @@ import {
   UploadProgressResponse,
   CreateTagRequest,
   CreateTagResponse,
+  CreateCategoryRequest,
+  CreateCategoryResponse,
   GetTagsResponse,
   GetCategoriesResponse,
 } from '@/types/upload';
@@ -87,6 +89,18 @@ export class UploadService {
    */
   static async getCategories(): Promise<GetCategoriesResponse> {
     return await apiClient.get<GetCategoriesResponse>('/media/categories');
+  }
+
+  /**
+   * 创建新分类
+   */
+  static async createCategory(
+    data: CreateCategoryRequest,
+  ): Promise<CreateCategoryResponse> {
+    return await apiClient.post<CreateCategoryResponse>(
+      '/media/categories',
+      data,
+    );
   }
 }
 

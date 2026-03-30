@@ -107,6 +107,7 @@ export interface ApiResponse<T> {
 }
 
 export interface LogFilters {
+  search?: string;
   operation_type?: string;
   module?: string;
   action?: string;
@@ -142,16 +143,19 @@ export class AdminLogsService {
       )
     };
 
-    const response = await apiClient.get('/admin/logs/operations', { params });
-    return response.data;
+    return apiClient.get<PaginatedResponse<OperationLog> | OperationLog[]>(
+      '/admin/logs/operations',
+      { params },
+    );
   }
 
   /**
    * 获取操作日志统计
    */
   static async getOperationStats(days: number = 30): Promise<ApiResponse<OperationLogStats>> {
-    const response = await apiClient.get(`/admin/logs/operations/stats?days=${days}`);
-    return response.data;
+    return apiClient.get<ApiResponse<OperationLogStats>>(
+      `/admin/logs/operations/stats?days=${days}`,
+    );
   }
 
   /**
@@ -170,16 +174,19 @@ export class AdminLogsService {
       )
     };
 
-    const response = await apiClient.get('/admin/logs/logins', { params });
-    return response.data;
+    return apiClient.get<PaginatedResponse<LoginLog> | LoginLog[]>(
+      '/admin/logs/logins',
+      { params },
+    );
   }
 
   /**
    * 获取登录日志统计
    */
   static async getLoginStats(days: number = 30): Promise<ApiResponse<LoginLogStats>> {
-    const response = await apiClient.get(`/admin/logs/logins/stats?days=${days}`);
-    return response.data;
+    return apiClient.get<ApiResponse<LoginLogStats>>(
+      `/admin/logs/logins/stats?days=${days}`,
+    );
   }
 
   /**
@@ -196,7 +203,9 @@ export class AdminLogsService {
       days: days.toString()
     };
 
-    const response = await apiClient.get('/admin/logs/users/activity', { params });
-    return response.data;
+    return apiClient.get<PaginatedResponse<UserActivityStats>>(
+      '/admin/logs/users/activity',
+      { params },
+    );
   }
 }

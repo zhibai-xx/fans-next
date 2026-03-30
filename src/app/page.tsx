@@ -1,14 +1,19 @@
 import Image from "next/image";
 import Link from "next/link";
+import { isVideoFeatureEnabled } from "@/lib/features";
 
 export default function Home() {
+  const gridClassName = isVideoFeatureEnabled
+    ? 'grid grid-cols-1 md:grid-cols-3 gap-6'
+    : 'grid grid-cols-1 md:grid-cols-2 gap-6';
+
   return (
     <div className="max-w-7xl mx-auto">
       <h1 className="text-4xl font-bold mb-8">张婧仪粉丝社区</h1>
       
       <section className="mb-16">
         <h2 className="text-2xl font-semibold mb-4">热门工具</h2>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className={gridClassName}>
           <FeatureCard 
             title="精选照片" 
             description="浏览张婧仪高清精选照片，按时间或项目分类整理" 
@@ -17,13 +22,15 @@ export default function Home() {
             bgColor="bg-amber-50"
             isPriority={true}
           />
-          <FeatureCard 
-            title="视频合集" 
-            description="收录影视作品、综艺节目和幕后花絮视频" 
-            image="/assets/zjy.jpeg"
-            link="/videos" 
-            bgColor="bg-blue-50"
-          />
+          {isVideoFeatureEnabled ? (
+            <FeatureCard 
+              title="视频合集" 
+              description="收录影视作品、综艺节目和幕后花絮视频" 
+              image="/assets/zjy.jpeg"
+              link="/videos" 
+              bgColor="bg-blue-50"
+            />
+          ) : null}
           <FeatureCard 
             title="支持我们" 
             description="了解如何在不涉及交易的前提下，自愿支持站点运营" 

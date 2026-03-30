@@ -61,10 +61,6 @@ const ModernVideoPlayerWrapper = React.memo(function ModernVideoPlayerWrapper({
   const containerRef = useRef<HTMLDivElement>(null);
   const [isReady, setIsReady] = useState(false);
 
-  useEffect(() => {
-    setIsReady(false);
-  }, [media.id]);
-
   const videoSources = useMemo(
     () => buildVideoSources(media, { isAuthenticated: true }),
     [media],
@@ -114,7 +110,13 @@ const ModernVideoPlayerWrapper = React.memo(function ModernVideoPlayerWrapper({
   );
 });
 
-type ReviewStatus = 'PENDING_REVIEW' | 'APPROVED' | 'REJECTED';
+type ReviewStatus =
+  | 'PENDING_REVIEW'
+  | 'APPROVED'
+  | 'REJECTED'
+  | 'USER_DELETED'
+  | 'ADMIN_DELETED'
+  | 'SYSTEM_HIDDEN';
 
 interface MediaFormState {
   title: string;
@@ -123,6 +125,20 @@ interface MediaFormState {
   status: ReviewStatus;
   tag_ids: string[];
 }
+
+const toEditableReviewStatus = (
+  status: ReviewStatus,
+): 'PENDING_REVIEW' | 'APPROVED' | 'REJECTED' | undefined => {
+  if (
+    status === 'PENDING_REVIEW' ||
+    status === 'APPROVED' ||
+    status === 'REJECTED'
+  ) {
+    return status;
+  }
+
+  return undefined;
+};
 
 export function ModernMediaDetailModal({
   media,
@@ -206,7 +222,7 @@ export function ModernMediaDetailModal({
         formData.category_id && formData.category_id !== 'none' && formData.category_id.trim() !== ''
           ? formData.category_id
           : undefined,
-      status: formData.status,
+      status: toEditableReviewStatus(formData.status),
       tag_ids: formData.tag_ids
     };
   }, [formData]);
@@ -368,7 +384,7 @@ export function ModernMediaDetailModal({
                   />
                 </div>
               ) : (
-                <ModernVideoPlayerWrapper media={media} style={previewContainerStyle} />
+                <ModernVideoPlayerWrapper key={media.id} media={media} style={previewContainerStyle} />
               )}
             </CardContent>
           </Card>

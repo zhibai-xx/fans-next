@@ -21,6 +21,7 @@ import { buildVideoSources, getPosterUrl, getVideoContainerStyle } from '@/lib/u
 import RobustVideoPlayer from '@/components/video/RobustVideoPlayer';
 import { getViewSessionId } from '@/lib/view-session';
 import { requestMediaDownload } from '@/lib/utils/media-download';
+import { handleApiError } from '@/lib/utils/error-handler';
 
 const formatDuration = (seconds?: number | null) => {
   if (typeof seconds !== 'number' || Number.isNaN(seconds)) {
@@ -225,7 +226,7 @@ export default function ModernVideoDetailPage({ params }: VideoDetailPageProps) 
       console.error('下载失败', error);
       toast({
         title: '下载失败',
-        description: '无法下载该视频，请稍后重试',
+        description: handleApiError(error, '无法下载该视频，请稍后重试'),
         variant: 'destructive',
       });
     } finally {

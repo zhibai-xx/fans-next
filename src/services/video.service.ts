@@ -1,6 +1,9 @@
 import { apiClient } from '@/lib/api-client';
+import { getSession } from 'next-auth/react';
 import type { MediaSourceMetadata } from '@/types/media';
 import type { InteractionApiResponse } from '@/types/interaction';
+
+const AUTH_REQUIRED_MESSAGE = '登录状态已失效，请先登录后继续操作';
 
 // 视频相关的类型定义 - 基于实际的media API响应格式
 type MediaTagRelation = {
@@ -25,6 +28,7 @@ export interface VideoItem {
     | 'PENDING_REVIEW'
     | 'APPROVED'
     | 'REJECTED'
+    | 'PROCESSING'
     | 'USER_DELETED'
     | 'ADMIN_DELETED'
     | 'SYSTEM_HIDDEN';
@@ -39,6 +43,7 @@ export interface VideoItem {
   user: {
     uuid: string;
     username: string;
+    nickname?: string;
     avatar_url?: string;
   };
   category?: {
@@ -148,6 +153,11 @@ export interface IncrementViewPayload {
  * 连接到我们升级后的视频处理后端
  */
 export class VideoService {
+  private static async hasValidSession(): Promise<boolean> {
+    const session = await getSession();
+    return Boolean(session?.accessToken);
+  }
+
   /**
  * 获取视频列表
  */
@@ -211,17 +221,25 @@ export class VideoService {
     videoId: string,
     payload?: Omit<IncrementViewPayload, 'mediaId'>,
   ): Promise<InteractionApiResponse<{ views?: number }>> {
-    return apiClient.post<InteractionApiResponse<{ views?: number }>>(`/media/${videoId}/view`, {
-      sessionId: payload?.sessionId,
-      mediaType: payload?.mediaType ?? 'VIDEO',
-      event: payload?.event ?? 'play',
-    });
+    return apiClient.post<InteractionApiResponse<{ views?: number }>>(
+      `/media/${videoId}/view`,
+      {
+        sessionId: payload?.sessionId,
+        mediaType: payload?.mediaType ?? 'VIDEO',
+        event: payload?.event ?? 'play',
+      },
+      { withAuth: false },
+    );
   }
 
   /**
    * 点赞视频
    */
   static async likeVideo(videoId: string, isLiked: boolean): Promise<InteractionApiResponse<null>> {
+    if (!(await this.hasValidSession())) {
+      throw new Error(AUTH_REQUIRED_MESSAGE);
+    }
+
     if (isLiked) {
       return apiClient.post<InteractionApiResponse<null>>(`/media/interaction/like`, { media_id: videoId });
     }
@@ -233,6 +251,10 @@ export class VideoService {
    * 收藏视频
    */
   static async favoriteVideo(videoId: string, isFavorited: boolean): Promise<InteractionApiResponse<null>> {
+    if (!(await this.hasValidSession())) {
+      throw new Error(AUTH_REQUIRED_MESSAGE);
+    }
+
     if (isFavorited) {
       return apiClient.post<InteractionApiResponse<null>>(`/media/interaction/favorite`, { media_id: videoId });
     }
@@ -245,6 +267,13 @@ export class VideoService {
    */
   static async getInteractionStatus(videoId: string): Promise<VideoInteractionStatusResponse> {
     try {
+      if (!(await this.hasValidSession())) {
+        return {
+          success: true,
+          data: null,
+        };
+      }
+
       const response = await apiClient.get<{
         success: boolean;
         data: {
@@ -362,8 +391,10 @@ export class VideoService {
   /**
    * 格式化视频时长 (秒转为 MM:SS 格式)
    */
-  static formatDuration(seconds: number): string {
-    if (!seconds || seconds < 0) return '00:00';
+  static formatDuration(seconds?: number | null): string {
+    if (typeof seconds !== 'number' || Number.isNaN(seconds) || seconds < 0) {
+      return '00:00';
+    }
 
     const hours = Math.floor(seconds / 3600);
     const minutes = Math.floor((seconds % 3600) / 60);
@@ -417,7 +448,7 @@ export class VideoService {
    * 检查视频是否支持HLS流播放
    */
   static supportsHLS(video: VideoItem): boolean {
-    return !!(video.hls_url || video.video_qualities?.length > 0);
+    return Boolean(video.hls_url || (video.video_qualities?.length ?? 0) > 0);
   }
 
   /**

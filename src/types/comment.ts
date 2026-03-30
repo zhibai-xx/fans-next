@@ -3,6 +3,7 @@ export type CommentSortOption = 'hot' | 'latest';
 export interface VideoCommentAuthor {
   uuid: string;
   username: string;
+  nickname?: string | null;
   avatar_url?: string | null;
 }
 

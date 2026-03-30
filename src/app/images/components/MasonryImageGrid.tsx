@@ -13,6 +13,7 @@ import { InteractionService } from '@/services/interaction.service';
 import type { MediaInteractionStatus } from '@/types/interaction';
 import { requestMediaDownload } from '@/lib/utils/media-download';
 import { UserAvatar } from '@/components/avatar/UserAvatar';
+import { handleApiError } from '@/lib/utils/error-handler';
 
 // 图片URL规范化函数
 const normalizeImageUrl = (imageUrl: string): string => {
@@ -231,7 +232,7 @@ const OptimizedImageCard: React.FC<ImageCardProps> = ({
       console.error('下载失败:', error);
       toast({
         title: '下载失败',
-        description: '图片下载失败，请重试',
+        description: handleApiError(error, '图片下载失败，请重试'),
         variant: 'destructive',
       });
     }
@@ -437,32 +438,6 @@ export const MasonryImageGrid: React.FC<MasonryImageGridProps> = ({
   onInteractionChange
 }) => {
   const observerRef = useRef<HTMLDivElement>(null);
-  const [columns, setColumns] = useState(3);
-
-  // 响应式列数计算
-  const calculateColumns = useCallback(() => {
-    if (fixedColumns) {
-      setColumns(fixedColumns);
-      return;
-    }
-
-    const width = window.innerWidth;
-    if (width >= 1536) setColumns(6);       // 2xl
-    else if (width >= 1280) setColumns(5);  // xl
-    else if (width >= 1024) setColumns(4);  // lg
-    else if (width >= 768) setColumns(3);   // md
-    else if (width >= 640) setColumns(2);   // sm
-    else setColumns(1);                     // base
-  }, [fixedColumns]);
-
-  // 监听窗口大小变化
-  useEffect(() => {
-    calculateColumns();
-
-    const handleResize = () => calculateColumns();
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
-  }, [calculateColumns]);
 
   // 无限滚动
   useEffect(() => {
@@ -490,9 +465,13 @@ export const MasonryImageGrid: React.FC<MasonryImageGridProps> = ({
     <div className="w-full">
       {/* CSS Column 瀑布流容器 */}
       <div
-        className="w-full"
+        className={
+          fixedColumns
+            ? 'w-full'
+            : 'w-full columns-1 gap-4 sm:columns-2 md:columns-3 lg:columns-4 xl:columns-5 2xl:columns-6'
+        }
         style={{
-          columnCount: columns,
+          columnCount: fixedColumns,
           columnGap: `${gap}px`,
           columnFill: 'balance'
         }}

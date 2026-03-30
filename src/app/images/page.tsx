@@ -3,6 +3,7 @@
 import React, { useState, useCallback, useMemo, useRef, useEffect } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { ImageUploadButton } from '@/components/ImageUploadButton';
+import { useAuth } from '@/hooks/useAuth';
 
 import { ImageSearchBar } from './components/ImageSearchBar';
 import { MasonryImageGrid } from './components/MasonryImageGrid';
@@ -23,6 +24,10 @@ import {
 import { useIntersectionObserverLegacy } from '@/hooks/useIntersectionObserver';
 import { queryClient } from '@/lib/query-client';
 import { getViewSessionId } from '@/lib/view-session';
+import {
+    AUTH_REQUIRED_DESCRIPTION,
+    AUTH_REQUIRED_TITLE,
+} from '@/lib/utils/error-handler';
 
 const SOURCE_GROUP_OPTIONS = [
     {
@@ -39,6 +44,7 @@ const SOURCE_GROUP_OPTIONS = [
 
 export default function ImagesPage() {
     const { toast } = useToast();
+    const { isAuthenticated } = useAuth();
 
     // 本地UI状态
     const [searchQuery, setSearchQuery] = useState('');
@@ -91,8 +97,29 @@ export default function ImagesPage() {
 
     // 批量获取互动状态
     useEffect(() => {
+        const buildDefaultStatuses = () => {
+            const defaultStatuses: Record<string, MediaInteractionStatus> = {};
+            for (const image of images) {
+                defaultStatuses[image.id] = {
+                    is_liked: false,
+                    is_favorited: false,
+                    likes_count: image.likes_count || 0,
+                    favorites_count: image.favorites_count || 0,
+                };
+            }
+            setInteractionStatuses(defaultStatuses);
+        };
+
         const loadInteractionStatuses = async () => {
-            if (images.length === 0) return;
+            if (images.length === 0) {
+                setInteractionStatuses({});
+                return;
+            }
+
+            if (!isAuthenticated) {
+                buildDefaultStatuses();
+                return;
+            }
 
             const mediaIds = images.map(image => image.id);
 
@@ -121,22 +148,12 @@ export default function ImagesPage() {
                 }
             } catch (error) {
                 console.error('批量获取互动状态失败:', error);
-                // 如果批量获取失败，设置默认状态
-                const defaultStatuses: Record<string, MediaInteractionStatus> = {};
-                for (const image of images) {
-                    defaultStatuses[image.id] = {
-                        is_liked: false,
-                        is_favorited: false,
-                        likes_count: image.likes_count || 0,
-                        favorites_count: image.favorites_count || 0,
-                    };
-                }
-                setInteractionStatuses(defaultStatuses);
+                buildDefaultStatuses();
             }
         };
 
         loadInteractionStatuses();
-    }, [images]);
+    }, [images, isAuthenticated]);
 
     // 处理互动状态更新的回调
     const handleInteractionChange = useCallback((mediaId: string, newStatus: MediaInteractionStatus) => {
@@ -256,33 +273,93 @@ export default function ImagesPage() {
 
     // 点赞处理
     const handleLike = useCallback((mediaId: string, isLiked: boolean) => {
-        likeImageMutation.mutate({ mediaId, isLiked });
+        if (!isAuthenticated) {
+            toast({
+                title: AUTH_REQUIRED_TITLE,
+                description: AUTH_REQUIRED_DESCRIPTION,
+                variant: 'destructive',
+            });
+            return;
+        }
+
+        const previousStatus = interactionStatuses[mediaId] || {
+            is_liked: isLiked,
+            is_favorited: false,
+            likes_count: images.find((item) => item.id === mediaId)?.likes_count || 0,
+            favorites_count: images.find((item) => item.id === mediaId)?.favorites_count || 0,
+        };
 
         // 乐观更新本地状态
+        const optimisticStatus: MediaInteractionStatus = {
+            ...previousStatus,
+            is_liked: !isLiked,
+            likes_count: isLiked
+                ? Math.max(0, previousStatus.likes_count - 1)
+                : previousStatus.likes_count + 1,
+        };
+
         setInteractionStatuses(prev => ({
             ...prev,
-            [mediaId]: {
-                ...prev[mediaId],
-                is_liked: !isLiked,
-                likes_count: isLiked ? (prev[mediaId]?.likes_count || 0) - 1 : (prev[mediaId]?.likes_count || 0) + 1,
-            }
+            [mediaId]: optimisticStatus,
         }));
-    }, [likeImageMutation]);
+
+        likeImageMutation.mutate(
+            { mediaId, isLiked },
+            {
+                onError: () => {
+                    setInteractionStatuses(prev => ({
+                        ...prev,
+                        [mediaId]: previousStatus,
+                    }));
+                },
+            }
+        );
+    }, [images, interactionStatuses, isAuthenticated, likeImageMutation, toast]);
 
     // 收藏处理
     const handleFavorite = useCallback((mediaId: string, isFavorited: boolean) => {
-        favoriteImageMutation.mutate({ mediaId, isFavorited });
+        if (!isAuthenticated) {
+            toast({
+                title: AUTH_REQUIRED_TITLE,
+                description: AUTH_REQUIRED_DESCRIPTION,
+                variant: 'destructive',
+            });
+            return;
+        }
+
+        const previousStatus = interactionStatuses[mediaId] || {
+            is_liked: false,
+            is_favorited: isFavorited,
+            likes_count: images.find((item) => item.id === mediaId)?.likes_count || 0,
+            favorites_count: images.find((item) => item.id === mediaId)?.favorites_count || 0,
+        };
 
         // 乐观更新本地状态
+        const optimisticStatus: MediaInteractionStatus = {
+            ...previousStatus,
+            is_favorited: !isFavorited,
+            favorites_count: isFavorited
+                ? Math.max(0, previousStatus.favorites_count - 1)
+                : previousStatus.favorites_count + 1,
+        };
+
         setInteractionStatuses(prev => ({
             ...prev,
-            [mediaId]: {
-                ...prev[mediaId],
-                is_favorited: !isFavorited,
-                favorites_count: isFavorited ? (prev[mediaId]?.favorites_count || 0) - 1 : (prev[mediaId]?.favorites_count || 0) + 1,
-            }
+            [mediaId]: optimisticStatus,
         }));
-    }, [favoriteImageMutation]);
+
+        favoriteImageMutation.mutate(
+            { mediaId, isFavorited },
+            {
+                onError: () => {
+                    setInteractionStatuses(prev => ({
+                        ...prev,
+                        [mediaId]: previousStatus,
+                    }));
+                },
+            }
+        );
+    }, [favoriteImageMutation, images, interactionStatuses, isAuthenticated, toast]);
 
     // 上传完成处理
     const handleUploadComplete = useCallback((mediaIds: string[]) => {

@@ -38,6 +38,11 @@ export interface SystemIngestUploadResult {
   error?: string;
 }
 
+export interface SystemIngestUserFilesResponse {
+  files: SystemIngestFile[];
+  total: number;
+}
+
 type BatchUploadFile =
   | string
   | {
@@ -118,7 +123,11 @@ export class SystemIngestService {
     return result;
   }
 
-  static async getUserFiles(userId?: string, page?: number, limit?: number) {
+  static async getUserFiles(
+    userId?: string,
+    page?: number,
+    limit?: number,
+  ): Promise<SystemIngestUserFilesResponse> {
     void userId;
     void page;
     void limit;

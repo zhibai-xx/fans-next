@@ -1,6 +1,7 @@
-import { useSession } from 'next-auth/react';
-import { useCallback, useEffect } from 'react';
-import { useAuthStore, type User } from '@/store/auth.store';
+import { signOut, useSession } from 'next-auth/react';
+import { useCallback, useEffect, useRef } from 'react';
+import { useAuthStore } from '@/store/auth.store';
+import { mapSessionUserToStoreUser } from '@/lib/auth/user-mappers';
 
 /**
  * 同步NextAuth状态到Zustand Store的Hook
@@ -9,51 +10,24 @@ import { useAuthStore, type User } from '@/store/auth.store';
 export function useAuthSync() {
   const { data: session, status } = useSession();
   const { setUser, setLoading } = useAuthStore();
+  const hasHandledExpiredSession = useRef(false);
 
-  const mapSessionUserToStoreUser = useCallback((sessionUser: Record<string, unknown>): User => {
-    const rawId = sessionUser.id;
-    const parsedId =
-      typeof rawId === 'number'
-        ? rawId
-        : typeof rawId === 'string'
-        ? Number(rawId)
-        : 0;
-
-    const role = sessionUser.role === 'ADMIN' ? 'ADMIN' : 'USER';
-    const statusValue = sessionUser.status === 'SUSPENDED' ? 'SUSPENDED' : 'ACTIVE';
-    const uuid = typeof sessionUser.uuid === 'string' ? sessionUser.uuid : '';
-    const username = typeof sessionUser.username === 'string' ? sessionUser.username : '';
-    const email = typeof sessionUser.email === 'string' ? sessionUser.email : '';
-    const nickname = typeof sessionUser.nickname === 'string' ? sessionUser.nickname : undefined;
-    const avatarUrl =
-      typeof sessionUser.avatar_url === 'string'
-        ? sessionUser.avatar_url
-        : typeof sessionUser.image === 'string'
-        ? sessionUser.image
-        : undefined;
-
-    const createdAt =
-      typeof sessionUser.created_at === 'string'
-        ? sessionUser.created_at
-        : new Date().toISOString();
-
-    const updatedAt =
-      typeof sessionUser.updated_at === 'string'
-        ? sessionUser.updated_at
-        : new Date().toISOString();
-
-    return {
-      id: Number.isNaN(parsedId) ? 0 : parsedId,
-      uuid,
-      username,
-      email,
-      role,
-      status: statusValue,
-      avatar_url: avatarUrl,
-      nickname,
-      created_at: createdAt,
-      updated_at: updatedAt,
-    };
+  const isJwtExpired = useCallback((token: string): boolean => {
+    try {
+      const payload = token.split('.')[1];
+      if (!payload) {
+        return false;
+      }
+      const normalizedPayload = payload.replace(/-/g, '+').replace(/_/g, '/');
+      const decodedPayload = atob(normalizedPayload);
+      const parsedPayload = JSON.parse(decodedPayload) as { exp?: number };
+      if (!parsedPayload.exp) {
+        return false;
+      }
+      return parsedPayload.exp * 1000 <= Date.now();
+    } catch {
+      return false;
+    }
   }, []);
 
   useEffect(() => {
@@ -61,12 +35,50 @@ export function useAuthSync() {
     setLoading(status === 'loading');
 
     // 同步用户数据
-    if (status === 'authenticated' && session?.user) {
+    if (status === 'authenticated' && session?.accessToken) {
+      if (isJwtExpired(session.accessToken)) {
+        setUser(null);
+        if (!hasHandledExpiredSession.current) {
+          hasHandledExpiredSession.current = true;
+          void signOut({ redirect: false }).finally(() => {
+            if (typeof window !== 'undefined') {
+              window.dispatchEvent(
+                new CustomEvent('auth:expired', {
+                  detail: { message: '登录凭证已过期，请重新登录' },
+                })
+              );
+            }
+          });
+        }
+        return;
+      }
+
+      hasHandledExpiredSession.current = false;
       setUser(mapSessionUserToStoreUser(session.user as Record<string, unknown>));
+    } else if (status === 'authenticated' && !session?.accessToken) {
+      setUser(null);
+      if (!hasHandledExpiredSession.current) {
+        hasHandledExpiredSession.current = true;
+        void signOut({ redirect: false }).finally(() => {
+          if (typeof window !== 'undefined') {
+            window.dispatchEvent(
+              new CustomEvent('auth:expired', {
+                detail: {
+                  message:
+                    session?.authError === 'REFRESH_ACCESS_TOKEN_ERROR'
+                      ? '登录状态已失效，请重新登录'
+                      : '当前会话不可用，请重新登录',
+                },
+              })
+            );
+          }
+        });
+      }
     } else if (status === 'unauthenticated') {
       setUser(null);
+      hasHandledExpiredSession.current = false;
     }
-  }, [session, status, setUser, setLoading, mapSessionUserToStoreUser]);
+  }, [session, status, setUser, setLoading, isJwtExpired]);
 
   return { session, status };
 }

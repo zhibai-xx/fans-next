@@ -1,12 +1,12 @@
 'use client'
 
-import { useMemo } from 'react'
+import { Suspense, useMemo } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { SearchBar } from '../components/SearchBar'
 import { ModernVideoGrid } from '../components/ModernVideoGrid'
 import { useSearchVideos } from '@/hooks/useVideos'
 
-export default function SearchPage() {
+function SearchPageContent() {
   const searchParams = useSearchParams()
   const query = searchParams.get('q')?.trim() || ''
 
@@ -52,5 +52,13 @@ export default function SearchPage() {
         </>
       )}
     </div>
+  )
+}
+
+export default function SearchPage() {
+  return (
+    <Suspense fallback={null}>
+      <SearchPageContent />
+    </Suspense>
   )
 }

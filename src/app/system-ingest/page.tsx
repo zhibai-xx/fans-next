@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Label } from '@/components/ui/label';
+import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import { Spinner } from '@/components/Spinner';
@@ -21,6 +22,11 @@ import {
   usePreviewFileMutation,
   systemIngestQueryUtils
 } from '@/hooks/queries/useSystemIngest';
+import {
+  availableSystemIngestTypes,
+  isVideoFeatureEnabled,
+  type AvailableSystemIngestType,
+} from '@/lib/features';
 
 // 分页配置
 const ITEMS_PER_PAGE = 20;
@@ -39,7 +45,7 @@ const PaginationInfo = React.memo<{
 PaginationInfo.displayName = 'PaginationInfo';
 
 export default function SystemIngestPage() {
-  const { user } = useAuth();
+  const { user, isLoading } = useAuth();
   const router = useRouter();
   const { toast } = useToast();
 
@@ -51,8 +57,9 @@ export default function SystemIngestPage() {
     current?: string;
   }>({ completed: 0, total: 0 });
   const [currentPage, setCurrentPage] = useState(0);
-  const [filterType, setFilterType] = useState<'all' | 'image' | 'video' | 'gif'>('all');
+  const [filterType, setFilterType] = useState<AvailableSystemIngestType>('all');
   const [filterUser, setFilterUser] = useState<string>('all');
+  const [scanPath, setScanPath] = useState('');
 
   // 使用TanStack Query hooks
   const {
@@ -60,7 +67,7 @@ export default function SystemIngestPage() {
     isLoading: isScanning,
     refetch: refetchScan,
     error: scanError
-  } = useScanSystemIngestFiles();
+  } = useScanSystemIngestFiles(scanPath);
 
   // Mutation hooks
   const batchUploadMutation = useBatchUploadMutation();
@@ -70,11 +77,14 @@ export default function SystemIngestPage() {
 
   // 用户认证检查
   React.useEffect(() => {
-    if (!user) {
-      router.push('/login');
+    if (isLoading) {
       return;
     }
-  }, [user, router]);
+
+    if (!user) {
+      router.push('/login');
+    }
+  }, [isLoading, user, router]);
 
   // 获取所有文件的扁平列表
   const allFiles = useMemo(() => {
@@ -83,6 +93,9 @@ export default function SystemIngestPage() {
     const files: (SystemIngestFile & { userId: string })[] = [];
     scanResult.users.forEach(user => {
       user.files.forEach(file => {
+        if (!isVideoFeatureEnabled && file.type === 'video') {
+          return;
+        }
         files.push({ ...file, userId: user.userId });
       });
     });
@@ -114,6 +127,7 @@ export default function SystemIngestPage() {
   }, [filteredFiles, currentPage]);
 
   const totalPages = Math.ceil(filteredFiles.length / ITEMS_PER_PAGE);
+  const visibleTotalFiles = allFiles.length;
 
   // 扫描文件
   const handleScan = useCallback(async () => {
@@ -122,7 +136,13 @@ export default function SystemIngestPage() {
       if (result.error) {
         throw result.error;
       }
-      const totalFiles = result.data?.totalFiles ?? 0;
+      const totalFiles =
+        result.data?.users.reduce((count, user) => {
+          const visibleFiles = user.files.filter((file) =>
+            isVideoFeatureEnabled ? true : file.type !== 'video',
+          );
+          return count + visibleFiles.length;
+        }, 0) ?? 0;
       toast({
         title: '扫描完成',
         description: `发现 ${totalFiles} 个文件`,
@@ -213,7 +233,7 @@ export default function SystemIngestPage() {
     systemIngestQueryUtils.invalidateAll(queryClient);
   }, []);
 
-  if (!user) {
+  if (isLoading || !user) {
     return null; // 重定向处理中
   }
 
@@ -227,7 +247,9 @@ export default function SystemIngestPage() {
               系统导入
             </h1>
             <p className="text-gray-600">
-              扫描并导入系统渠道采集的图片和视频文件
+              {isVideoFeatureEnabled
+                ? '扫描并导入系统渠道采集的图片和视频文件'
+                : '扫描并导入系统渠道采集的图片文件'}
             </p>
           </div>
           <div className="flex items-center space-x-4">
@@ -251,6 +273,25 @@ export default function SystemIngestPage() {
           </div>
         </div>
 
+        <Card className="mb-6">
+          <CardContent className="pt-6">
+            <div className="space-y-2">
+              <Label htmlFor="scan-path" className="text-sm font-medium text-gray-700">
+                扫描路径
+              </Label>
+              <Input
+                id="scan-path"
+                value={scanPath}
+                onChange={(event) => setScanPath(event.target.value)}
+                placeholder="留空使用默认目录，也可以填写绝对路径"
+              />
+              <p className="text-sm text-gray-500">
+                支持填写绝对路径，例如外部采集脚本输出目录。切换路径后会生成独立扫描结果缓存。
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+
         {/* 扫描错误提示 */}
         {scanError && (
           <Card className="mb-6 border-red-200 bg-red-50">
@@ -273,7 +314,7 @@ export default function SystemIngestPage() {
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-sm font-medium text-gray-600">总文件数</p>
-                    <p className="text-2xl font-bold text-blue-600">{scanResult.totalFiles}</p>
+                    <p className="text-2xl font-bold text-blue-600">{visibleTotalFiles}</p>
                   </div>
                   <div className="p-3 bg-blue-100 rounded-full">
                     <svg className="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -333,16 +374,23 @@ export default function SystemIngestPage() {
                     </Label>
                     <Select
                       value={filterType}
-                      onValueChange={(value: 'all' | 'image' | 'video' | 'gif') => setFilterType(value)}
+                      onValueChange={(value: AvailableSystemIngestType) => setFilterType(value)}
                     >
                       <SelectTrigger className="w-32">
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="all">全部</SelectItem>
-                        <SelectItem value="image">图片</SelectItem>
-                        <SelectItem value="video">视频</SelectItem>
-                        <SelectItem value="gif">GIF</SelectItem>
+                        {availableSystemIngestTypes.map((type) => (
+                          <SelectItem key={type} value={type}>
+                            {type === 'all'
+                              ? '全部'
+                              : type === 'image'
+                                ? '图片'
+                                : type === 'video'
+                                  ? '视频'
+                                  : 'GIF'}
+                          </SelectItem>
+                        ))}
                       </SelectContent>
                     </Select>
                   </div>

@@ -20,7 +20,12 @@ if (typeof window !== 'undefined' && !window.videojs) {
 const isDev = process.env.NODE_ENV !== 'production';
 
 type PlayerWithControlBar = videojs.Player & {
-  controlBar?: videojs.ControlBar;
+  el: () => Element | null | undefined;
+  controlBar?: {
+    getChild: (name: string) => unknown;
+    removeChild: (child: unknown) => void;
+    el: () => Element | null | undefined;
+  };
 };
 
 type ExtendedPlayerOptions = videojs.PlayerOptions & Record<string, unknown>;
@@ -48,7 +53,15 @@ const getSourceSignature = (sources: VideoSource[]): string => {
   );
 };
 
-type PlayerError = videojs.PlayerError | Error | { message?: string } | null;
+type PlayerError =
+  | {
+      code?: number;
+      message?: string;
+      status?: number;
+    }
+  | Error
+  | { message?: string }
+  | null;
 
 export interface RobustVideoPlayerProps {
   /** 视频源 - 支持单个URL或多个源 */
@@ -411,19 +424,19 @@ export default function RobustVideoPlayer({
 
         player = videojs(videoRef.current, options);
         playerRef.current = player;
+        const playerInstance = player as PlayerWithControlBar;
 
         const sources = latestSourcesRef.current;
         if (sources.length > 0) {
-          player.src(sources);
+          playerInstance.src(sources);
           lastSourceSignatureRef.current = getSourceSignature(sources);
         } else {
           lastSourceSignatureRef.current = '';
         }
 
-        player.ready(() => {
+        playerInstance.ready(() => {
           setIsLoading(false);
 
-          const playerInstance = player as PlayerWithControlBar;
           const playerElement = playerInstance.el();
           if (playerElement instanceof HTMLElement) {
             playerElement.style.width = '';
@@ -514,14 +527,14 @@ export default function RobustVideoPlayer({
             }
           }, 3000);
 
-          populateQualityMenu(player);
+          populateQualityMenu(playerInstance);
 
-          onReadyRef.current?.(player);
+          onReadyRef.current?.(playerInstance);
         });
 
-        player.on('play', () => {
+        playerInstance.on('play', () => {
           onPlayStateChangeRef.current?.(true);
-          const element = player.el();
+          const element = playerInstance.el();
           if (element instanceof HTMLElement) {
             const bigPlayButton = element.querySelector<HTMLElement>('.vjs-big-play-button');
             if (bigPlayButton) {
@@ -530,9 +543,9 @@ export default function RobustVideoPlayer({
           }
         });
 
-        player.on('pause', () => {
+        playerInstance.on('pause', () => {
           onPlayStateChangeRef.current?.(false);
-          const element = player.el();
+          const element = playerInstance.el();
           if (element instanceof HTMLElement) {
             const bigPlayButton = element.querySelector<HTMLElement>('.vjs-big-play-button');
             if (bigPlayButton) {
@@ -541,16 +554,16 @@ export default function RobustVideoPlayer({
           }
         });
 
-        player.on('timeupdate', () => {
-          const currentTime = player.currentTime();
-          const duration = player.duration();
+        playerInstance.on('timeupdate', () => {
+          const currentTime = playerInstance.currentTime();
+          const duration = playerInstance.duration();
           if (duration && !isNaN(duration)) {
             onProgressRef.current?.(currentTime, duration);
           }
         });
 
-        player.on('error', () => {
-          const playerError = player.error();
+        playerInstance.on('error', () => {
+          const playerError = playerInstance.error();
           console.error('❌ RobustVideoPlayer 播放错误:', playerError);
           setHasError(true);
           setErrorMessage('视频加载失败，请检查网络连接或视频源');

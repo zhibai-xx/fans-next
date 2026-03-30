@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import AdvancedUploadModal from './upload/AdvancedUploadModal';
 import { Button } from '@/components/ui/button';
+import { isVideoFeatureEnabled } from '@/lib/features';
 
 interface VideoUploadButtonProps {
   onUploadComplete?: (mediaIds: string[]) => void;
@@ -10,6 +11,10 @@ export const VideoUploadButton: React.FC<VideoUploadButtonProps> = ({
   onUploadComplete,
 }) => {
   const [isModalOpen, setIsModalOpen] = useState(false);
+
+  if (!isVideoFeatureEnabled) {
+    return null;
+  }
 
   return (
     <>

@@ -1,6 +1,6 @@
 import { QueryClient, type DefaultOptions, type QueryKey } from '@tanstack/react-query';
 
-type QueryFilters = Record<string, unknown>;
+type QueryFilters = object;
 type RecycleListParams = {
   page?: number;
   limit?: number;
@@ -12,13 +12,6 @@ const STALE_TIME_MAP: Record<string, number> = {
   media: 2 * 60 * 1000,
   interactions: 30 * 1000,
   stats: 5 * 60 * 1000,
-};
-
-const GC_TIME_MAP: Record<string, number> = {
-  user: 60 * 60 * 1000,
-  media: 10 * 60 * 1000,
-  interactions: 5 * 60 * 1000,
-  stats: 30 * 60 * 1000,
 };
 
 const getPrimaryKey = (queryKey: QueryKey): string => {
@@ -42,7 +35,7 @@ const isClientError = (error: unknown): boolean => {
 const defaultOptions: DefaultOptions = {
   queries: {
     staleTime: ({ queryKey }) => resolveCacheTime(queryKey, STALE_TIME_MAP, 60 * 1000),
-    gcTime: ({ queryKey }) => resolveCacheTime(queryKey, GC_TIME_MAP, 10 * 60 * 1000),
+    gcTime: 10 * 60 * 1000,
     retry: (failureCount, error) => {
       if (isClientError(error)) {
         return false;
@@ -96,6 +89,17 @@ export const queryKeys = {
     activities: () => ['dashboard', 'activities'] as const,
     systemStatus: () => ['dashboard', 'system-status'] as const,
   },
+  logs: {
+    all: ['logs'] as const,
+    operations: (filters?: QueryFilters, page?: number, limit?: number) =>
+      ['logs', 'operations', filters ?? null, page ?? null, limit ?? null] as const,
+    operationStats: (days: number = 30) => ['logs', 'operations', 'stats', days] as const,
+    logins: (filters?: QueryFilters, page?: number, limit?: number) =>
+      ['logs', 'logins', filters ?? null, page ?? null, limit ?? null] as const,
+    loginStats: (days: number = 30) => ['logs', 'logins', 'stats', days] as const,
+    userActivity: (page?: number, limit?: number, days?: number) =>
+      ['logs', 'user-activity', page ?? null, limit ?? null, days ?? null] as const,
+  },
   // 标签和分类
   tags: {
     all: ['tags'] as const,
@@ -142,6 +146,7 @@ export const queryUtils = {
   invalidateMedia: () => queryClient.invalidateQueries({ queryKey: queryKeys.media.all }),
   invalidateRecycle: () => queryClient.invalidateQueries({ queryKey: queryKeys.recycle.all }),
   invalidateDashboard: () => queryClient.invalidateQueries({ queryKey: queryKeys.dashboard.all }),
+  invalidateLogs: () => queryClient.invalidateQueries({ queryKey: queryKeys.logs.all }),
   invalidateTags: () => queryClient.invalidateQueries({ queryKey: queryKeys.tags.all }),
   invalidateCategories: () => queryClient.invalidateQueries({ queryKey: queryKeys.categories.all }),
   invalidateUploads: () => queryClient.invalidateQueries({ queryKey: queryKeys.uploads.all }),

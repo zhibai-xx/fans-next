@@ -27,6 +27,7 @@ export interface AuthResponse {
     updated_at: string;
   };
   access_token: string;
+  refresh_token: string;
 }
 
 /**
@@ -50,8 +51,12 @@ export const authService = {
   /**
    * 刷新令牌
    */
-  refreshToken: () => {
-    return apiClient.post<{ access_token: string }>('/users/refresh-token');
+  refreshToken: (refreshToken: string) => {
+    return apiClient.post<{ access_token: string; refresh_token: string }>(
+      '/users/refresh-token',
+      { refresh_token: refreshToken },
+      { withAuth: false }
+    );
   },
 
   /**
@@ -70,5 +75,9 @@ export const authService = {
       { token, password },
       { withAuth: false }
     );
-  }
+  },
+
+  logout: () => {
+    return apiClient.post<{ success: boolean; message: string }>('/users/logout');
+  },
 }; 
