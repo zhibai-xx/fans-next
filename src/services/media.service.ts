@@ -117,13 +117,9 @@ export class MediaService {
       if (filters.sortOrder) queryParams.set('sortOrder', filters.sortOrder);
       if (filters.sourceGroup) queryParams.set('sourceGroup', filters.sourceGroup);
 
-      console.log('正在获取媒体列表:', queryParams.toString());
-
       const response = await apiClient.get<MediaListResponse>(`/media?${queryParams.toString()}`, {
         withAuth: false // 媒体列表可以不需要认证
       });
-
-      console.log('获取媒体列表成功:', response);
       return response;
     } catch (error) {
       console.error('获取媒体列表失败:', error);
@@ -154,7 +150,6 @@ export class MediaService {
       const response = await apiClient.get<{ tags: MediaTag[] }>('/media/tags', {
         withAuth: false
       });
-      console.log('获取标签成功:', response);
       return response;
     } catch (error) {
       console.error('获取标签失败:', error);
@@ -171,7 +166,6 @@ export class MediaService {
       const response = await apiClient.get<{ categories: MediaCategory[] }>('/media/categories', {
         withAuth: false
       });
-      console.log('获取分类成功:', response);
       return response;
     } catch (error) {
       console.error('获取分类失败:', error);

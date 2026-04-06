@@ -121,15 +121,9 @@ export class ReviewService {
       tag_ids?: string[];
     }
   ): Promise<MediaItem> {
-    console.log('📝 ReviewService.updateMediaInfo 发送请求:');
-    console.log('   媒体ID:', mediaId);
-    console.log('   更新数据:', data);
-
     const response = await apiClient.patch<MediaItem>(`/media/${mediaId}/info`, data, {
       withAuth: true,
     });
-
-    console.log('📝 ReviewService.updateMediaInfo 收到响应:', response);
     return response;
   }
 
@@ -142,8 +136,6 @@ export class ReviewService {
     description?: string;
     media_count: number;
   }>> {
-    console.log('📂 ReviewService.getAllCategories 发送请求');
-
     const response = await apiClient.get<{
       categories: Array<{
         id: string;
@@ -155,7 +147,6 @@ export class ReviewService {
       withAuth: true,
     });
 
-    console.log('📂 ReviewService.getAllCategories 收到响应:', response);
     return response.categories;
   }
 
@@ -168,8 +159,6 @@ export class ReviewService {
     created_at: string;
     usage_count: number;
   }>> {
-    console.log('🏷️ ReviewService.getAllTags 发送请求');
-
     const response = await apiClient.get<{
       tags: Array<{
         id: string;
@@ -181,7 +170,6 @@ export class ReviewService {
       withAuth: true,
     });
 
-    console.log('🏷️ ReviewService.getAllTags 收到响应:', response);
     return response.tags;
   }
 
@@ -189,28 +177,20 @@ export class ReviewService {
    * 删除单个媒体
    */
   static async deleteMedia(mediaId: string): Promise<void> {
-    console.log('🗑️ ReviewService.deleteMedia 发送请求:', mediaId);
-
     await apiClient.delete(`/admin/media/${mediaId}`, {
       withAuth: true,
     });
-
-    console.log('🗑️ ReviewService.deleteMedia 删除成功');
   }
 
   /**
    * 批量删除媒体
    */
   static async batchDeleteMedia(mediaIds: string[]): Promise<BatchOperationResult> {
-    console.log('🗑️ ReviewService.batchDeleteMedia 发送请求:', mediaIds);
-
     const response = await apiClient.post<BatchOperationResult>(
       '/admin/media/batch/delete',
       { mediaIds },
       { withAuth: true }
     );
-
-    console.log('🗑️ ReviewService.batchDeleteMedia 删除成功:', response);
     return response;
   }
 }

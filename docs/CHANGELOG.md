@@ -1,4 +1,12 @@
-﻿# 2026-03-17
+﻿# 2026-03-31
+- 清理前端生产调试噪声：移除 `media/review/system-ingest/auth` 链路中的高频 `console.log` 调试输出，降低上线后的浏览器控制台噪音
+- 备案通过前补齐站点 SEO 基础设施：新增统一站点配置 `src/lib/seo/site.ts`，集中管理站点名称、描述、关键词与公开路由
+- 根布局 metadata 更新为当前图片站口径，移除旧的“视频/社区”描述，统一 Open Graph / Twitter 基础信息
+- 新增 `src/app/robots.ts` 与 `src/app/sitemap.ts`，备案通过后可直接向搜索引擎提交站点地图
+- 图片页新增独立 metadata：`src/app/images/layout.tsx`，为图片主入口提供更明确的标题、描述与 canonical
+- 接口契约变更：否
+
+# 2026-03-17
 - 上线前部署收口：`next.config.ts` 的后端代理目标改为 `BACKEND_INTERNAL_ORIGIN` 环境变量，不再写死 `localhost:3000`，便于云上反向代理或容器内网部署
 - 新增前端容器化文件：`Dockerfile` 与 `.dockerignore`，可直接构建生产镜像并以 `3001` 端口启动
 - 新增前端环境变量模板项 `NEXT_PUBLIC_ENABLE_VIDEO_FEATURE`，与本轮视频首发关闭策略保持一致

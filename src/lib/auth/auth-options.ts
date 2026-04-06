@@ -191,8 +191,6 @@ export const authOptions: NextAuthOptions = {
         session.accessTokenExpiresAt = token.accessTokenExpiresAt;
         session.authError = token.authError;
 
-        console.log('Session 回调中的 token:', token);
-        console.log('Session 回调中的 session:', session);
       }
 
       return session;

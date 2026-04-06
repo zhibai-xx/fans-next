@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
-import Head from 'next/head';
 import type { CSSProperties } from 'react';
 import { AuthProvider } from "@/components/providers/auth-provider";
 import { QueryProvider } from "@/components/providers/query-provider";
@@ -9,6 +8,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { RootLayoutClient } from "./components/RootLayoutClient";
 import { colorThemes } from '@/theme/color-themes';
 import { getThemeCssVars } from '@/theme/theme-css-vars';
+import { siteConfig } from '@/lib/seo/site';
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -21,13 +21,31 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  metadataBase: new URL(
-    process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3001',
-  ),
-  title: "张婧仪粉丝站 | 最新动态",
-  description: "汇聚偶像图片、视频和粉丝互动社区",
+  metadataBase: new URL(siteConfig.url),
+  title: {
+    default: siteConfig.title,
+    template: '%s | Enjoy Corner',
+  },
+  applicationName: siteConfig.name,
+  description: siteConfig.description,
+  keywords: siteConfig.keywords,
+  alternates: {
+    canonical: '/',
+  },
   openGraph: {
-    images: ["/og-images/zjy.jpeg"], // 社交媒体预览图
+    type: 'website',
+    locale: 'zh_CN',
+    siteName: siteConfig.name,
+    title: siteConfig.title,
+    description: siteConfig.description,
+    url: siteConfig.url,
+    images: ["/og-images/zjy.jpeg"],
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: siteConfig.title,
+    description: siteConfig.description,
+    images: ['/og-images/zjy.jpeg'],
   },
 };
 
@@ -42,13 +60,6 @@ export default function RootLayout({
 
   return (
     <html lang="zh-CN" style={themeStyle} data-color-theme={activeTheme.id}>
-      <Head>
-        <link
-          rel="preload"
-          href="/styles/globals.css"
-          as="style"
-        />
-      </Head>
       <body className={`${geistSans.variable} ${geistMono.variable}`}>
         <QueryProvider>
           <AuthProvider>

@@ -99,17 +99,12 @@ export const SystemIngestFileCard: React.FC<SystemIngestFileCardProps> = ({
 
             const apiUrl = `${API_BASE_URL}/upload/system-ingest/preview/${file.id}`;
 
-            console.log('正在获取图片预览:', apiUrl);
-            console.log('认证令牌:', session.accessToken ? '已提供' : '未提供');
-
             const response = await fetch(apiUrl, {
               headers: {
                 Authorization: `Bearer ${session.accessToken}`,
               },
               signal: abortController.signal,
             });
-
-            console.log('图片预览响应状态:', response.status);
 
             if (response.ok) {
               const blob = await response.blob();
@@ -120,7 +115,6 @@ export const SystemIngestFileCard: React.FC<SystemIngestFileCardProps> = ({
               }
 
               const blobUrl = URL.createObjectURL(blob);
-              console.log('图片预览成功，blob URL:', blobUrl);
               setImageUrl(blobUrl);
             } else {
               if (response.status === 429) {
@@ -136,7 +130,7 @@ export const SystemIngestFileCard: React.FC<SystemIngestFileCardProps> = ({
 
         } catch (error) {
           if (isAbortError(error)) {
-            console.log('图片预览请求已取消');
+            return;
           } else {
             console.error('Error fetching image:', error);
             setImageError(true);
