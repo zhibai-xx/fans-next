@@ -12,7 +12,7 @@ export default function Home() {
 
   return (
     <div className="max-w-7xl mx-auto px-6 py-6">
-      <h1 className="text-4xl font-bold mb-8">张婧仪图片站</h1>
+      <h1 className="text-2xl font-semibold text-gray-900 mb-6">首页</h1>
       
       <section className="mb-16">
         <h2 className="text-2xl font-semibold mb-4">热门工具</h2>
@@ -20,7 +20,7 @@ export default function Home() {
           <FeatureCard 
             title="精选照片" 
             description="浏览张婧仪高清精选照片，按时间或项目分类整理" 
-            image="/assets/zjy.jpeg"
+            image="/assets/zjy3.png"
             link="/images"
             bgColor="bg-amber-50"
             isPriority={true}
