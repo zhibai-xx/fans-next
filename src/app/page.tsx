@@ -1,15 +1,18 @@
 import Image from "next/image";
 import Link from "next/link";
-import { isVideoFeatureEnabled } from "@/lib/features";
+import { isSupportModuleEnabled, isVideoFeatureEnabled } from "@/lib/features";
 
 export default function Home() {
-  const gridClassName = isVideoFeatureEnabled
-    ? 'grid grid-cols-1 md:grid-cols-3 gap-6'
-    : 'grid grid-cols-1 md:grid-cols-2 gap-6';
+  const featureCardCount =
+    1 + (isVideoFeatureEnabled ? 1 : 0) + (isSupportModuleEnabled ? 1 : 0);
+  const gridClassName =
+    featureCardCount >= 3
+      ? 'grid grid-cols-1 md:grid-cols-3 gap-6'
+      : 'grid grid-cols-1 md:grid-cols-2 gap-6';
 
   return (
-    <div className="max-w-7xl mx-auto">
-      <h1 className="text-4xl font-bold mb-8">张婧仪粉丝社区</h1>
+    <div className="max-w-7xl mx-auto px-6 py-6">
+      <h1 className="text-4xl font-bold mb-8">张婧仪图片站</h1>
       
       <section className="mb-16">
         <h2 className="text-2xl font-semibold mb-4">热门工具</h2>
@@ -31,13 +34,15 @@ export default function Home() {
               bgColor="bg-blue-50"
             />
           ) : null}
-          <FeatureCard 
-            title="支持我们" 
-            description="了解如何在不涉及交易的前提下，自愿支持站点运营" 
-            image="/assets/zjy.jpeg"
-            link="/shop"
-            bgColor="bg-green-50" 
-          />
+          {isSupportModuleEnabled ? (
+            <FeatureCard 
+              title="支持我们" 
+              description="了解如何在不涉及交易的前提下，自愿支持站点运营" 
+              image="/assets/zjy.jpeg"
+              link="/shop"
+              bgColor="bg-green-50" 
+            />
+          ) : null}
         </div>
       </section>
     </div>

@@ -7,7 +7,7 @@ import { AuthNavButtons } from '@/components/auth-nav-buttons';
 import { colorThemes } from '@/theme/color-themes';
 import { applyColorTheme } from '@/theme/apply-color-theme';
 import { useEffect } from 'react';
-import { isVideoFeatureEnabled } from '@/lib/features';
+import { isSupportModuleEnabled, isVideoFeatureEnabled } from '@/lib/features';
 
 interface RootLayoutClientProps {
   children: React.ReactNode;
@@ -27,9 +27,9 @@ const NAV_LINKS = isVideoFeatureEnabled
     ]
   : PRIMARY_LINKS;
 
-const SECONDARY_LINKS = [
-  { href: '/shop', icon: '/icons/support.svg', label: '支持我们' },
-];
+const SECONDARY_LINKS = isSupportModuleEnabled
+  ? [{ href: '/shop', icon: '/icons/support.svg', label: '支持我们' }]
+  : [];
 
 export function RootLayoutClient({ children }: RootLayoutClientProps) {
   const pathname = usePathname();
@@ -93,8 +93,8 @@ export function RootLayoutClient({ children }: RootLayoutClientProps) {
             JOY
           </div>
           <div>
-            <p className="text-sm font-semibold">JOY 粉丝社区</p>
-            <p className="text-xs" style={{ color: 'var(--theme-text-muted)' }}>JOY Fans Hub</p>
+            <p className="text-sm font-semibold">JOY 图片站</p>
+            <p className="text-xs" style={{ color: 'var(--theme-text-muted)' }}>JOY Image Archive</p>
           </div>
         </Link>
 
@@ -115,20 +115,22 @@ export function RootLayoutClient({ children }: RootLayoutClientProps) {
             />
           ))}
 
-          <div className="pt-4">
-            <p className="text-[10px] uppercase tracking-[0.2em] mb-2" style={{ color: 'var(--theme-text-muted)' }}>
-              特色
-            </p>
-            {SECONDARY_LINKS.map((link) => (
-              <NavItem
-                key={link.href}
-                href={link.href}
-                icon={link.icon}
-                label={link.label}
-                isActive={pathname.startsWith(link.href)}
-              />
-            ))}
-          </div>
+          {SECONDARY_LINKS.length > 0 ? (
+            <div className="pt-4">
+              <p className="text-[10px] uppercase tracking-[0.2em] mb-2" style={{ color: 'var(--theme-text-muted)' }}>
+                特色
+              </p>
+              {SECONDARY_LINKS.map((link) => (
+                <NavItem
+                  key={link.href}
+                  href={link.href}
+                  icon={link.icon}
+                  label={link.label}
+                  isActive={pathname.startsWith(link.href)}
+                />
+              ))}
+            </div>
+          ) : null}
         </div>
 
         <div className="mt-auto pt-4 border-t" style={{ borderColor: 'var(--theme-border)' }}>

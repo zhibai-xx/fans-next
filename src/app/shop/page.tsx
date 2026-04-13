@@ -1,5 +1,7 @@
 import Image from "next/image";
+import { notFound } from "next/navigation";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { isSupportModuleEnabled } from "@/lib/features";
 
 const CONTACT_INFO = [
   {
@@ -40,6 +42,10 @@ const DONATE_TIPS = [
 ];
 
 export default function SupportPage() {
+  if (!isSupportModuleEnabled) {
+    notFound();
+  }
+
   return (
     <div className="max-w-6xl mx-auto py-12 px-6 space-y-8">
       <header className="space-y-3">
