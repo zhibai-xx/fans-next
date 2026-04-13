@@ -13,6 +13,9 @@ interface RootLayoutClientProps {
   children: React.ReactNode;
 }
 
+const ICP_RECORD_NUMBER = '京ICP备2026016561号';
+const MIIT_RECORD_URL = 'https://beian.miit.gov.cn/';
+
 const PRIMARY_LINKS = [
   { href: '/', icon: '/icons/fire.svg', label: '首页' },
   { href: '/images', icon: '/icons/images.svg', label: '图片' },
@@ -140,8 +143,27 @@ export function RootLayoutClient({ children }: RootLayoutClientProps) {
 
       {/* 右侧内容区 - 添加最小宽度和边界保护 */}
       <main className="flex-1 ml-[245px] min-w-0 relative z-10">
-        <div className="w-full h-full">
+        <div className="w-full min-h-screen flex flex-col">
           {children}
+          <footer
+            className="mt-auto px-6 py-6 text-sm"
+            style={{ color: 'var(--theme-text-muted)' }}
+          >
+            <div className="max-w-7xl mx-auto flex flex-col gap-2 border-t pt-4 md:flex-row md:items-center md:justify-between" style={{ borderColor: 'var(--theme-border)' }}>
+              <p>Enjoy Corner 张婧仪图片站</p>
+              <div className="flex flex-col gap-1 md:items-end">
+                <a
+                  href={MIIT_RECORD_URL}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="hover:underline"
+                >
+                  {ICP_RECORD_NUMBER}
+                </a>
+                <p>公安联网备案办理中</p>
+              </div>
+            </div>
+          </footer>
         </div>
       </main>
     </div>
