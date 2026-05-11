@@ -12,36 +12,7 @@ import { requestMediaDownload } from '@/lib/utils/media-download';
 import { useToast } from '@/hooks/use-toast';
 import { UserAvatar } from '@/components/avatar/UserAvatar';
 import { handleApiError } from '@/lib/utils/error-handler';
-
-// 图片URL规范化函数
-const normalizeImageUrl = (imageUrl: string): string => {
-  if (!imageUrl) return '';
-
-  // 如果已经是完整URL，直接返回
-  if (imageUrl.startsWith('http://') || imageUrl.startsWith('https://')) {
-    return imageUrl;
-  }
-
-  // 如果已经是绝对路径，直接返回
-  if (imageUrl.startsWith('/')) {
-    return imageUrl;
-  }
-
-  // 处理相对路径，特别是收藏API返回的 "uploads/image/xxx.jpg" 格式
-  if (imageUrl.startsWith('uploads/')) {
-    // 将 "uploads/image/xxx.jpg" 转换为 "http://localhost:3000/api/upload/file/image/xxx.jpg"
-    const filename = imageUrl.split('/').pop(); // 提取文件名
-    const mediaType = imageUrl.includes('/image/') ? 'image' : 'video';
-    return `http://localhost:3000/api/upload/file/${mediaType}/${filename}`;
-  }
-
-  // 其他相对路径
-  if (imageUrl.trim()) {
-    return `/${imageUrl}`;
-  }
-
-  return '';
-};
+import { resolveMediaImageUrl } from '@/lib/utils/media-url';
 
 interface ImageDetailModalProps {
   image: MediaItem | null;
@@ -71,7 +42,7 @@ export const ImageDetailModal: React.FC<ImageDetailModalProps> = ({
   const [loadedImageSrc, setLoadedImageSrc] = useState<string | null>(null);
   const { toast } = useToast();
 
-  const imageSrc = image ? normalizeImageUrl(image.url) : '';
+  const imageSrc = image ? resolveMediaImageUrl(image.url) : '';
   const imageLoaded = loadedImageSrc === imageSrc;
 
   if (!image) return null;

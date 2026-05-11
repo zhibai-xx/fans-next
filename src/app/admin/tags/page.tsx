@@ -103,6 +103,11 @@ function TagManagement() {
       setIsCreateDialogOpen(false);
       setEditingTag(null);
       setFormData({ name: '' });
+      if (!editingTag) {
+        setSearchTerm('');
+        setSourceFilter('ALL');
+        setStatusFilter('ALL');
+      }
     } catch (error) {
       console.error('保存标签失败:', error);
     }
@@ -307,6 +312,14 @@ function TagManagement() {
               <TagIcon className="w-12 h-12 mx-auto mb-4 text-gray-300" />
               <p>暂无标签数据</p>
               <p className="text-sm">点击&quot;创建标签&quot;按钮开始添加标签</p>
+            </div>
+          ) : filteredTags.length === 0 ? (
+            <div className="text-center py-8 text-gray-500">
+              <TagIcon className="w-12 h-12 mx-auto mb-4 text-gray-300" />
+              <p>没有匹配当前条件的标签</p>
+              <p className="text-sm">
+                请清空搜索词，或切换来源/状态筛选后重试
+              </p>
             </div>
           ) : (
             <div className="space-y-2">

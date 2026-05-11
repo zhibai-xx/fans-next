@@ -14,25 +14,7 @@ import type { MediaInteractionStatus } from '@/types/interaction';
 import { requestMediaDownload } from '@/lib/utils/media-download';
 import { UserAvatar } from '@/components/avatar/UserAvatar';
 import { handleApiError } from '@/lib/utils/error-handler';
-
-// 图片URL规范化函数
-const normalizeImageUrl = (imageUrl: string): string => {
-  if (!imageUrl) return '';
-
-  if (imageUrl.startsWith('http://') || imageUrl.startsWith('https://')) {
-    return imageUrl;
-  }
-
-  if (imageUrl.startsWith('/')) {
-    return imageUrl;
-  }
-
-  if (imageUrl.trim()) {
-    return `/${imageUrl}`;
-  }
-
-  return '';
-};
+import { resolveMediaImageUrl } from '@/lib/utils/media-url';
 
 interface MasonryImageGridProps {
   images: MediaItem[];
@@ -251,7 +233,7 @@ const OptimizedImageCard: React.FC<ImageCardProps> = ({
           <div className="relative bg-gray-100 dark:bg-gray-700">
             {!imageFailed && (
               <Image
-                src={normalizeImageUrl(image.thumbnail_url || image.url)}
+                src={resolveMediaImageUrl(image.thumbnail_url || image.url)}
                 alt={image.title}
                 width={image.width || 400}
                 height={image.height || 600}

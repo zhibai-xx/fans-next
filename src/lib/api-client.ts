@@ -36,6 +36,31 @@ const AUTH_EXPIRED_MESSAGE_KEYWORDS = [
   '请重新登录',
 ];
 
+const isRecord = (value: unknown): value is Record<string, unknown> => {
+  return typeof value === 'object' && value !== null;
+};
+
+const getBusinessErrorMessage = (
+  data: unknown,
+  fallback: string,
+): string => {
+  if (!isRecord(data)) {
+    return fallback;
+  }
+
+  const message = data.message;
+  if (typeof message === 'string' && message.trim()) {
+    return message;
+  }
+
+  const error = data.error;
+  if (typeof error === 'string' && error.trim()) {
+    return error;
+  }
+
+  return fallback;
+};
+
 export class ApiClient {
   private baseUrl: string;
   private isHandlingAuthExpired = false;
@@ -178,6 +203,16 @@ export class ApiClient {
       throw new ApiError(response.status, errorMessage, errorPayload);
     }
 
+    if (isRecord(data) && data.success === false) {
+      const errorMessage = getBusinessErrorMessage(data, '操作失败');
+
+      if (this.isSessionExpiredError(response.status, errorMessage)) {
+        await this.handleSessionExpired(errorMessage);
+      }
+
+      throw new ApiError(response.status, errorMessage, data);
+    }
+
     return data as T;
   }
 
@@ -207,6 +242,7 @@ export class ApiClient {
       const config: RequestInit = {
         method,
         credentials: 'include', // 允许携带 Cookie 和认证头
+        cache: 'no-store',
         ...options?.customConfig,
         // 确保 headers 不被 customConfig 覆盖
         headers: {

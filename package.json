@@ -9,7 +9,8 @@
     "lint": "eslint . --max-warnings=0",
     "typecheck": "tsc --noEmit -p tsconfig.typecheck.json",
     "check": "npm run lint && npm run typecheck && npm run build",
-    "test:e2e:smoke": "node tests/e2e/auth-system-ingest.smoke.mjs"
+    "test:e2e:smoke": "node tests/e2e/auth-system-ingest.smoke.mjs",
+    "test:e2e:prod-auth-upload": "node tests/e2e/prod-auth-upload.smoke.mjs"
   },
   "dependencies": {
     "@headlessui/react": "^2.2.4",

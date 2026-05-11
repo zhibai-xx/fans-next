@@ -20,6 +20,40 @@ const getErrorDescription = (error: unknown, fallback: string): string => {
   return handleApiError(error, fallback);
 };
 
+const ADMIN_LIST_QUERY_OPTIONS = {
+  staleTime: 0,
+  gcTime: 1000 * 60 * 2,
+  refetchOnMount: 'always' as const,
+  refetchOnWindowFocus: true,
+};
+
+const refreshTags = async (queryClient: QueryClient) => {
+  await Promise.all([
+    queryClient.invalidateQueries({ queryKey: tagsQueryKeys.all }),
+    queryClient.refetchQueries({ queryKey: tagsQueryKeys.all, type: 'active' }),
+  ]);
+};
+
+const refreshCategories = async (queryClient: QueryClient) => {
+  await Promise.all([
+    queryClient.invalidateQueries({ queryKey: categoriesQueryKeys.all }),
+    queryClient.refetchQueries({
+      queryKey: categoriesQueryKeys.all,
+      type: 'active',
+    }),
+  ]);
+};
+
+const refreshStats = async (queryClient: QueryClient) => {
+  await Promise.all([
+    queryClient.invalidateQueries({ queryKey: tagsQueryKeys.stats() }),
+    queryClient.refetchQueries({
+      queryKey: tagsQueryKeys.stats(),
+      type: 'active',
+    }),
+  ]);
+};
+
 // ========================================
 // 标签相关 Queries
 // ========================================
@@ -35,8 +69,7 @@ export const useTags = (search?: string) => {
       }
       return response.data ?? [];
     },
-    staleTime: 1000 * 60 * 5, // 5分钟
-    gcTime: 1000 * 60 * 10, // 10分钟
+    ...ADMIN_LIST_QUERY_OPTIONS,
   });
 };
 
@@ -71,8 +104,7 @@ export const useCategories = (search?: string) => {
       }
       return response.data ?? [];
     },
-    staleTime: 1000 * 60 * 5, // 5分钟
-    gcTime: 1000 * 60 * 10, // 10分钟
+    ...ADMIN_LIST_QUERY_OPTIONS,
   });
 };
 
@@ -89,15 +121,13 @@ export const useCreateTagMutation = () => {
     mutationFn: async (name: string) => {
       return AdminTagsService.createTag({ name });
     },
-    onSuccess: () => {
+    onSuccess: async () => {
       toast({
         title: '创建成功',
         description: '标签已成功创建',
       });
 
-      // 使相关查询失效
-      queryClient.invalidateQueries({ queryKey: tagsQueryKeys.all });
-      queryClient.invalidateQueries({ queryKey: tagsQueryKeys.stats() });
+      await Promise.all([refreshTags(queryClient), refreshStats(queryClient)]);
     },
     onError: (error) => {
       toast({
@@ -118,14 +148,13 @@ export const useUpdateTagMutation = () => {
     mutationFn: async ({ id, name }: { id: string; name: string }) => {
       return AdminTagsService.updateTag(id, { name });
     },
-    onSuccess: () => {
+    onSuccess: async () => {
       toast({
         title: '更新成功',
         description: '标签已成功更新',
       });
 
-      // 使相关查询失效
-      queryClient.invalidateQueries({ queryKey: tagsQueryKeys.all });
+      await refreshTags(queryClient);
     },
     onError: (error) => {
       toast({
@@ -146,15 +175,13 @@ export const useDeleteTagMutation = () => {
     mutationFn: async (id: string) => {
       return AdminTagsService.deleteTag(id);
     },
-    onSuccess: () => {
+    onSuccess: async () => {
       toast({
         title: '下线成功',
         description: '标签已成功下线',
       });
 
-      // 使相关查询失效
-      queryClient.invalidateQueries({ queryKey: tagsQueryKeys.all });
-      queryClient.invalidateQueries({ queryKey: tagsQueryKeys.stats() });
+      await Promise.all([refreshTags(queryClient), refreshStats(queryClient)]);
     },
     onError: (error) => {
       toast({
@@ -179,15 +206,13 @@ export const useBatchDeleteTagsMutation = () => {
       }
       return response;
     },
-    onSuccess: (_, ids) => {
+    onSuccess: async (_, ids) => {
       toast({
         title: '批量下线成功',
         description: `已成功下线 ${ids.length} 个标签`,
       });
 
-      // 使相关查询失效
-      queryClient.invalidateQueries({ queryKey: tagsQueryKeys.all });
-      queryClient.invalidateQueries({ queryKey: tagsQueryKeys.stats() });
+      await Promise.all([refreshTags(queryClient), refreshStats(queryClient)]);
     },
     onError: (error) => {
       toast({
@@ -212,13 +237,12 @@ export const useUpdateTagStatusMutation = () => {
       }
       return response;
     },
-    onSuccess: (_, variables) => {
+    onSuccess: async (_, variables) => {
       toast({
         title: variables.status === 'ACTIVE' ? '上线成功' : '下线成功',
         description: variables.status === 'ACTIVE' ? '标签已上线' : '标签已下线',
       });
-      queryClient.invalidateQueries({ queryKey: tagsQueryKeys.all });
-      queryClient.invalidateQueries({ queryKey: tagsQueryKeys.stats() });
+      await Promise.all([refreshTags(queryClient), refreshStats(queryClient)]);
     },
     onError: (error) => {
       toast({
@@ -243,15 +267,16 @@ export const useCreateCategoryMutation = () => {
     mutationFn: async ({ name, description }: { name: string; description?: string }) => {
       return AdminTagsService.createCategory({ name, description });
     },
-    onSuccess: () => {
+    onSuccess: async () => {
       toast({
         title: '创建成功',
         description: '分类已成功创建',
       });
 
-      // 使相关查询失效
-      queryClient.invalidateQueries({ queryKey: categoriesQueryKeys.all });
-      queryClient.invalidateQueries({ queryKey: tagsQueryKeys.stats() });
+      await Promise.all([
+        refreshCategories(queryClient),
+        refreshStats(queryClient),
+      ]);
     },
     onError: (error) => {
       toast({
@@ -272,14 +297,13 @@ export const useUpdateCategoryMutation = () => {
     mutationFn: async ({ id, name, description }: { id: string; name: string; description?: string }) => {
       return AdminTagsService.updateCategory(id, { name, description });
     },
-    onSuccess: () => {
+    onSuccess: async () => {
       toast({
         title: '更新成功',
         description: '分类已成功更新',
       });
 
-      // 使相关查询失效
-      queryClient.invalidateQueries({ queryKey: categoriesQueryKeys.all });
+      await refreshCategories(queryClient);
     },
     onError: (error) => {
       toast({
@@ -300,15 +324,16 @@ export const useDeleteCategoryMutation = () => {
     mutationFn: async (id: string) => {
       return AdminTagsService.deleteCategory(id);
     },
-    onSuccess: () => {
+    onSuccess: async () => {
       toast({
         title: '删除成功',
         description: '分类已成功删除',
       });
 
-      // 使相关查询失效
-      queryClient.invalidateQueries({ queryKey: categoriesQueryKeys.all });
-      queryClient.invalidateQueries({ queryKey: tagsQueryKeys.stats() });
+      await Promise.all([
+        refreshCategories(queryClient),
+        refreshStats(queryClient),
+      ]);
     },
     onError: (error) => {
       toast({
@@ -333,15 +358,16 @@ export const useBatchDeleteCategoriesMutation = () => {
       }
       return response;
     },
-    onSuccess: (_, ids) => {
+    onSuccess: async (_, ids) => {
       toast({
         title: '批量删除成功',
         description: `已成功删除 ${ids.length} 个分类`,
       });
 
-      // 使相关查询失效
-      queryClient.invalidateQueries({ queryKey: categoriesQueryKeys.all });
-      queryClient.invalidateQueries({ queryKey: tagsQueryKeys.stats() });
+      await Promise.all([
+        refreshCategories(queryClient),
+        refreshStats(queryClient),
+      ]);
     },
     onError: (error) => {
       toast({

@@ -28,6 +28,7 @@ import { buildVideoSources } from '@/lib/utils/video-sources';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { useAuth } from '@/hooks/useAuth';
 import { isVideoFeatureEnabled } from '@/lib/features';
+import { resolveMediaImageUrl } from '@/lib/utils/media-url';
 
 type FavoritesFilterType = 'all' | 'IMAGE' | 'VIDEO';
 type FavoritesSortKey = 'created_at' | 'likes' | 'views';
@@ -43,36 +44,6 @@ type FavoriteApiItem = Omit<FavoriteItem, 'media'> & {
   media: FavoriteItem['media'] & {
     media_tags?: FavoriteApiMediaTag[] | null;
   };
-};
-
-// 图片URL规范化函数
-const normalizeImageUrl = (imageUrl: string): string => {
-  if (!imageUrl) return '';
-
-  // 如果已经是完整URL，直接返回
-  if (imageUrl.startsWith('http://') || imageUrl.startsWith('https://')) {
-    return imageUrl;
-  }
-
-  // 如果已经是绝对路径，直接返回
-  if (imageUrl.startsWith('/')) {
-    return imageUrl;
-  }
-
-  // 处理相对路径，特别是收藏API返回的 "uploads/image/xxx.jpg" 格式
-  if (imageUrl.startsWith('uploads/')) {
-    // 将 "uploads/image/xxx.jpg" 转换为 "http://localhost:3000/api/upload/file/image/xxx.jpg"
-    const filename = imageUrl.split('/').pop(); // 提取文件名
-    const mediaType = imageUrl.includes('/image/') ? 'image' : 'video';
-    return `http://localhost:3000/api/upload/file/${mediaType}/${filename}`;
-  }
-
-  // 其他相对路径
-  if (imageUrl.trim()) {
-    return `/${imageUrl}`;
-  }
-
-  return '';
 };
 
 /**
@@ -311,8 +282,8 @@ export const MyFavorites: React.FC<MyFavoritesProps> = ({
       url:
         media.media_type === 'VIDEO'
           ? media.url
-          : normalizeImageUrl(media.url),
-      thumbnail_url: normalizeImageUrl(media.thumbnail_url || media.url),
+          : resolveMediaImageUrl(media.url),
+      thumbnail_url: resolveMediaImageUrl(media.thumbnail_url || media.url),
       size: media.size,
       media_type: media.media_type,
       duration: media.duration,
@@ -511,7 +482,9 @@ export const MyFavorites: React.FC<MyFavoritesProps> = ({
    */
   const renderFavoriteItem = (item: FavoriteItem) => {
     const { media } = item;
-    const resolvedThumbnail = normalizeImageUrl(media.thumbnail_url || media.url) || '/placeholder-image.svg';
+    const resolvedThumbnail =
+      resolveMediaImageUrl(media.thumbnail_url || media.url) ||
+      '/placeholder-image.svg';
 
     if (viewMode === 'list') {
       return (
@@ -702,7 +675,7 @@ export const MyFavorites: React.FC<MyFavoritesProps> = ({
   }, [previewVideo]);
 
   const previewPoster = previewVideo
-    ? normalizeImageUrl(previewVideo.thumbnail_url || previewVideo.url)
+    ? resolveMediaImageUrl(previewVideo.thumbnail_url || previewVideo.url)
     : undefined;
 
   return (
