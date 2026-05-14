@@ -14,6 +14,7 @@ interface RootLayoutClientProps {
 }
 
 const ICP_RECORD_NUMBER = '京ICP备2026016561号';
+const BJ_PUBLIC_NUMBER = '京公网安备11010502060125号'
 const MIIT_RECORD_URL = 'https://beian.miit.gov.cn/';
 
 const PRIMARY_LINKS = [
@@ -160,7 +161,7 @@ export function RootLayoutClient({ children }: RootLayoutClientProps) {
                 >
                   {ICP_RECORD_NUMBER}
                 </a>
-                <p>公安联网备案办理中</p>
+                <p>{BJ_PUBLIC_NUMBER}</p>
               </div>
             </div>
           </footer>

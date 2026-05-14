@@ -9,6 +9,7 @@ import type { MediaInteractionStatus } from '@/types/interaction';
 import { useToast } from '@/hooks/use-toast';
 import { requestMediaDownload } from '@/lib/utils/media-download';
 import { handleApiError } from '@/lib/utils/error-handler';
+import { resolveMediaImageUrl } from '@/lib/utils/media-url';
 
 interface ImageCardProps {
   image: ImageItem;
@@ -190,13 +191,14 @@ export const ImageCard: React.FC<ImageCardProps> = ({
     >
       <div className="absolute inset-0">
         <Image
-          src={image.url}
+          src={resolveMediaImageUrl(image.url)}
           alt={image.title || '图片'}
           fill
           sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
           className="object-cover transition-transform duration-300 group-hover:scale-105"
           priority={priority}
           loading={priority ? 'eager' : 'lazy'}
+          unoptimized
         />
       </div>
 

@@ -245,6 +245,7 @@ const OptimizedImageCard: React.FC<ImageCardProps> = ({
                 priority={priority}
                 onLoad={() => setImageLoaded(true)}
                 onError={() => setImageFailed(true)}
+                unoptimized
                 style={{
                   maxWidth: '100%',
                   height: 'auto',

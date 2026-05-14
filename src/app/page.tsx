@@ -11,7 +11,7 @@ export default function Home() {
       : 'grid grid-cols-1 md:grid-cols-2 gap-6';
 
   return (
-    <div className="max-w-7xl mx-auto px-6 py-6">
+    <div className="max-w-7xl px-6 py-6">
       <h1 className="text-2xl font-semibold text-gray-900 mb-6">首页</h1>
       
       <section className="mb-16">

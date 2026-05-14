@@ -237,6 +237,7 @@ const GridImageCard: React.FC<GridImageCardProps> = ({
                 priority={priority}
                 onLoad={() => setImageLoaded(true)}
                 onError={() => setImageFailed(true)}
+                unoptimized
               />
             )}
 

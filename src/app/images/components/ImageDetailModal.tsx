@@ -144,6 +144,7 @@ export const ImageDetailModal: React.FC<ImageDetailModalProps> = ({
                 className={`object-contain transition-opacity duration-500 ${imageLoaded ? 'opacity-100' : 'opacity-0'
                   }`}
                 onLoad={() => setLoadedImageSrc(imageSrc)}
+                unoptimized
               />
             </div>
 

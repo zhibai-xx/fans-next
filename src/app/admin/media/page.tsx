@@ -202,6 +202,7 @@ const MediaGridItem = React.memo(({
                 onLoad={() => setImageLoaded(true)}
                 onError={() => setImageError(true)}
                 loading="lazy"
+                unoptimized
               />
             )}
             {imageError && (
@@ -227,6 +228,7 @@ const MediaGridItem = React.memo(({
                   onLoad={() => setImageLoaded(true)}
                   onError={() => setImageError(true)}
                   loading="lazy"
+                  unoptimized
                 />
                 <div className="absolute inset-0 flex items-center justify-center">
                   <div className="bg-black/50 rounded-full p-3">
@@ -537,6 +539,7 @@ const MediaEditDialog: React.FC<MediaEditDialogProps> = ({ isOpen, media, onClos
                           width={64}
                           height={64}
                           className="w-full h-full object-cover"
+                          unoptimized
                         />
                       </div>
                     ) : (
@@ -1284,6 +1287,7 @@ export default function MediaManagementPage() {
                           fill
                           className="object-contain"
                           sizes="(max-width: 768px) 100vw, 80vw"
+                          unoptimized
                         />
                       </div>
                     ) : (

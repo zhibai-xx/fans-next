@@ -71,6 +71,7 @@ const ReviewMediaCard = memo(({ media, isSelected, viewMode, onToggle, onViewDet
             onLoad={() => setThumbnailLoaded(true)}
             onError={() => setThumbnailError(true)}
             priority={false}
+            unoptimized
           />
         ) : (
           <div className="text-center text-xs text-gray-400">封面加载失败</div>
