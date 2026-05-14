@@ -7,6 +7,8 @@ FROM node:20-alpine AS builder
 WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
+ARG ENV_FILE=.env.production
+RUN if [ -f "$ENV_FILE" ]; then cp "$ENV_FILE" .env.production; fi
 RUN npm run build
 
 FROM node:20-alpine AS runner

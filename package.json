@@ -4,6 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev --turbopack -p 3001",
+    "dev:staging-api": "NEXTAUTH_URL=http://localhost:3001 NEXT_PUBLIC_SITE_URL=http://localhost:3001 NEXT_PUBLIC_API_URL=https://staging.enjoycorner.com/api BACKEND_INTERNAL_ORIGIN=https://staging.enjoycorner.com next dev --turbopack -p 3001",
     "build": "next build",
     "start": "next start -p 3001",
     "lint": "eslint . --max-warnings=0",
